@@ -60,7 +60,7 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 | D7 | **언어 범위** | **한국어 + 영어 병행**. 단 TXT-7(키워드 추출)은 한국어 표준셋 부재로 **영어 한정**. 한국어 이미지 데이터는 부재(이미지 태스크는 영어/시각 기반). |
 | D8 | **샘플 규모** | 태스크당 기본 **~50 샘플**(seed 고정). 설정으로 확장 가능. v1은 파이프라인 검증·저비용 우선. |
 | D9 | **라이선스 정책** | **연구용도 허용**까지 포함(출처·라이선스 명시). 상업 재배포 제약(KorQuAD CC-BY-ND 등)은 registry에 기록. |
-| D10 | **reasoning 정책** | **ON/OFF 둘 다 측정**해 비교. 실행 매트릭스 = 모델 × 태스크 × 샘플 × reasoning{on,off}. "OFF"는 각 모델이 지원하는 **최소 reasoning**으로 정의(opus·gemini는 완전 OFF 불가). README에 문서화(§11). |
+| D10 | **reasoning 정책** | **[개정] reasoning OFF(minimal) 단일 고정.** (원안: ON/OFF 둘 다 측정.) 개정 이유: reasoning 효과가 특정 태스크에만 한정되고 full은 실험 시간을 크게 늘림(glm full은 15s 타임아웃 빈발, 실측 160호출 중 19 오류). 실행 매트릭스 = 모델 × 태스크 × 샘플(reasoning 축 제거). "OFF"는 각 모델 지원 **최소 reasoning**(opus·gemini는 완전 OFF 불가). full 비교는 `reasoning_modes:[minimal,full]`로 복원 가능. 리포트에 정책·이유 명시. |
 | D11 | **비용·시간 리포트** | 최종 리포트에 **모델별 수행시간·USD 비용** 포함. 데이터 소스: `system.ai_gateway.usage`(권한 有) + `config/pricing.yaml` DBU 단가. `system.billing`은 권한 없음(§10). |
 | D12 | **메트릭 대체** | AUROC(IMG-4)는 chat LLM 불가 → **F1+혼동행렬**로 대체. TEDS(TXT-3)는 v1에서 **Cell-F1**로 대체(TEDS는 후속). |
 | D13 | **IMG-3/4 확정** | **still-image ungated 셋으로 확정, Phase 2에 통합**(IMG-1/2/5와 같은 이미지 이진분류 파이프라인). IMG-3=`Subh775/WeaponDetection`(CC-BY-4.0)을 **무기/위협 binary**로(서열 severity 데이터 부재 실측 확인 → binary, '무기' 측정임을 명시), **일반 취급**. IMG-4=`DarkyMan/nsfw-image-classification`(168MB, ungated), **NSFW라 D3 예외 적용**(이미지 비저장·판정값-only). 라벨은 다운로드 후 폴더명 확인. |

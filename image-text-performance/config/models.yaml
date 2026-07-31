@@ -5,8 +5,13 @@ profile: ai_devtools                    # Databricks CLI 프로파일
 
 judge: databricks-gemini-3-1-pro        # 단일 judge (텍스트+이미지 모두 채점, D6)
 
-reasoning_modes: [minimal, full]        # 둘 다 측정 (D10). minimal = 각 모델 최소 reasoning
-                                        # (opus·gemini는 완전 OFF 불가 — README 참고)
+# reasoning은 OFF(minimal) 단일 모드로 고정 (정책 변경, D10 개정).
+#   이유: (1) reasoning의 효과가 특정 태스크 성능 개선에만 한정되고,
+#         (2) full reasoning은 실험 시간을 크게 늘림(glm full은 15s 타임아웃 초과 빈발).
+#   → 실행 매트릭스를 절반으로 줄여 실용성 확보. minimal = 각 모델 최소 reasoning
+#     (opus·gemini는 완전 OFF 불가라 지원 최소값 — README 참고).
+#   full로 다시 비교하려면 [minimal, full]로 되돌리면 됨(reasoning: 정의는 유지).
+reasoning_modes: [minimal]
 
 # 호출 정책 (실측 기반, plan §11)
 runtime:

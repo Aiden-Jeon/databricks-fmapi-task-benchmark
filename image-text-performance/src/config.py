@@ -22,7 +22,7 @@ class RuntimeConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     id: str
-    endpoint: str
+    endpoint: str                                # Databricks model name (예: databricks-claude-opus-5)
     family: str                                  # claude | openai (정규화·분기 키)
     capabilities: list[str] = Field(default_factory=list)  # text, vision
     reasoning: dict[str, dict[str, Any]] = Field(default_factory=dict)  # minimal/full → 파라미터

@@ -39,38 +39,32 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 
 ---
 
-## Reasoning ON/OFF — 반드시 이해해야 하는 부분
+## Reasoning — OFF로 고정
 
-**대상 4개 모델은 전부 reasoning(사고) 모델이다.** reasoning을 켜고 끄는 것은
-정확도뿐 아니라 **수행 시간과 비용을 크게 좌우**한다. 예를 들어 `glm-5-2`는 reasoning이
-켜지면 응답을 내부 사고(`reasoning_content`)에 먼저 쏟아내며 다른 모델보다 3~5배 느려지고
-토큰(=비용)이 급증한다. 따라서 reasoning을 통제하지 않으면 모델 비교가 공정하지 않다.
+**대상 모델은 전부 reasoning(사고) 모델이지만, 이 벤치마크는 reasoning을 OFF(minimal)로 고정해 측정한다.**
 
-**이 벤치마크는 reasoning을 두 모드로 측정하고 리포트에서 나란히 비교한다:**
-
-- **`full`** — reasoning ON. 각 모델의 최대 사고 능력.
-- **`minimal`** — reasoning을 끄거나(또는 최소화) 한 상태. 빠르고 저렴한 기본 응답.
-
-실행 매트릭스 = **모델 × 태스크 × 샘플 × reasoning{minimal, full}**.
+- **이유**: (1) reasoning의 효과가 **특정 태스크의 성능 개선에만 한정**되고, (2) full reasoning은
+  **실험 시간을 크게 늘린다**. 특히 `databricks-glm-5-2`는 full reasoning 시 응답을 내부 사고
+  (`reasoning_content`)에 먼저 쏟아내며 3~5배 느려지고, 15초 타임아웃을 자주 초과한다(실측: 160호출 중 19 오류).
+- 그래서 실행 매트릭스를 **모델 × 태스크 × 샘플** (reasoning 축 제거)로 두어 실용성을 확보한다.
 
 ### 모델별 reasoning 제어 파라미터 (실측 확정)
 
-제어 방식이 계열마다 다르다. config의 `minimal`/`full` 키가 아래 실제 파라미터로 매핑된다:
+config의 `minimal` 키가 아래 실제 파라미터로 매핑된다:
 
-| 모델 | 제어 파라미터 | `minimal` | `full` |
-|------|--------------|-----------|--------|
-| sol (GPT식) | `reasoning_effort` | `none` | `high` |
-| opus-5 (Claude식) | `thinking` + `output_config.effort` | `thinking:{type: disabled}` | `thinking:{type: adaptive}` |
-| glm (GLM식) | `reasoning_effort` | `none` | 기본 |
-| gemini (judge) | `generation_config.thinking_config.thinking_level` | 최소 레벨만 | 기본 |
+| 모델 | 제어 파라미터 | `minimal` (사용) |
+|------|--------------|-----------|
+| sol (GPT식) | `reasoning_effort` | `none` |
+| opus (Claude식) | `thinking` | `thinking:{type: disabled}` |
+| glm (GLM식) | `reasoning_effort` | `none` |
+| gemini (judge) | `generation_config.thinking_config.thinking_level` | 최소 레벨만 |
 
-### 중요한 한계
-
-- **opus-5와 gemini는 reasoning을 완전히 끌 수 없다.** opus의 `effort`는 최소가 `low`(none 없음),
-  gemini는 `none`/`minimal` 레벨을 거부한다. 그래서 `minimal` 모드는 "reasoning 완전 OFF"가 아니라
-  **"각 모델이 지원하는 최소 reasoning"**으로 정의한다. 리포트도 이 정의를 명시한다.
-- config 키를 `on`/`off`가 아니라 `minimal`/`full`로 쓴다 — YAML에서 `on`/`off`는 boolean으로
-  파싱되는 예약어라 키로 쓰면 버그가 나고, 위 한계 때문에 "off"라는 말도 부정확하기 때문이다.
+- **주의**: `databricks-claude-opus-5`와 judge(`gemini`)는 reasoning을 완전히 끌 수 없다(opus effort 최소가 `low`,
+  gemini는 `none`/`minimal` 레벨 거부). 그래서 "OFF"는 **각 모델이 지원하는 최소 reasoning**으로 정의한다.
+  리포트의 "Reasoning 정책" 섹션에 이 사실이 표기된다.
+- **full reasoning으로 다시 비교하고 싶다면**: `config/models.yaml`의 `reasoning_modes:`를
+  `[minimal, full]`로 되돌리면 된다(각 모델의 `full` 파라미터 정의는 그대로 유지되어 있음). 단 실행 시간이 배로 늘고 glm 타임아웃이 발생한다.
+- config 키를 `on`/`off`가 아니라 `minimal`/`full`로 쓴다 — YAML에서 `on`/`off`는 boolean으로 파싱되는 예약어라 키로 쓰면 버그가 난다.
 
 ---
 
@@ -133,6 +127,55 @@ python -m src.runner --dry-run
 전체 run 목록은 `reports/index.md`에 생성된다.
 
 **주요 옵션:** `--models opus,sol,glm` (모델 필터) · `--reasoning-modes minimal,full` · `--samples N` (샘플 수) · `--dry-run` · `--config` / `--tasks` (설정 경로).
+
+---
+
+## 모델 추가 후 리포트 재생성
+
+새 모델을 벤치마크에 추가하는 절차:
+
+1. **`config/models.yaml`의 `models:`에 항목 추가.** `id`(별칭), `endpoint`(Databricks model name),
+   `family`(`claude` 또는 `openai` — 응답 스키마·reasoning 제어 분기), `capabilities`(`text`,
+   필요 시 `vision`), `reasoning.minimal`(OFF 파라미터)을 채운다. 예:
+
+   ```yaml
+     - id: sonnet
+       endpoint: databricks-claude-sonnet-5      # 실제 서빙 엔드포인트명
+       family: claude
+       capabilities: [text, vision]
+       reasoning:
+         minimal: {thinking: {type: disabled}}
+   ```
+
+   - 엔드포인트명·vision 지원은 `databricks serving-endpoints list --profile ai_devtools`로 확인.
+   - `config/pricing.yaml`에도 같은 endpoint의 DBU 단가를 추가해야 비용이 계산된다(없으면 비용 N/A).
+
+2. **재실행** → 새 `run-id`로 리포트 생성 (기존 run은 보존됨):
+
+   ```bash
+   python -m src.runner                       # 전체 (모든 모델·태스크)
+   python -m src.runner --samples 10          # 빠른 확인
+   ```
+
+3. 결과: `reports/<새-run-id>/report.md`(그 시점의 **전체 모델** 비교) 생성, `reports/index.md`에
+   자동 등재. 과거 run과 나란히 시점 비교 가능(§12).
+
+> 모델 제거·교체도 동일하게 `models.yaml`만 편집 후 재실행. reasoning을 다시 ON까지 비교하려면
+> `reasoning_modes: [minimal, full]`로 바꾼다(실행 시간 배증 주의).
+
+## Vibe agent 명령 prompt
+
+이 프로젝트를 Vibe(Claude Code 기반 SA 에이전트)로 다룰 때, 아래처럼 자연어로 지시하면 된다:
+
+- **모델 추가 후 재실행**:
+  > "image-text-performance 벤치마크에 `databricks-claude-sonnet-5`를 sonnet이라는 별칭으로 추가하고(vision 지원, reasoning은 off), 10샘플로 재실행해서 리포트 새로 뽑아줘."
+- **특정 모델만 비교**:
+  > "opus와 sol만 대상으로 텍스트 태스크(TXT-*)를 50샘플로 돌려서 리포트 생성해줘."
+- **결과 해석**:
+  > "가장 최근 리포트에서 한국어 태스크(TXT-4) 성능과 모델별 비용을 요약해줘."
+- **전체 대규모 실행 (주의)**:
+  > "HF_TOKEN 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플 벤치마크를 백그라운드로 돌려줘."
+  > (전체 실행은 HF rate limit·glm 지연으로 수 시간+ 걸리므로 토큰·타임아웃 조정이 필요하다.)
 
 ---
 

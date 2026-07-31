@@ -14,7 +14,8 @@ def test_load_models_config():
     # 기본 필드
     assert config.profile == "ai_devtools"
     assert config.judge == "databricks-gemini-3-1-pro"
-    assert config.reasoning_modes == ["minimal", "full"]
+    # reasoning은 OFF(minimal) 단일 고정이 기본 정책(D10 개정). full은 각 모델에 정의만 유지.
+    assert config.reasoning_modes == ["minimal"]
 
     # 모델 개수
     assert len(config.models) == 3
