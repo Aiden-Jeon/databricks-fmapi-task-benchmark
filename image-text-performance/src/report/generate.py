@@ -158,9 +158,10 @@ def _executive_summary(facts: dict[str, Any], models_cfg) -> str:
             "속도·비용 트레이드오프는 어떤지를 3~4문장 한국어 요약으로 써라. 수치를 지어내지 말 것.\n\n"
             + json.dumps(facts, ensure_ascii=False, default=str)[:3000]
         )
-        # judge(gemini)도 reasoning 모델 → 요약이 사고에 소진돼 잘리지 않도록 max_tokens 넉넉히.
-        with FMAPIClient(profile=models_cfg.profile, timeout_seconds=max(30, models_cfg.runtime.timeout_seconds)) as c:
-            resp = c.chat(models_cfg.judge, build_text_message(prompt), max_tokens=1500)
+        # judge(gemini)는 reasoning을 완전히 못 끄는 모델 → 사고 토큰에 소진돼 요약이 잘리지
+        # 않도록 max_tokens를 크게(3000) 잡는다. timeout도 넉넉히.
+        with FMAPIClient(profile=models_cfg.profile, timeout_seconds=max(60, models_cfg.runtime.timeout_seconds)) as c:
+            resp = c.chat(models_cfg.judge, build_text_message(prompt), max_tokens=3000)
         if resp.text.strip():
             return resp.text.strip() + f"\n\n<sub>규칙 기반 요약(대조용): {rule_based}</sub>"
     except Exception:

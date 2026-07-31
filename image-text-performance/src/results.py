@@ -97,10 +97,18 @@ def write_sample_results(run_dir: str | Path, results: list[SampleResult]) -> Pa
     samples_file = run_dir / "samples.jsonl"
     with open(samples_file, "w", encoding="utf-8") as f:
         for result in results:
-            line = json.dumps(asdict(result), ensure_ascii=False)
+            # set(태그셋·키프레이즈 reference 등)은 JSON 미지원 → list로 변환
+            line = json.dumps(asdict(result), ensure_ascii=False, default=_json_default)
             f.write(line + "\n")
 
     return samples_file
+
+
+def _json_default(o: Any) -> Any:
+    """JSON 직렬화 fallback: set→정렬 list, 그 외는 str."""
+    if isinstance(o, (set, frozenset)):
+        return sorted(o, key=str)
+    return str(o)
 
 
 def write_manifest(run_dir: str | Path, manifest: RunManifest) -> Path:

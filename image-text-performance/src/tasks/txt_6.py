@@ -91,7 +91,7 @@ class Txt6Task(Task):
 
         일반적으로 'sentence'(SST-2) 또는 'document'(NSMC).
         """
-        column_names = hf_ds.column_names
+        column_names = list(hf_ds[0].keys()) if hf_ds else []
 
         for col in ["sentence", "document", "text"]:
             if col in column_names:

@@ -11,20 +11,20 @@ img_caption:
 
 img_tags:
   hf_id: "detection-datasets/coco"
-  config: "objects.category"
+  config: "default"
   license: "CC-BY-4.0 (annotations)"
   commercial_ok: unknown
   languages: [en]
-  split: "validation"
+  split: "val"
   expected_sha256: null
 
 img_person:
   hf_id: "detection-datasets/coco"
-  config: "objects.category"
+  config: "default"
   license: "CC-BY-4.0 (annotations)"
   commercial_ok: unknown
   languages: [en]
-  split: "validation"
+  split: "val"
   note: "person=class 0 derived binary"
   expected_sha256: null
 
@@ -33,7 +33,7 @@ weapon:
   license: "CC-BY-4.0"
   commercial_ok: true
   languages: [en]
-  split: "default"
+  split: "validation"
   note: "Severity labels absent → binary classification (weapon/threat presence). Still-image ungated."
   expected_sha256: null
 
@@ -58,7 +58,7 @@ doc_vqa:
 
 table_struct:
   hf_id: "apoidea/pubtabnet-html"
-  config: "html_table"
+  config: "default"
   license: "CDLA-Permissive-1.0"
   commercial_ok: true
   languages: [en]
@@ -128,12 +128,12 @@ sentiment_ko:
   expected_sha256: null
 
 keyphrase:
-  hf_id: "taln-ls2n/inspec"
+  hf_id: "memray/inspec"
   license: "unknown (research-use)"
   commercial_ok: false
   languages: [en]
   split: "test"
-  note: "Korean keyphrase dataset absent (D7) — EN only."
+  note: "Parquet-based mirror of INSPEC (taln-ls2n/inspec script-based version no longer supported). Korean keyphrase dataset absent (D7) — EN only."
   expected_sha256: null
 
 toxicity_en:

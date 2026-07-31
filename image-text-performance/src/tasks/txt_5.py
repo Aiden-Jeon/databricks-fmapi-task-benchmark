@@ -141,7 +141,7 @@ class Txt5Task(Task):
 
     def _detect_article_column(self, hf_ds: Any) -> str:
         """HF 데이터셋에서 문서/기사 컬럼명을 자동 감지."""
-        column_names = hf_ds.column_names
+        column_names = list(hf_ds[0].keys()) if hf_ds else []
 
         for col in ["article", "document", "text", "content"]:
             if col in column_names:
@@ -156,7 +156,7 @@ class Txt5Task(Task):
 
     def _detect_summary_column(self, hf_ds: Any) -> str:
         """HF 데이터셋에서 요약 컬럼명을 자동 감지."""
-        column_names = hf_ds.column_names
+        column_names = list(hf_ds[0].keys()) if hf_ds else []
 
         for col in ["summary", "highlights", "summary_text", "target"]:
             if col in column_names:

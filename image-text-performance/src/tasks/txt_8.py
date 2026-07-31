@@ -96,7 +96,7 @@ class Txt8Task(Task):
         영어: 'comment_text' (Jigsaw dataset)
         한국어: 'text' (APEACH dataset)
         """
-        column_names = hf_ds.column_names
+        column_names = list(hf_ds[0].keys()) if hf_ds else []
 
         # 언어별 우선순위
         priority_cols = {
@@ -121,7 +121,7 @@ class Txt8Task(Task):
         영어: 'toxic' (Jigsaw dataset)
         한국어: 'class' (APEACH dataset)
         """
-        column_names = hf_ds.column_names
+        column_names = list(hf_ds[0].keys()) if hf_ds else []
 
         # 언어별 우선순위
         priority_cols = {
