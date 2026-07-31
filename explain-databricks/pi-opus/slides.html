@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>What is Databricks? — An Introduction to the Lakehouse Platform</title>
+<style>
+  :root{
+    --ink:#12181f;
+    --muted:#54626f;
+    --line:#e3e8ee;
+    --accent:#e8532f;
+    --accent-2:#1b6ac9;
+    --bg:#f4f6f8;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 16px 64px;
+  }
+  .deck{max-width:1060px;margin:0 auto;}
+  .slide{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:0 1px 2px rgba(18,24,31,.04),0 12px 28px rgba(18,24,31,.06);
+    padding:56px 60px 52px;
+    margin:0 0 30px;
+    min-height:560px;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    page-break-after:always;
+    break-after:page;
+  }
+  .slide::before{
+    content:"";
+    position:absolute;left:0;top:0;bottom:0;width:6px;
+    background:linear-gradient(180deg,var(--accent),#f0a03c);
+    border-radius:10px 0 0 10px;
+  }
+  .eyebrow{
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;margin:0 0 14px;
+  }
+  h1{font-size:44px;line-height:1.12;margin:0 0 18px;letter-spacing:-.02em;}
+  h2{font-size:31px;line-height:1.2;margin:0 0 10px;letter-spacing:-.015em;}
+  .sub{font-size:17px;color:var(--muted);margin:0 0 26px;max-width:62ch;}
+  ul{margin:0;padding-left:22px;}
+  li{margin:0 0 13px;font-size:17.5px;max-width:74ch;}
+  li b{font-weight:650;}
+  .rule{height:1px;background:var(--line);margin:0 0 26px;}
+  .grid{display:grid;gap:16px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  .box{
+    border:1px solid var(--line);border-radius:8px;padding:18px 20px;background:#fbfcfd;
+  }
+  .box h3{margin:0 0 8px;font-size:16px;letter-spacing:.02em;}
+  .box p{margin:0;font-size:15px;color:var(--muted);}
+  .tag{
+    display:inline-block;font-size:12.5px;font-weight:650;color:var(--accent-2);
+    background:#eaf2fc;border:1px solid #cfe0f6;border-radius:999px;padding:3px 11px;margin:0 6px 8px 0;
+  }
+  .stack{margin-top:8px;}
+  .layer{
+    border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin-bottom:10px;background:#fbfcfd;
+    display:flex;gap:16px;align-items:baseline;
+  }
+  .layer .lname{font-weight:680;font-size:16px;min-width:210px;}
+  .layer .ldesc{font-size:15px;color:var(--muted);}
+  .layer.hi{background:#fff5f1;border-color:#f6d3c6;}
+  .foot{
+    margin-top:auto;padding-top:24px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;font-size:12.5px;color:#8b97a3;letter-spacing:.04em;
+  }
+  .title-slide{justify-content:center;text-align:left;}
+  .title-slide h1{font-size:56px;}
+  .title-slide .meta{font-size:15px;color:var(--muted);margin-top:8px;}
+  .kicker{font-size:19px;color:var(--ink);font-weight:600;margin:0 0 22px;}
+  .quote{
+    border-left:3px solid var(--accent);padding:6px 0 6px 18px;margin:22px 0 0;
+    font-size:17px;color:var(--muted);
+  }
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:14.5px;background:#f1f4f7;border:1px solid var(--line);border-radius:4px;padding:1px 5px;
+  }
+  @media print{
+    body{background:#fff;padding:0;}
+    .slide{box-shadow:none;border:none;margin:0;min-height:100vh;border-radius:0;}
+  }
+  @media (max-width:760px){
+    .slide{padding:34px 26px;min-height:0;}
+    h1{font-size:32px;} .title-slide h1{font-size:36px;} h2{font-size:24px;}
+    .g2,.g3{grid-template-columns:1fr;}
+    .layer{flex-direction:column;gap:4px;} .layer .lname{min-width:0;}
+  }
+</style>
+</head>
+<body>
+<main class="deck">
+
+  <!-- 1 -->
+  <section class="slide title-slide">
+    <p class="eyebrow">An introduction for data &amp; engineering leaders</p>
+    <h1>What is Databricks?</h1>
+    <p class="sub">One platform for data engineering, analytics, and AI — built on the
+      lakehouse architecture, governed by Unity Catalog, and running on AWS, Azure, and
+      Google Cloud.</p>
+    <div>
+      <span class="tag">Lakehouse</span><span class="tag">Delta Lake</span>
+      <span class="tag">Apache Spark</span><span class="tag">Unity Catalog</span>
+      <span class="tag">Databricks SQL</span><span class="tag">Mosaic AI</span>
+      <span class="tag">Workflows</span><span class="tag">Multi-cloud</span>
+    </div>
+    <p class="meta">A concept-first tour: the problem, the building blocks, and how they fit together.</p>
+    <div class="foot"><span>Databricks 101</span><span>1 / 9</span></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <p class="eyebrow">The problem</p>
+    <h2>Two stacks, one set of data</h2>
+    <p class="sub">Most organizations ended up running a data lake <em>and</em> a data
+      warehouse side by side. Each solves half the problem — and the seam between them is
+      where cost, latency, and trust are lost.</p>
+    <div class="grid g2">
+      <div class="box">
+        <h3>Data lake (object storage)</h3>
+        <p>Cheap, open, scales to petabytes, handles any format — but no transactions, weak
+          schema guarantees, slow BI queries, and easy to turn into a "data swamp".</p>
+      </div>
+      <div class="box">
+        <h3>Data warehouse</h3>
+        <p>Fast SQL, reliable tables, mature governance — but proprietary storage, expensive
+          at scale, and unfriendly to unstructured data, streaming, and machine learning.</p>
+      </div>
+    </div>
+    <div class="quote">The usual workaround is copying data between the two, with separate
+      security models, separate tooling, and separate teams. Every copy is a chance for the
+      numbers to disagree — and for ML models to train on stale data.</div>
+    <div class="foot"><span>The problem</span><span>2 / 9</span></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <p class="eyebrow">The idea</p>
+    <h2>The lakehouse: one copy of the data, both workloads</h2>
+    <p class="sub">Databricks' answer is the <b>lakehouse architecture</b> — warehouse-grade
+      reliability, performance, and governance applied directly to open files in your own
+      cloud object storage.</p>
+    <ul>
+      <li><b>Storage stays yours and open.</b> Data lives in S3 / ADLS / GCS as Parquet files
+        with an open table format, not locked inside a vendor engine.</li>
+      <li><b>Warehouse semantics on the lake.</b> ACID transactions, schema enforcement, and
+        indexing make lake tables trustworthy enough for BI and finance reporting.</li>
+      <li><b>Every workload, one table.</b> SQL analytics, batch and streaming ETL, and
+        ML/AI training all read the same governed tables — no export, no drift.</li>
+      <li><b>One governance and security model</b> across data, files, dashboards, and models
+        instead of one per tool.</li>
+    </ul>
+    <div class="quote">Short version: <b>data lake economics + data warehouse guarantees, unified</b>.</div>
+    <div class="foot"><span>Lakehouse architecture</span><span>3 / 9</span></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <p class="eyebrow">Architecture</p>
+    <h2>The building blocks, layer by layer</h2>
+    <p class="sub">Databricks is a stack of layers you can adopt incrementally. Each layer
+      depends on the ones below it.</p>
+    <div class="stack">
+      <div class="layer"><span class="lname">Cloud object storage</span>
+        <span class="ldesc">Your AWS S3, Azure Data Lake Storage, or Google Cloud Storage — the single copy of data.</span></div>
+      <div class="layer hi"><span class="lname">Delta Lake</span>
+        <span class="ldesc">Open storage format adding ACID transactions, time travel, and schema evolution to those files.</span></div>
+      <div class="layer"><span class="lname">Apache Spark compute</span>
+        <span class="ldesc">Elastic distributed engine (plus the vectorized Photon engine) for ETL, streaming, and SQL.</span></div>
+      <div class="layer hi"><span class="lname">Unity Catalog</span>
+        <span class="ldesc">Unified governance: permissions, discovery, lineage, and auditing across all assets.</span></div>
+      <div class="layer"><span class="lname">Workloads</span>
+        <span class="ldesc">Databricks SQL &amp; BI · Workflows / Lakeflow orchestration · Notebooks · Mosaic AI (ML, LLMs, Foundation Model API).</span></div>
+    </div>
+    <div class="foot"><span>How it fits together</span><span>4 / 9</span></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <p class="eyebrow">Foundation</p>
+    <h2>Delta Lake: ACID transactions on the lake</h2>
+    <p class="sub">Delta Lake is the open table format underneath the lakehouse — Parquet data
+      files plus a transaction log that turns a directory of files into a real table.</p>
+    <ul>
+      <li><b>ACID transactions.</b> Concurrent readers and writers never see partial results;
+        a failed job leaves no half-written table.</li>
+      <li><b>Time travel &amp; audit.</b> Query or restore any earlier table version
+        (<code>VERSION AS OF</code>) for reproducibility, debugging, and rollback.</li>
+      <li><b>Schema enforcement and evolution.</b> Bad or changed data is rejected or
+        migrated deliberately, instead of silently corrupting downstream tables.</li>
+      <li><b>Batch and streaming unified.</b> The same Delta table can be a streaming sink
+        and a BI source — the basis of the bronze → silver → gold "medallion" pattern.</li>
+      <li><b>Open, not proprietary.</b> Delta Lake is a Linux Foundation project, readable by
+        many engines; UniForm also exposes tables as Apache Iceberg.</li>
+    </ul>
+    <div class="foot"><span>Delta Lake</span><span>5 / 9</span></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <p class="eyebrow">Compute &amp; analytics</p>
+    <h2>Apache Spark for scale, Databricks SQL for warehousing</h2>
+    <p class="sub">The original Databricks team created Apache Spark. Today the same platform
+      also serves as a serverless data warehouse.</p>
+    <div class="grid g2">
+      <div class="box">
+        <h3>Apache Spark — distributed compute</h3>
+        <p><b>Parallel processing</b> across a cluster of machines for terabyte-to-petabyte
+          jobs. One engine for batch ETL, Structured Streaming, and SQL, with APIs in
+          <b>Python (PySpark), SQL, Scala, R, and Java</b>. Clusters autoscale and can shut
+          down when idle, so you pay for work rather than idle servers.</p>
+      </div>
+      <div class="box">
+        <h3>Databricks SQL — data warehousing</h3>
+        <p><b>SQL warehouses</b> give analysts low-latency queries on lakehouse tables via
+          the <b>Photon</b> vectorized engine. Connect Power BI, Tableau, dbt, or JDBC/ODBC
+          tools; build dashboards and alerts in-platform. No data movement — BI reads the
+          same governed Delta tables that engineering writes.</p>
+      </div>
+    </div>
+    <div class="quote">Because storage and compute are decoupled, ETL clusters and BI
+      warehouses scale independently against a single copy of the data.</div>
+    <div class="foot"><span>Spark &amp; Databricks SQL</span><span>6 / 9</span></div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <p class="eyebrow">Governance &amp; automation</p>
+    <h2>Unity Catalog and Workflows</h2>
+    <p class="sub">Trust and repeatability: who can see what, and what runs when.</p>
+    <div class="grid g2">
+      <div class="box">
+        <h3>Unity Catalog — governance</h3>
+        <p><b>One permission model</b> for tables, views, files, dashboards, functions, and
+          ML models, expressed in standard SQL <code>GRANT</code>s over a
+          <code>catalog.schema.table</code> namespace. Adds <b>fine-grained access
+          control</b> (row filters, column masks), <b>automatic column-level lineage</b>,
+          audit logs, data discovery and search, and secure sharing outside the org via
+          Delta Sharing.</p>
+      </div>
+      <div class="box">
+        <h3>Workflows — job orchestration</h3>
+        <p><b>Native scheduler and orchestrator.</b> Define multi-task jobs as DAGs mixing
+          notebooks, SQL, Python, JARs, and pipelines; set schedules or file-arrival
+          triggers; get retries, conditional branches, alerting, and run history. Declarative
+          pipelines (DLT / Lakeflow) add data-quality expectations and incremental
+          processing — no separate orchestration cluster to run.</p>
+      </div>
+    </div>
+    <div class="quote">Lineage plus job history answers the two questions auditors always
+      ask: <b>where did this number come from</b>, and <b>who could have seen it?</b></div>
+    <div class="foot"><span>Unity Catalog &amp; Workflows</span><span>7 / 9</span></div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <p class="eyebrow">AI on the lakehouse</p>
+    <h2>Machine learning, Mosaic AI, and the Foundation Model API</h2>
+    <p class="sub">AI is not a bolt-on product: models are governed assets sitting next to the
+      data they learn from.</p>
+    <ul>
+      <li><b>Classic ML lifecycle.</b> Managed <b>MLflow</b> for experiment tracking, the
+        Unity Catalog model registry, AutoML baselines, and a Feature Store for consistent
+        training/serving features.</li>
+      <li><b>Mosaic AI</b> is the umbrella for generative AI: <b>Model Serving</b> endpoints,
+        <b>Vector Search</b> for retrieval-augmented generation (RAG), Agent Framework and
+        Evaluation for building and grading agents, and AI Gateway for rate limits, logging,
+        and guardrails.</li>
+      <li><b>Foundation Model API (FMAPI)</b> gives pay-per-token, OpenAI-compatible access
+        to hosted LLMs and embedding models — plus <b>provisioned throughput</b> for
+        production SLAs — with no GPU cluster to manage.</li>
+      <li><b>SQL-native AI.</b> Call models straight from queries with
+        <code>ai_query()</code>, <code>ai_classify()</code>, or <code>vector_search()</code>
+        to batch-summarize or classify millions of rows.</li>
+      <li><b>Governed by the same rules.</b> Prompts, responses, endpoints, and models inherit
+        Unity Catalog permissions, lineage, and audit logging.</li>
+    </ul>
+    <div class="foot"><span>Mosaic AI &amp; FMAPI</span><span>8 / 9</span></div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <p class="eyebrow">Deployment &amp; summary</p>
+    <h2>Multi-cloud by design — and what to remember</h2>
+    <p class="sub">Databricks runs as a managed service on <b>AWS, Microsoft Azure (as Azure
+      Databricks), and Google Cloud</b>. Compute runs in your cloud account next to your
+      storage; the control plane (UI, jobs, metadata) is managed by Databricks. Concepts,
+      APIs, and notebooks are portable across all three, which keeps hybrid and multi-cloud
+      estates on one skill set.</p>
+    <div class="rule"></div>
+    <div class="grid g3">
+      <div class="box"><h3>One platform</h3><p>The <b>lakehouse</b> unifies data lake and data
+        warehouse, so engineering, BI, and AI share one copy of the data.</p></div>
+      <div class="box"><h3>Open foundation</h3><p><b>Delta Lake</b> brings ACID transactions to
+        object storage; <b>Apache Spark</b> and Photon provide elastic distributed compute.</p></div>
+      <div class="box"><h3>Governed by default</h3><p><b>Unity Catalog</b> centralizes access
+        control, lineage, and auditing for data, dashboards, and models alike.</p></div>
+      <div class="box"><h3>Production-ready</h3><p><b>Databricks SQL</b> serves BI;
+        <b>Workflows</b> orchestrates jobs and declarative pipelines with retries and alerts.</p></div>
+      <div class="box"><h3>AI included</h3><p><b>Mosaic AI</b>, MLflow, and the
+        <b>Foundation Model API</b> put ML and LLMs where the governed data already lives.</p></div>
+      <div class="box"><h3>Runs where you are</h3><p><b>AWS, Azure, and GCP</b> — the same
+        architecture and APIs, deployed in your own cloud accounts.</p></div>
+    </div>
+    <div class="quote">A good first step: land raw data as Delta tables, register them in
+      Unity Catalog, schedule the pipeline with Workflows, then point Databricks SQL and
+      Mosaic AI at the same tables.</div>
+    <div class="foot"><span>Multi-cloud &amp; summary</span><span>9 / 9</span></div>
+  </section>
+
+</main>
+</body>
+</html>

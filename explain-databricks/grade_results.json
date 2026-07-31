@@ -42,6 +42,31 @@
     "note": ""
   },
   {
+    "candidate": "pi-opus",
+    "harness": "pi",
+    "model": "databricks-claude/system.ai.claude-opus-5",
+    "mode": "headless",
+    "valid": true,
+    "slide_count": 9,
+    "keywords": "8/8",
+    "console_errors": 0,
+    "external_refs": 0,
+    "wall_seconds": 147.79,
+    "auto_score": 1.0,
+    "screenshots": [
+      "slide_01.png",
+      "slide_02.png",
+      "slide_03.png",
+      "slide_04.png",
+      "slide_05.png",
+      "slide_06.png",
+      "slide_07.png",
+      "slide_08.png",
+      "slide_09.png"
+    ],
+    "note": ""
+  },
+  {
     "candidate": "sol",
     "harness": "direct-fmapi",
     "model": "databricks-gpt-5-6-sol",
