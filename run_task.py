@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-run_task.py — Drive ONE (harness x model) cell of the "explain-databricks" slide
-benchmark, keeping everything except the "produce slides.html" step byte-identical.
+run_task.py — Drive ONE candidate of a benchmark task, keeping everything except the
+"produce slides.html" step byte-identical across candidates.
 
-Mirrors the sibling agent-ml/run_agent.py, generalized from a single agent axis to
-a (harness x model) matrix, and with a `direct-fmapi` baseline harness that calls
-the Databricks Foundation Model API directly (one OpenAI-compatible chat completion).
+Layout is task-centric: outputs go to  <task>/<candidate>/  (e.g. explain-databricks/opus/).
+The candidate name (opus, sol, glm, …) is just a label for the output dir; the harness/model
+decide how slides.html is actually produced.
 
 What it does:
-  1. Creates an isolated per-cell workdir  runs/run_<harness>_<model>/
-  2. Writes an IDENTICAL instructions.txt (task brief + hard format contract) and a
-     prompt.txt (COMMON_PROMPT verbatim) — byte-identical across every harness.
+  1. Creates/rewrites the candidate dir  <task>/<candidate>/
+  2. Writes an IDENTICAL instructions.txt (copied verbatim from <task>/TASK_DESCRIPTION.md)
+     and a prompt.txt (COMMON_PROMPT verbatim) — byte-identical across every candidate.
   3. Produces ./slides.html by ONE of:
        - direct-fmapi : a single FMAPI chat completion (no agent, the raw baseline)
        - claude-code  : `claude -p` headless CLI via subprocess
@@ -21,16 +21,15 @@ What it does:
 
 This script does NOT grade. Use grade_tasks.py for that.
 
-A `--manual` mode reuses the identical workdir/prompt setup for GENUINELY UI-only
-agents (Databricks Playground, an IDE side-panel): a human is a pure "keyboard proxy"
-who pastes prompt.txt and brackets the agent-active time with two Enter presses.
+A `--manual` mode reuses the identical setup for GENUINELY UI-only agents (Databricks
+Playground, an IDE side-panel): a human is a pure "keyboard proxy" who pastes prompt.txt
+and brackets the agent-active time with two Enter presses.
 
 Usage:
-  python run_task.py --harness direct-fmapi --model databricks-claude-sonnet-4-6
-  python run_task.py --harness claude-code
-  python run_task.py --harness codex --max-seconds 1200
-  python run_task.py --harness omnigent --model databricks-claude-sonnet-4-6 --omnigent-inner claude
-  python run_task.py --harness playground --model databricks-claude-sonnet-4-6 --manual
+  python run_task.py --task explain-databricks --candidate opus --harness direct-fmapi --model databricks-claude-opus-4-1
+  python run_task.py --task explain-databricks --candidate glm  --harness direct-fmapi --model databricks-glm-...
+  python run_task.py --task explain-databricks --candidate opus --harness claude-code
+  python run_task.py --task explain-databricks --candidate sol  --harness omnigent --model databricks-... --manual
 """
 import argparse
 import json
@@ -44,32 +43,27 @@ from pathlib import Path
 
 import task_spec
 
-PROJECT_DIR = Path(__file__).resolve().parent
-
 HARNESSES = ("direct-fmapi", "claude-code", "codex", "omnigent")
 
 
-def slug(harness: str, model: str | None) -> str:
-    """Run-dir name  run_<harness>_<model>  with the model sanitized to a safe
-    filesystem token. One helper so the runner and grader agree on paths."""
-    model_tok = re.sub(r"[^A-Za-z0-9.-]+", "-", model) if model else "default"
-    return f"run_{harness}_{model_tok}"
+def candidate_dir(task: str, candidate: str) -> Path:
+    """Output dir for one candidate:  <task>/<candidate>/ ."""
+    return task_spec.task_dir(task) / candidate
 
 
-def prepare_workdir(harness: str, model: str | None, task: str) -> Path:
-    """Create runs/run_<harness>_<model>/ with instructions.txt + prompt.txt.
+def prepare_workdir(task: str, candidate: str) -> Path:
+    """Create <task>/<candidate>/ with instructions.txt + prompt.txt.
 
-    Unlike the Kaggle sibling there is no task data to copy, so this only writes the
-    two text files. Both are byte-identical across every harness (fairness rule)."""
-    workdir = PROJECT_DIR / "runs" / slug(harness, model)
+    instructions.txt is TASK_DESCRIPTION.md copied verbatim; prompt.txt is COMMON_PROMPT.
+    Both are byte-identical across every candidate (the fairness rule)."""
+    workdir = candidate_dir(task, candidate)
     if workdir.exists():
         shutil.rmtree(workdir)
     workdir.mkdir(parents=True)
 
-    instructions = task_spec.build_instructions(task)
-    (workdir / "instructions.txt").write_text(instructions, encoding="utf-8")
-    # Write COMMON_PROMPT as bytes to avoid any text-mode newline translation, so
-    # it is byte-identical to what the subprocess harnesses pass on the CLI.
+    (workdir / "instructions.txt").write_text(task_spec.load_description(task), encoding="utf-8")
+    # Write COMMON_PROMPT as bytes to avoid any text-mode newline translation, so it is
+    # byte-identical to what the subprocess harnesses pass on the CLI.
     (workdir / "prompt.txt").write_bytes(task_spec.COMMON_PROMPT.encode("utf-8"))
 
     return workdir
@@ -86,9 +80,8 @@ def build_omnigent_argv(model: str, inner_harness: str, max_turns: int) -> list[
       - cwd is the workdir; the agent writes ./slides.html
 
     Best current guess (from the omnigent docs / local CLI): an `omni run` with
-    --harness/--model overrides. FILL IN once the exact syntax is confirmed; until
-    then, run omnigent via --manual (the workdir/prompt prep is identical, so there
-    is zero code risk)."""
+    --harness/--model overrides. FILL IN once the exact syntax is confirmed; until then,
+    run omnigent via --manual (the setup is identical, so there is zero code risk)."""
     raise NotImplementedError(
         "omnigent CLI syntax not yet wired — run with --manual for now.\n"
         "Guess: ['omni','run','agent.yaml','--harness',inner_harness,'--model',model] "
@@ -109,8 +102,8 @@ def build_argv(harness: str, model: str | None, inner_harness: str,
             "--max-turns", str(max_turns),
         ]
     if harness == "codex":
-        # `codex exec` = non-interactive. Uses provider/model from ~/.codex. No
-        # native turn cap; bounded by the wall-clock timeout instead.
+        # `codex exec` = non-interactive. Uses provider/model from ~/.codex. No native
+        # turn cap; bounded by the wall-clock timeout instead.
         return [
             "codex", "exec",
             "--dangerously-bypass-approvals-and-sandbox",
@@ -123,9 +116,9 @@ def build_argv(harness: str, model: str | None, inner_harness: str,
 
 
 def extract_html(text: str) -> str:
-    """Pull a self-contained HTML document out of a chat completion that may wrap it
-    in prose or a ```html fence. Prefer the span from the first <!DOCTYPE/<html to
-    the last </html>; else strip a fenced code block; else return the text as-is."""
+    """Pull a self-contained HTML document out of a chat completion that may wrap it in
+    prose or a ```html fence. Prefer the span from the first <!DOCTYPE/<html to the last
+    </html>; else strip a fenced code block; else return the text as-is."""
     if not text:
         return ""
     lower = text.lower()
@@ -142,14 +135,15 @@ def extract_html(text: str) -> str:
     return text.strip()
 
 
-def base_meta(harness, model, task, workdir, argv, mode) -> dict:
-    """Pre-initialized meta dict — a superset of the agent-ml schema so the grader
-    can read every harness uniformly. Callers fill in the run-outcome fields."""
+def base_meta(task, candidate, harness, model, workdir, argv, mode) -> dict:
+    """Pre-initialized meta dict — a superset of the agent-ml schema so the grader can
+    read every candidate uniformly. Callers fill in the run-outcome fields."""
     return {
+        "task": task,
+        "candidate": candidate,
         "harness": harness,
         "model": model,                 # requested model (may be None)
         "effective_model": None,        # what actually ran (agents use their own)
-        "task": task,
         "workdir": str(workdir),
         "mode": mode,                   # direct-fmapi | headless | manual
         "argv": argv,
@@ -176,7 +170,7 @@ def write_meta(workdir: Path, meta: dict) -> None:
     print(f"[run_task] meta -> {workdir / 'run_meta.json'}")
 
 
-def run_direct_fmapi(harness, model, task, workdir, max_seconds) -> dict:
+def run_direct_fmapi(task, candidate, harness, model, workdir, max_seconds) -> dict:
     """The raw single-shot baseline: ONE OpenAI-compatible chat completion to FMAPI.
 
     Not apples-to-apples with the multi-turn agent harnesses (it gets one bounded
@@ -197,7 +191,7 @@ def run_direct_fmapi(harness, model, task, workdir, max_seconds) -> dict:
     instructions_text = (workdir / "instructions.txt").read_text(encoding="utf-8")
     content = task_spec.COMMON_PROMPT + "\n\n" + instructions_text
 
-    meta = base_meta(harness, model, task, workdir, None, "direct-fmapi")
+    meta = base_meta(task, candidate, harness, model, workdir, None, "direct-fmapi")
     meta["max_seconds"] = max_seconds
     meta["effective_model"] = model
 
@@ -230,12 +224,12 @@ def run_direct_fmapi(harness, model, task, workdir, max_seconds) -> dict:
     return meta
 
 
-def run_subprocess(harness, model, task, workdir, argv, max_seconds, max_turns) -> dict:
+def run_subprocess(task, candidate, harness, model, workdir, argv, max_seconds, max_turns) -> dict:
     """Headless subprocess path — factored from agent-ml/run_agent.py."""
     artifact = workdir / task_spec.ARTIFACT
     log_path = workdir / "agent_output.log"
 
-    meta = base_meta(harness, model, task, workdir, argv, "headless")
+    meta = base_meta(task, candidate, harness, model, workdir, argv, "headless")
     meta["max_seconds"] = max_seconds
     meta["max_turns"] = max_turns
 
@@ -267,13 +261,13 @@ def run_subprocess(harness, model, task, workdir, argv, max_seconds, max_turns) 
     return meta
 
 
-def run_manual(harness, model, task, workdir) -> dict:
+def run_manual(task, candidate, harness, model, workdir) -> dict:
     """Semi-automated, UI-only run: a human is only a 'keyboard proxy'.
 
     Ported from agent-ml/run_agent.py:run_manual. The prompt and instructions are
-    machine-prepared (byte-identical to headless runs); the human opens the workdir
-    in the UI agent, pastes prompt.txt, and presses Enter to START/STOP so agent-
-    active wall time is machine-bracketed. run_meta.json is ALWAYS written."""
+    machine-prepared (byte-identical to headless runs); the human opens the workdir in the
+    UI agent, pastes prompt.txt, and presses Enter to START/STOP so agent-active wall time
+    is machine-bracketed. run_meta.json is ALWAYS written."""
     artifact = workdir / task_spec.ARTIFACT
     prompt_path = workdir / "prompt.txt"
 
@@ -288,7 +282,8 @@ def run_manual(harness, model, task, workdir) -> dict:
             clipboard = False
 
     print("\n" + "=" * 72)
-    print(f"[run_task] MANUAL (UI-only) mode — harness={harness!r} model={model!r}")
+    print(f"[run_task] MANUAL (UI-only) mode — candidate={candidate!r} "
+          f"harness={harness!r} model={model!r}")
     print("You are a KEYBOARD PROXY only. Everything else is machine-controlled.")
     print("-" * 72)
     print("  1. Open your UI agent (Databricks Playground / IDE side-panel).")
@@ -303,7 +298,7 @@ def run_manual(harness, model, task, workdir) -> dict:
     print("again the moment slides.html is finished.")
     print("=" * 72)
 
-    meta = base_meta(harness, model, task, workdir, None, "manual")
+    meta = base_meta(task, candidate, harness, model, workdir, None, "manual")
     meta["effective_model"] = model
     aborted = False
 
@@ -313,9 +308,9 @@ def run_manual(harness, model, task, workdir) -> dict:
     print(f"[run_task] STARTED at {meta['started_at']}")
 
     # INVARIANT: once START has happened, run_meta.json MUST ALWAYS be written.
-    note = ("Timing is human-bracketed (semi-automated): a human pressed Enter at "
-            "agent start/stop; all setup (workdir, prompt, instructions) was "
-            "machine-prepared identically to the headless runs.")
+    note = ("Timing is human-bracketed (semi-automated): a human pressed Enter at agent "
+            "start/stop; all setup (workdir, prompt, instructions) was machine-prepared "
+            "identically to the headless runs.")
     try:
         try:
             resp = input(">>> Press Enter to STOP (when slides.html is done), "
@@ -355,7 +350,11 @@ def run_manual(harness, model, task, workdir) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="Run one (harness x model) cell of the explain-databricks slide benchmark.")
+        description="Run one candidate of a benchmark task (produces <task>/<candidate>/slides.html).")
+    ap.add_argument("--task", default=task_spec.DEFAULT_TASK,
+                    help=f"task id / directory (default: {task_spec.DEFAULT_TASK})")
+    ap.add_argument("--candidate", required=True,
+                    help="output dir name under the task (e.g. opus, sol, glm)")
     ap.add_argument("--harness", required=True,
                     help=f"one of {HARNESSES} (or any name with --manual)")
     ap.add_argument("--model", default=None,
@@ -368,27 +367,32 @@ def main() -> None:
                     help="turn cap for agents that support it (claude-code); default 40")
     ap.add_argument("--omnigent-inner", default="claude",
                     help="inner harness omnigent drives (default: claude)")
-    ap.add_argument("--task", default=task_spec.TASK_ID, help="task id (default: explain-databricks)")
     args = ap.parse_args()
 
     if not args.manual and args.harness not in HARNESSES:
         ap.error(f"argument --harness: invalid choice {args.harness!r} "
                  f"(choose from {HARNESSES}); use --manual for an arbitrary UI-only agent")
+    # direct-fmapi's model contract is enforced early (before we create the workdir).
+    if not args.manual and args.harness == "direct-fmapi":
+        if not args.model or not args.model.startswith("databricks-"):
+            ap.error("--harness direct-fmapi requires --model starting with 'databricks-'")
 
-    workdir = prepare_workdir(args.harness, args.model, args.task)
+    workdir = prepare_workdir(args.task, args.candidate)
+    print(f"[run_task] task={args.task}  candidate={args.candidate}")
     print(f"[run_task] harness={args.harness}  model={args.model}")
     print(f"[run_task] workdir={workdir}")
     print(f"[run_task] budget={args.max_seconds}s  max_turns={args.max_turns}"
           f"  mode={'manual' if args.manual else args.harness}")
 
     if args.manual:
-        meta = run_manual(args.harness, args.model, args.task, workdir)
+        meta = run_manual(args.task, args.candidate, args.harness, args.model, workdir)
     elif args.harness == "direct-fmapi":
-        meta = run_direct_fmapi(args.harness, args.model, args.task, workdir, args.max_seconds)
+        meta = run_direct_fmapi(args.task, args.candidate, args.harness, args.model,
+                                workdir, args.max_seconds)
     else:
         argv = build_argv(args.harness, args.model, args.omnigent_inner, args.max_turns)
-        meta = run_subprocess(args.harness, args.model, args.task, workdir, argv,
-                              args.max_seconds, args.max_turns)
+        meta = run_subprocess(args.task, args.candidate, args.harness, args.model, workdir,
+                              argv, args.max_seconds, args.max_turns)
 
     write_meta(workdir, meta)
 

@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """
-grade_tasks.py — Grade the slides.html produced by each (harness x model) run with
-an IDENTICAL grader, then build a human-review gallery.
+grade_tasks.py — Grade the slides.html produced by each candidate of a task with an
+IDENTICAL grader, then build a human-review gallery.
+
+Layout is task-centric: candidates are subdirectories of the task dir, and results are
+written back into it:
+
+    <task>/<candidate>/slides.html   ← graded
+    <task>/grade_results.json         ← written
+    <task>/gallery/index.html         ← written
 
 Two phases:
-  Phase A (automated, per run):
+  Phase A (automated, per candidate):
     - validate_html:      parse + well-formedness, slide count, keyword coverage,
                           external-ref warnings.
     - render_and_capture: headless Chromium (Playwright) renders file://slides.html,
@@ -12,17 +19,17 @@ Two phases:
     - grade_one:          combine into a row with a transparent auto_score.
     - print_table + grade_results.json  (mirrors agent-ml/grade_agents.py).
   Phase B (human review):
-    - build_gallery:      static runs/gallery/index.html with one card per run,
+    - build_gallery:      static <task>/gallery/index.html with one card per candidate,
                           screenshots, auto metrics, and a client-side 1-5 score +
                           "download human_scores.json" button (no server).
     - --merge-human:      join a downloaded human_scores.json back onto the rows and
                           re-emit grade_results.json with auto_score + human_score.
 
 Usage:
-  python grade_tasks.py                          # grade all runs, render, build gallery
-  python grade_tasks.py --runs run_codex_default # grade specific run dir(s)
-  python grade_tasks.py --no-render              # validation only (skip Playwright)
-  python grade_tasks.py --merge-human runs/gallery/human_scores.json
+  python grade_tasks.py --task explain-databricks              # grade all candidates
+  python grade_tasks.py --task explain-databricks --candidates opus glm
+  python grade_tasks.py --task explain-databricks --no-render  # validation only
+  python grade_tasks.py --task explain-databricks --merge-human explain-databricks/gallery/human_scores.json
 """
 import argparse
 import json
@@ -32,30 +39,34 @@ from lxml import html as lxml_html
 
 import task_spec
 
-PROJECT_DIR = Path(__file__).resolve().parent
-RUNS_DIR = PROJECT_DIR / "runs"
+# Files that live in the task dir but are NOT candidate output directories.
+RESERVED = {"gallery", "__pycache__"}
 
 
 # ---------------------------------------------------------------- discovery ---
-def discover_runs(filter_names: list[str] | None) -> list[dict]:
-    """Find runs/run_*/ dirs (optionally filtered), reading each run_meta.json."""
-    if not RUNS_DIR.exists():
+def discover_candidates(task: str, filter_names: list[str] | None) -> list[dict]:
+    """Find candidate subdirs of the task dir (any dir with slides.html or run_meta.json),
+    reading each run_meta.json."""
+    tdir = task_spec.task_dir(task)
+    if not tdir.exists():
         return []
-    runs = []
-    for d in sorted(RUNS_DIR.glob("run_*")):
-        if not d.is_dir():
+    out = []
+    for d in sorted(tdir.iterdir()):
+        if not d.is_dir() or d.name in RESERVED:
+            continue
+        if not (d / task_spec.ARTIFACT).exists() and not (d / "run_meta.json").exists():
             continue
         if filter_names and d.name not in filter_names:
             continue
-        meta_path = d / "run_meta.json"
         meta = {}
+        meta_path = d / "run_meta.json"
         if meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
             except Exception:
                 meta = {}
-        runs.append({"dir": d, "name": d.name, "meta": meta})
-    return runs
+        out.append({"dir": d, "name": d.name, "meta": meta})
+    return out
 
 
 # ------------------------------------------------------------- validation ----
@@ -84,8 +95,8 @@ def validate_html(html_path: Path, cfg: dict) -> dict:
     lo, hi = cfg["slide_count"]["min"], cfg["slide_count"]["max"]
     out["slide_count_ok"] = lo <= out["slide_count"] <= hi
 
-    # Keyword coverage over lowercased text content. Each topic group counts if ANY
-    # of its keyword variants appears.
+    # Keyword coverage over lowercased text content. Each topic group counts if ANY of its
+    # keyword variants appears.
     text = " ".join(doc.itertext()).lower()
     groups = cfg["keywords"]
     out["keywords_total"] = len(groups)
@@ -107,8 +118,8 @@ def validate_html(html_path: Path, cfg: dict) -> dict:
 
 # --------------------------------------------------------------- rendering ---
 def render_and_capture(html_path: Path, out_dir: Path) -> dict:
-    """Headless Chromium render via Playwright: collect console/page errors and
-    screenshot each slide. Returns rendered_ok, console_errors, screenshot_paths."""
+    """Headless Chromium render via Playwright: collect console/page errors and screenshot
+    each slide. Returns rendered_ok, console_errors, screenshot_paths."""
     out = {"rendered_ok": False, "console_errors": 0, "screenshot_paths": [],
            "render_note": ""}
     try:
@@ -158,9 +169,9 @@ def render_and_capture(html_path: Path, out_dir: Path) -> dict:
 
 
 # ----------------------------------------------------------------- scoring ---
-def grade_one(run: dict, cfg: dict, do_render: bool) -> dict:
-    d = run["dir"]
-    meta = run["meta"]
+def grade_one(cand: dict, cfg: dict, do_render: bool) -> dict:
+    d = cand["dir"]
+    meta = cand["meta"]
     html_path = d / task_spec.ARTIFACT
 
     v = validate_html(html_path, cfg)
@@ -185,10 +196,10 @@ def grade_one(run: dict, cfg: dict, do_render: bool) -> dict:
         notes.append(r["render_note"])
 
     return {
-        "harness": meta.get("harness", run["name"]),
+        "candidate": cand["name"],
+        "harness": meta.get("harness", "-"),
         "model": meta.get("effective_model") or meta.get("model") or "-",
         "mode": meta.get("mode", "-"),
-        "run": run["name"],
         "valid": valid,
         "slide_count": v["slide_count"],
         "keywords": f"{v['keywords_found']}/{v['keywords_total']}",
@@ -201,47 +212,48 @@ def grade_one(run: dict, cfg: dict, do_render: bool) -> dict:
     }
 
 
-def print_table(rows: list[dict]) -> None:
-    hdr = (f"{'harness':<14}{'model':<28}{'valid':<7}{'slides':<8}{'keywords':<10}"
-           f"{'cons_err':<9}{'auto':<7}{'wall(s)':<9}")
+def print_table(task: str, rows: list[dict]) -> None:
+    hdr = (f"{'candidate':<12}{'harness':<14}{'model':<26}{'valid':<7}{'slides':<8}"
+           f"{'keywords':<10}{'cons_err':<9}{'auto':<7}{'wall(s)':<9}")
     print("\n" + "=" * len(hdr))
-    print(f"Task: {task_spec.TASK_ID}   auto_score = 0.4*keywords + 0.3*slide_count_ok + 0.3*no_console_errors")
+    print(f"Task: {task}   auto_score = 0.4*keywords + 0.3*slide_count_ok + 0.3*no_console_errors")
     print("=" * len(hdr))
     print(hdr)
     print("-" * len(hdr))
     for r in rows:
         ce = "-" if r["console_errors"] is None else str(r["console_errors"])
         wt = f"{r['wall_seconds']:.1f}" if isinstance(r["wall_seconds"], (int, float)) else "-"
-        print(f"{r['harness']:<14}{str(r['model'])[:27]:<28}{str(r['valid']):<7}"
-              f"{r['slide_count']:<8}{r['keywords']:<10}{ce:<9}{r['auto_score']:<7}{wt:<9}")
+        print(f"{r['candidate']:<12}{str(r['harness'])[:13]:<14}{str(r['model'])[:25]:<26}"
+              f"{str(r['valid']):<7}{r['slide_count']:<8}{r['keywords']:<10}{ce:<9}"
+              f"{r['auto_score']:<7}{wt:<9}")
     print("=" * len(hdr))
     for r in rows:
         if r["note"]:
-            print(f"note[{r['run']}]: {r['note']}")
+            print(f"note[{r['candidate']}]: {r['note']}")
 
 
 # ----------------------------------------------------------------- gallery ---
-def build_gallery(rows: list[dict], out_path: Path) -> None:
-    """Static human-review gallery: one card per run + client-side scoring/export."""
+def build_gallery(task: str, rows: list[dict], out_path: Path) -> None:
+    """Static human-review gallery: one card per candidate + client-side scoring/export."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     cards = []
     for r in rows:
-        run_rel = f"../{r['run']}"
+        cand_rel = f"../{r['candidate']}"
         thumbs = "".join(
-            f'<a href="{run_rel}/screenshots/{s}" target="_blank">'
-            f'<img src="{run_rel}/screenshots/{s}" loading="lazy"></a>'
+            f'<a href="{cand_rel}/screenshots/{s}" target="_blank">'
+            f'<img src="{cand_rel}/screenshots/{s}" loading="lazy"></a>'
             for s in r["screenshots"]
         ) or '<p class="muted">(no screenshot — render skipped or failed)</p>'
         note = f'<p class="note">{r["note"]}</p>' if r["note"] else ""
         cards.append(f"""
-    <div class="card" data-run="{r['run']}">
-      <h2>{r['harness']} <span class="muted">/ {r['model']}</span></h2>
+    <div class="card" data-candidate="{r['candidate']}">
+      <h2>{r['candidate']} <span class="muted">/ {r['harness']} / {r['model']}</span></h2>
       <p class="metrics">valid={r['valid']} · slides={r['slide_count']} ·
          keywords={r['keywords']} · console_err={r['console_errors']} ·
          auto={r['auto_score']} · wall={r['wall_seconds']}s</p>
       {note}
       <div class="thumbs">{thumbs}</div>
-      <p><a href="{run_rel}/slides.html" target="_blank">open raw slides.html →</a></p>
+      <p><a href="{cand_rel}/slides.html" target="_blank">open raw slides.html →</a></p>
       <label>Human score (1-5):
         <select class="human-score"><option value="">—</option>
           <option>1</option><option>2</option><option>3</option>
@@ -251,7 +263,7 @@ def build_gallery(rows: list[dict], out_path: Path) -> None:
 
     doc = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<title>explain-databricks — review gallery</title>
+<title>{task} — review gallery</title>
 <style>
   body {{ font-family: system-ui, sans-serif; margin: 2rem; background:#fafafa; color:#222; }}
   h1 {{ margin-bottom: .25rem; }}
@@ -268,9 +280,9 @@ def build_gallery(rows: list[dict], out_path: Path) -> None:
             background:#0a7; color:#fff; cursor:pointer; }}
 </style></head>
 <body>
-<h1>explain-databricks — review gallery</h1>
+<h1>{task} — review gallery</h1>
 <p class="muted">Score each deck 1-5, add notes, then download human_scores.json and run
-<code>python grade_tasks.py --merge-human runs/gallery/human_scores.json</code>.</p>
+<code>python grade_tasks.py --task {task} --merge-human {task}/gallery/human_scores.json</code>.</p>
 <button onclick="dl()">⬇ download human_scores.json</button>
 {''.join(cards)}
 <script>
@@ -279,7 +291,7 @@ function dl() {{
   document.querySelectorAll('.card').forEach(c => {{
     const s = c.querySelector('.human-score').value;
     const n = c.querySelector('.human-note').value;
-    if (s || n) out[c.dataset.run] = {{ human_score: s ? Number(s) : null, human_note: n }};
+    if (s || n) out[c.dataset.candidate] = {{ human_score: s ? Number(s) : null, human_note: n }};
   }});
   const blob = new Blob([JSON.stringify(out, null, 2)], {{type:'application/json'}});
   const a = document.createElement('a');
@@ -292,30 +304,32 @@ function dl() {{
 
 
 # ------------------------------------------------------------- merge-human ---
-def merge_human(human_path: Path) -> None:
+def merge_human(task: str, human_path: Path) -> None:
     """Join a downloaded human_scores.json onto the existing grade_results.json."""
-    results_path = RUNS_DIR / "grade_results.json"
+    results_path = task_spec.task_dir(task) / "grade_results.json"
     if not results_path.exists():
         raise SystemExit(f"ERROR: {results_path} not found — run grading first.")
     rows = json.loads(results_path.read_text(encoding="utf-8"))
     human = json.loads(human_path.read_text(encoding="utf-8"))
     for r in rows:
-        h = human.get(r["run"], {})
+        h = human.get(r["candidate"], {})
         r["human_score"] = h.get("human_score")
         r["human_note"] = h.get("human_note", "")
     results_path.write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
 
-    print(f"\n{'run':<40}{'auto':<8}{'human':<8}")
-    print("-" * 56)
+    print(f"\n{'candidate':<16}{'auto':<8}{'human':<8}")
+    print("-" * 32)
     for r in rows:
-        print(f"{r['run']:<40}{r['auto_score']:<8}{str(r.get('human_score', '-')):<8}")
+        print(f"{r['candidate']:<16}{r['auto_score']:<8}{str(r.get('human_score', '-')):<8}")
     print(f"\n[grade] merged human scores -> {results_path}")
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Grade explain-databricks slide runs.")
-    ap.add_argument("--runs", nargs="*", default=None,
-                    help="specific run dir names (default: all runs/run_*)")
+    ap = argparse.ArgumentParser(description="Grade a task's candidate slide decks.")
+    ap.add_argument("--task", default=task_spec.DEFAULT_TASK,
+                    help=f"task id / directory (default: {task_spec.DEFAULT_TASK})")
+    ap.add_argument("--candidates", nargs="*", default=None,
+                    help="specific candidate names (default: all under the task dir)")
     ap.add_argument("--no-render", action="store_true",
                     help="skip Playwright rendering (validation only)")
     ap.add_argument("--merge-human", type=Path, default=None,
@@ -323,23 +337,23 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.merge_human is not None:
-        merge_human(args.merge_human)
+        merge_human(args.task, args.merge_human)
         return
 
-    cfg = task_spec.load_task()
-    runs = discover_runs(args.runs)
-    if not runs:
-        ap.error("no runs found under runs/run_* — run run_task.py first")
+    cfg = task_spec.load_task(args.task)
+    cands = discover_candidates(args.task, args.candidates)
+    if not cands:
+        ap.error(f"no candidates found under {args.task}/ — run run_task.py first")
 
-    rows = [grade_one(run, cfg, do_render=not args.no_render) for run in runs]
-    print_table(rows)
+    rows = [grade_one(c, cfg, do_render=not args.no_render) for c in cands]
+    print_table(args.task, rows)
 
-    RUNS_DIR.mkdir(exist_ok=True)
-    out = RUNS_DIR / "grade_results.json"
+    tdir = task_spec.task_dir(args.task)
+    out = tdir / "grade_results.json"
     out.write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
     print(f"\n[grade] wrote {out}")
 
-    build_gallery(rows, RUNS_DIR / "gallery" / "index.html")
+    build_gallery(args.task, rows, tdir / "gallery" / "index.html")
 
 
 if __name__ == "__main__":
