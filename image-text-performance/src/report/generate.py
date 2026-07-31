@@ -511,15 +511,20 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
         for g in by_task[task_id]:
             tag = " (민감 태스크 — 입력 비표시, 판정값만)" if g["sensitive"] else ""
             ref = str(g["reference"])
-            # 정답: 여러 줄·HTML(예: TXT-3 <table>)이면 인라인 코드가 깨지므로 코드펜스로.
+            # 정답: 여러 줄·HTML(예: TXT-3 <table>)은 인라인 코드가 깨지므로 코드펜스로.
+            # 코드펜스 안에서는 raw HTML 태그가 렌더되지 않아 안전(GitHub GFM).
             if "\n" in ref or "<" in ref:
-                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답:\n\n```\n{ref}\n```\n")
+                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답:\n\n{_fence(ref)}\n")
             else:
                 blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답: `{ref}`\n")
-            # 입력 표시 (사람이 직접 판별용)
+            # 입력 표시 (사람이 직접 판별용). 인용문(>)은 raw HTML 태그(<table> 등)를 렌더해
+            # 표가 깨지므로, HTML/태그가 있으면 코드펜스로. 없으면 인용문.
             if g.get("input_text"):
-                inp = g["input_text"].strip().replace("\n", "\n> ")
-                blocks.append(f"**입력:**\n> {inp}\n")
+                inp = g["input_text"].strip()
+                if "<" in inp:
+                    blocks.append(f"**입력:**\n\n{_fence(inp)}\n")
+                else:
+                    blocks.append("**입력:**\n> " + inp.replace("\n", "\n> ") + "\n")
             elif g.get("image_data_uri") and reports_dir is not None:
                 fname = f"gallery_{task_id}_s{g['sample_id']}.png"
                 try:
@@ -543,6 +548,19 @@ def _cell(text: str) -> str:
     """markdown 표 셀 안전화: 개행→공백, 백틱 제거, | 이스케이프."""
     s = str(text).replace("\n", " ").replace("\r", " ").replace("`", "'")
     return s.replace("|", "\\|")
+
+
+def _fence(text: str) -> str:
+    """텍스트를 코드펜스로 감싼다. 내부에 백틱 런이 있으면 더 긴 fence를 써서 안전하게.
+
+    코드펜스 안에서는 raw HTML(<table> 등)이 렌더되지 않아 markdown 붕괴를 막는다.
+    """
+    import re
+
+    s = str(text)
+    longest = max((len(m) for m in re.findall(r"`+", s)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return f"{fence}\n{s}\n{fence}"
 
 
 def _htmlpreview_url(run_id: str, filename: str) -> str | None:
