@@ -1,0 +1,42 @@
+# 벤치마크 대상 모델·judge·reasoning 설정 (plan §6)
+# 모델은 언제든 추가/교체 가능. vision·reasoning 파라미터는 ai_devtools에서 실측 검증됨.
+
+profile: ai_devtools                    # Databricks CLI 프로파일
+
+judge: databricks-gemini-3-1-pro        # 단일 judge (텍스트+이미지 모두 채점, D6)
+
+reasoning_modes: [minimal, full]        # 둘 다 측정 (D10). minimal = 각 모델 최소 reasoning
+                                        # (opus·gemini는 완전 OFF 불가 — README 참고)
+
+# 호출 정책 (실측 기반, plan §11)
+runtime:
+  timeout_seconds: 15                   # per-request. glm은 3~5배 느림
+  max_retries: 3                        # 지수 backoff
+  backoff_initial_seconds: 0.5
+  max_concurrency: 8                    # rate limit 넉넉(429 미관측), 5~10 안전
+  max_tokens: 1024                      # reasoning 모델이 사고에 소진하지 않도록 충분히
+
+models:
+  - id: opus
+    endpoint: databricks-claude-opus-5
+    family: claude                      # 응답 정규화·reasoning 제어 분기 키
+    capabilities: [text, vision]        # 실측 vision ✅
+    reasoning:
+      minimal: {thinking: {type: disabled}}
+      full: {thinking: {type: adaptive}}
+
+  - id: sol
+    endpoint: databricks-gpt-5-6-sol
+    family: openai
+    capabilities: [text, vision]        # 실측 vision ✅
+    reasoning:
+      minimal: {reasoning_effort: none}
+      full: {reasoning_effort: high}
+
+  - id: glm
+    endpoint: databricks-glm-5-2
+    family: openai                      # OpenAI 호환 스키마지만 reasoning_content 별도 (실측)
+    capabilities: [text]                # 실측 vision ❌ → 이미지 태스크 자동 N/A
+    reasoning:
+      minimal: {reasoning_effort: none}
+      full: {}                          # 기본(reasoning on)

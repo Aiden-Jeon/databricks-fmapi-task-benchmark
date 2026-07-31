@@ -1,0 +1,153 @@
+# Dataset registry (plan §5). Immutable standard: pin id+split+sha256. NSFW media = cache-only, never commit (D3).
+# Mirror datasets (script-based originals disabled): license may differ from original → both recorded.
+
+img_caption:
+  hf_id: "yerevann/coco-karpathy"
+  license: "CC-BY-4.0 (annotations); images under Flickr terms"
+  commercial_ok: unknown
+  languages: [en]
+  split: "validation"
+  expected_sha256: null
+
+img_tags:
+  hf_id: "detection-datasets/coco"
+  config: "objects.category"
+  license: "CC-BY-4.0 (annotations)"
+  commercial_ok: unknown
+  languages: [en]
+  split: "validation"
+  expected_sha256: null
+
+img_person:
+  hf_id: "detection-datasets/coco"
+  config: "objects.category"
+  license: "CC-BY-4.0 (annotations)"
+  commercial_ok: unknown
+  languages: [en]
+  split: "validation"
+  note: "person=class 0 derived binary"
+  expected_sha256: null
+
+weapon:
+  hf_id: "Subh775/WeaponDetection"
+  license: "CC-BY-4.0"
+  commercial_ok: true
+  languages: [en]
+  split: "default"
+  note: "Severity labels absent → binary classification (weapon/threat presence). Still-image ungated."
+  expected_sha256: null
+
+nsfw:
+  hf_id: "DarkyMan/nsfw-image-classification"
+  license: "cc (variant unspecified)"
+  commercial_ok: unknown
+  languages: [en]
+  split: "default"
+  sensitive: true
+  note: "NSFW images: cache-only, never commit repo (D3). Labels via folder names post-download. Ungated."
+  expected_sha256: null
+
+doc_vqa:
+  hf_id: "HuggingFaceM4/DocumentVQA"
+  license: "mirror apache-2.0 / original research-use"
+  commercial_ok: false
+  languages: [en]
+  split: "validation"
+  mirror_of: "Original script-based dataset; parquet mirror enabled. Record original license (research-use)."
+  expected_sha256: null
+
+table_struct:
+  hf_id: "apoidea/pubtabnet-html"
+  config: "html_table"
+  license: "CDLA-Permissive-1.0"
+  commercial_ok: true
+  languages: [en]
+  split: "validation"
+  note: "html_table config provides GT HTML structure for TEDS-ready evaluation."
+  expected_sha256: null
+
+table_qa:
+  hf_id: "lighteval/wikitablequestions"
+  license: "mirror CC-BY-4.0 / original CC-BY-4.0"
+  commercial_ok: unknown
+  languages: [en]
+  split: "default"
+  mirror_of: "Original stanfordnlp/wikitablequestions script-based; parquet mirror enabled."
+  expected_sha256: null
+
+korquad:
+  hf_id: "KorQuAD/squad_kor_v1"
+  license: "CC-BY-ND-4.0"
+  commercial_ok: false
+  languages: [ko]
+  split: "train"
+  note: "ND=no derivative works/redistribution. Record license restriction."
+  expected_sha256: null
+
+klue_mrc:
+  hf_id: "klue/klue"
+  config: "mrc"
+  license: "CC-BY-SA"
+  commercial_ok: false
+  languages: [ko]
+  split: "train"
+  expected_sha256: null
+
+summarization_en:
+  hf_id: "abisee/cnn_dailymail"
+  license: "apache-2.0"
+  commercial_ok: true
+  languages: [en]
+  split: "validation"
+  expected_sha256: null
+
+summarization_ko:
+  hf_id: "daekeun-ml/naver-news-summarization-ko"
+  license: "apache-2.0"
+  commercial_ok: true
+  languages: [ko]
+  split: "train"
+  expected_sha256: null
+
+sentiment_en:
+  hf_id: "stanfordnlp/sst2"
+  license: "GLUE"
+  commercial_ok: unknown
+  languages: [en]
+  split: "validation"
+  expected_sha256: null
+
+sentiment_ko:
+  hf_id: "Blpeng/nsmc"
+  license: "mirror CC-BY-2.0 / original CC-BY-2.0"
+  commercial_ok: unknown
+  languages: [ko]
+  split: "train"
+  mirror_of: "Original e9t/nsmc script-based; parquet mirror enabled."
+  expected_sha256: null
+
+keyphrase:
+  hf_id: "taln-ls2n/inspec"
+  license: "unknown (research-use)"
+  commercial_ok: false
+  languages: [en]
+  split: "test"
+  note: "Korean keyphrase dataset absent (D7) — EN only."
+  expected_sha256: null
+
+toxicity_en:
+  hf_id: "thesofakillers/jigsaw-unintended-bias-2021"
+  license: "mirror CC-BY-SA / original CC-BY-SA"
+  commercial_ok: false
+  languages: [en]
+  split: "test"
+  mirror_of: "Original google/jigsaw_multilingual_toxicity_classifier script-based; parquet mirror."
+  expected_sha256: null
+
+toxicity_ko:
+  hf_id: "jason9693/APEACH"
+  license: "CC-BY-SA-4.0"
+  commercial_ok: false
+  languages: [ko]
+  split: "train"
+  expected_sha256: null

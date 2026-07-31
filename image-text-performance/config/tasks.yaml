@@ -1,0 +1,66 @@
+# 실행할 태스크 정의 (plan §3). 태스크는 src/tasks/<id>.py 플러그인으로 구현.
+# samples: 태스크당 샘플 수(기본 50, seed 고정 — D8).
+# datasets: 언어 → datasets/registry.yaml의 키. 언어별로 데이터셋·라이선스가 다르므로 맵으로 참조.
+
+defaults:
+  samples: 50
+  seed: 42
+
+# 이미지 태스크 (glm은 vision 미지원 → 자동 N/A)
+image_tasks:
+  - id: IMG-1        # 이미지 캡션
+    kind: generation
+    datasets: {en: img_caption}
+    metrics: [bertscore, judge]
+  - id: IMG-2        # 태그 추출
+    kind: multilabel
+    datasets: {en: img_tags}
+    metrics: [precision, recall, f1]
+  - id: IMG-3        # 무기/위협 존재 (binary — severity 데이터 부재, D13)
+    kind: binary
+    datasets: {en: weapon}
+    metrics: [accuracy, f1]
+  - id: IMG-4        # NSFW 판별 (binary; 이미지 비저장·판정값-only, D3)
+    kind: binary
+    datasets: {en: nsfw}
+    metrics: [accuracy, f1]
+    sensitive: true                  # 갤러리에서 이미지 숨김, 캐시만
+  - id: IMG-5        # 사람 포함 여부 (binary)
+    kind: binary
+    datasets: {en: img_person}
+    metrics: [accuracy, f1]
+
+# 텍스트 태스크
+text_tasks:
+  - id: TXT-1        # 문서(PDF) 이해 QA
+    kind: qa
+    datasets: {en: doc_vqa}
+    metrics: [anls, token_f1, judge]
+  - id: TXT-2        # 표(엑셀) 이해 QA
+    kind: qa
+    datasets: {en: table_qa}
+    metrics: [accuracy, judge]
+  - id: TXT-3        # 표 구조 추출 (Cell-F1; TEDS는 후속, D12)
+    kind: extraction
+    datasets: {en: table_struct}
+    metrics: [cell_f1]
+  - id: TXT-4        # 한국어 이해 QA (KorQuAD 주 + KLUE-MRC 보조)
+    kind: qa
+    datasets: {ko: korquad}
+    metrics: [token_f1, judge]      # token_f1은 Mecab 형태소 토큰화(부록 P0)
+  - id: TXT-5        # 요약 (한/영 병행)
+    kind: generation
+    datasets: {en: summarization_en, ko: summarization_ko}
+    metrics: [rouge, bertscore, judge]
+  - id: TXT-6        # 감정 분석 (한/영 병행)
+    kind: classification
+    datasets: {en: sentiment_en, ko: sentiment_ko}
+    metrics: [accuracy, macro_f1]
+  - id: TXT-7        # 키워드 추출 (영어 한정, D7)
+    kind: multilabel
+    datasets: {en: keyphrase}
+    metrics: [precision, recall, f1]
+  - id: TXT-8        # 비속어/toxicity (한/영 병행)
+    kind: binary
+    datasets: {en: toxicity_en, ko: toxicity_ko}
+    metrics: [accuracy, f1]

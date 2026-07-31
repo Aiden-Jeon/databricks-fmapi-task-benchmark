@@ -1,0 +1,32 @@
+# 데이터셋·모델 로컬 캐시 (민감 데이터 포함 — 절대 커밋 금지, plan D3)
+.cache/
+
+# 벤치마크 원시 결과 (용량 큼; 리포트는 reports/에 커밋, 원시결과 results/는 제외)
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# 테스트·도구
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# 로컬 비밀·환경
+.env
+*.local
+
+# OS·에디터
+.DS_Store
+.idea/
+.vscode/

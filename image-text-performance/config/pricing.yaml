@@ -1,0 +1,33 @@
+# FMAPI 비용 계산 단가 (plan §10). 비용의 단일 소스.
+# USD = usd_per_dbu × (billable_input×dbu_in + billable_output×dbu_out + cache…) / 1e6
+# billable_output = completion_tokens + reasoning_tokens  ← reasoning 토큰 포함 필수!
+#
+# ⚠️ 아래 값은 Databricks 공식 pricing 페이지 기준(2026-07-31). 확인 필요 항목:
+#   - usd_per_dbu: 0.07은 표준 가정. 실제 계약 단가로 확정할 것.
+#   - 라우팅(Global/In-geo, ~10% 차), gemini 20% 프로모(~2027-01-31), sol short/long 임계값.
+#   - system.billing 권한 확보 시 사후 대조.
+
+usd_per_dbu: 0.07                        # 가정값 — 실제 계약 단가로 교체
+routing: global                          # global | in-geo (~10% 높음)
+
+models:
+  databricks-claude-opus-5:
+    dbu_in: 71.429
+    dbu_out: 357.143
+    dbu_cache_write: 89.286
+    dbu_cache_read: 7.143
+
+  databricks-gpt-5-6-sol:
+    context_threshold_tokens: 200000     # CONFIRM: short/long 경계
+    short: {dbu_in: 71.429, dbu_out: 428.571, dbu_cache_write: 89.286, dbu_cache_read: 7.143}
+    long: {dbu_in: 142.857, dbu_out: 642.857, dbu_cache_write: 178.571, dbu_cache_read: 14.286}
+
+  databricks-glm-5-2:
+    dbu_in: 20.000
+    dbu_out: 62.857
+
+  databricks-gemini-3-1-pro:
+    context_threshold_tokens: 200000
+    promo_multiplier: 0.80               # 20% 할인 (~2027-01-31), 적용 여부 결정
+    short: {dbu_in: 35.714, dbu_out: 214.286, dbu_cache_write: 35.714, dbu_cache_read: 3.571}
+    long: {dbu_in: 71.429, dbu_out: 321.429, dbu_cache_write: 71.429, dbu_cache_read: 7.143}
