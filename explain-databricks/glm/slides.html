@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What is Databricks? — A Newcomer's Overview</title>
+<style>
+  :root{
+    --bg:#0f1419;
+    --panel:#161c24;
+    --panel-2:#1d2530;
+    --ink:#e8edf2;
+    --ink-soft:#a8b3c0;
+    --accent:#ff3621;
+    --accent-2:#ff6a45;
+    --accent-soft:rgba(255,54,33,0.12);
+    --rule:#2a3340;
+    --ok:#36d399;
+    --hl:#ffc15e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  body{overflow:hidden;}
+
+  /* Deck container */
+  .deck{position:relative;width:100vw;height:100vh;overflow:hidden;}
+
+  /* Slide base */
+  .slide{
+    position:absolute;inset:0;
+    display:none;
+    flex-direction:column;
+    padding:64px 84px 72px 84px;
+    background:linear-gradient(180deg,#0f1419 0%,#0c1015 100%);
+    overflow:auto;
+  }
+  .slide.active{display:flex;animation:fadeIn .35s ease both;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  /* Decorative accent bar */
+  .slide::before{
+    content:"";position:absolute;left:0;top:0;height:5px;width:160px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  }
+
+  /* Header row */
+  .eyebrow{
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--accent-2);font-weight:600;margin:0 0 12px 0;
+  }
+  h1.slide-title{
+    font-size:42px;line-height:1.15;margin:0 0 36px 0;font-weight:700;letter-spacing:-0.5px;
+    color:var(--ink);
+  }
+  h1.title-hero{
+    font-size:64px;line-height:1.05;margin:0;font-weight:800;letter-spacing:-1.5px;
+    background:linear-gradient(90deg,#ffffff 0%,#ff8a6a 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .subtitle{font-size:22px;color:var(--ink-soft);margin:18px 0 0;max-width:780px;line-height:1.45;}
+
+  /* Body content */
+  .body{flex:1;max-width:1080px;}
+  .lead{font-size:20px;line-height:1.55;color:var(--ink-soft);margin:0 0 28px 0;max-width:880px;}
+
+  ul.clean{list-style:none;padding:0;margin:0;}
+  ul.clean li{
+    position:relative;padding:14px 0 14px 32px;border-bottom:1px solid var(--rule);
+    font-size:19px;line-height:1.5;color:var(--ink);
+  }
+  ul.clean li:last-child{border-bottom:none;}
+  ul.clean li::before{
+    content:"";position:absolute;left:0;top:22px;width:10px;height:10px;border-radius:2px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    box-shadow:0 0 0 4px var(--accent-soft);
+  }
+  ul.clean li strong{color:#fff;font-weight:600;}
+
+  /* Two-column layout */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .grid.three{grid-template-columns:1fr 1fr 1fr;}
+  .card{
+    background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+    padding:24px 26px;
+  }
+  .card h3{margin:0 0 10px;font-size:20px;font-weight:600;color:#fff;}
+  .card p{margin:0;font-size:15.5px;line-height:1.55;color:var(--ink-soft);}
+  .card .tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:1px;
+    text-transform:uppercase;color:var(--accent-2);background:var(--accent-soft);
+    padding:4px 10px;border-radius:999px;margin-bottom:12px;}
+
+  /* Comparison columns */
+  .compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:8px;}
+  .col{background:var(--panel-2);border:1px solid var(--rule);border-radius:10px;padding:22px;}
+  .col h4{margin:0 0 10px;font-size:15px;text-transform:uppercase;letter-spacing:1.2px;
+    color:var(--ink-soft);font-weight:600;}
+  .col.merge{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--panel-2));}
+  .col.merge h4{color:var(--accent-2);}
+  .col ul{margin:8px 0 0;padding-left:18px;color:var(--ink);font-size:14.5px;line-height:1.6;}
+
+  /* Layer diagram */
+  .stack{display:flex;flex-direction:column;gap:8px;max-width:760px;margin-top:6px;}
+  .layer{
+    display:flex;align-items:center;gap:18px;padding:16px 22px;border-radius:10px;
+    background:var(--panel);border:1px solid var(--rule);
+  }
+  .layer.top{background:linear-gradient(90deg,var(--accent-soft),var(--panel));border-color:var(--accent);}
+  .layer .ltag{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);
+    width:120px;flex-shrink:0;}
+  .layer .ltitle{font-size:17px;font-weight:600;color:#fff;}
+  .layer .ldesc{font-size:14px;color:var(--ink-soft);margin-top:2px;}
+
+  /* Cloud row */
+  .clouds{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:6px;}
+  .cloud{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:24px;text-align:center;}
+  .cloud .logo{font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:8px;}
+  .cloud .logo.aws{color:#ff9900;}
+  .cloud .logo.az{color:#3ba0f2;}
+  .cloud .logo.gcp{color:#34a853;}
+  .cloud p{margin:0;font-size:14.5px;color:var(--ink-soft);line-height:1.55;}
+
+  /* Summary grid */
+  .summary{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:4px;}
+  .item{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:var(--panel);
+    border:1px solid var(--rule);border-radius:10px;}
+  .item .num{font-size:15px;font-weight:700;color:var(--accent-2);min-width:30px;}
+  .item .txt{font-size:15.5px;line-height:1.5;color:var(--ink);}
+  .item .txt b{color:#fff;}
+
+  /* Footer / controls */
+  .controls{
+    position:fixed;bottom:20px;right:28px;display:flex;align-items:center;gap:14px;
+    z-index:10;
+  }
+  .counter{font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums;
+    letter-spacing:1px;margin-right:4px;}
+  .btn{
+    width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);
+    background:var(--panel-2);color:var(--ink);font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.15s;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent-2);transform:translateY(-1px);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+
+  .footer{
+    position:absolute;bottom:24px;left:84px;font-size:12px;color:var(--ink-soft);
+    letter-spacing:1px;text-transform:uppercase;
+  }
+
+  /* Title slide hero layout */
+  .hero{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .hero .meta{margin-top:36px;display:flex;gap:22px;align-items:center;color:var(--ink-soft);font-size:14px;}
+  .hero .meta span{display:inline-flex;align-items:center;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+
+  .hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    font-size:12px;color:var(--ink-soft);letter-spacing:1px;z-index:10;opacity:.7;}
+
+  @media (max-width:900px){
+    .slide{padding:40px 28px 60px;}
+    h1.slide-title{font-size:30px;}
+    h1.title-hero{font-size:42px;}
+    .grid,.grid.three,.compare,.clouds,.summary{grid-template-columns:1fr;}
+    .footer{left:28px;}
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- 1. Title -->
+  <section class="slide active" id="s1">
+    <div class="eyebrow">Introduction</div>
+    <div class="hero">
+      <h1 class="title-hero">What is Databricks?</h1>
+      <p class="subtitle">A unified, open platform for data engineering, analytics, and AI — built on the Lakehouse architecture and running across all three major clouds.</p>
+      <div class="meta">
+        <span><i class="dot"></i> For technical decision-makers</span>
+        <span><i class="dot"></i> ~10 min overview</span>
+      </div>
+    </div>
+    <div class="footer">Databricks · Lakehouse Platform</div>
+  </section>
+
+  <!-- 2. The problem -->
+  <section class="slide" id="s2">
+    <div class="eyebrow">Why it exists</div>
+    <h1 class="slide-title">The problem it was built to solve</h1>
+    <div class="body">
+      <p class="lead">Modern data stacks split work across many systems: a data lake for cheap storage, a warehouse for SQL analytics, a separate cluster for ML, and more for governance. Each is its own silo — duplicating data, slowing pipelines, and fragmenting security.</p>
+      <ul class="clean">
+        <li><strong>Data lakes are cheap and flexible</strong> — but lack reliability: no ACID guarantees, no schema enforcement, no fast BI.</li>
+        <li><strong>Data warehouses are fast and governed</strong> — but expensive at scale, closed formats, and awkward for ML on unstructured data.</li>
+        <li><strong>AI/ML sits apart from BI</strong> — so data teams copy and convert data repeatedly between systems.</li>
+        <li><strong>Governance is fractured</strong> — different access rules per tool, no unified lineage or audit trail.</li>
+      </ul>
+    </div>
+    <div class="footer">02 · The Problem</div>
+  </section>
+
+  <!-- 3. Lakehouse -->
+  <section class="slide" id="s3">
+    <div class="eyebrow">Architecture</div>
+    <h1 class="slide-title">The Lakehouse: lake + warehouse in one</h1>
+    <div class="body">
+      <p class="lead">Databricks pioneered the <strong style="color:#fff;">Lakehouse</strong> — an architecture that puts reliable, transactional table formats directly on top of cheap cloud object storage, so one copy of the data serves BI, engineering, and ML.</p>
+      <div class="compare">
+        <div class="col">
+          <h4>Data Lake</h4>
+          <ul>
+            <li>Cheap object storage</li>
+            <li>Open, any format</li>
+            <li>No transactions</li>
+            <li>Slow for BI</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h4>Data Warehouse</h4>
+          <ul>
+            <li>Fast SQL & BI</li>
+            <li>ACID + governance</li>
+            <li>Closed, expensive</li>
+            <li>Weak for ML</li>
+          </ul>
+        </div>
+        <div class="col merge">
+          <h4>Lakehouse</h4>
+          <ul>
+            <li>Open storage + ACID</li>
+            <li>BI + ML on same data</li>
+            <li>One governance model</li>
+            <li>Works on any cloud</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer">03 · Lakehouse Architecture</div>
+  </section>
+
+  <!-- 4. Delta Lake -->
+  <section class="slide" id="s4">
+    <div class="eyebrow">Storage layer</div>
+    <h1 class="slide-title">Delta Lake: ACID transactions on the lake</h1>
+    <div class="body">
+      <p class="lead">Delta Lake is the open-source storage format that makes the Lakehouse work. It adds a transaction log on top of Parquet files, bringing warehouse-grade reliability to data lake storage.</p>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Reliability</span>
+          <h3>ACID transactions</h3>
+          <p>Concurrent readers and writers stay consistent. Schema enforcement and schema evolution prevent corrupted tables — no more "it worked yesterday" surprises.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Performance</span>
+          <h3>Time travel & Z-ordering</h3>
+          <p>Query any prior version of a table, roll back bad writes, and physically cluster data so filters prune files instead of scanning everything.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Openness</span>
+          <h3>Open format</h3>
+          <p>Parquet files plus a JSON transaction log. You're never locked in — other engines that speak Delta can read the same data directly.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Streaming</span>
+          <h3>Unified batch + streaming</h3>
+          <p>The same Delta table serves batch jobs and Structured Streaming upserts, so pipelines stay simple as volume grows.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">04 · Delta Lake</div>
+  </section>
+
+  <!-- 5. Apache Spark -->
+  <section class="slide" id="s5">
+    <div class="eyebrow">Compute engine</div>
+    <h1 class="slide-title">Apache Spark: the distributed compute core</h1>
+    <div class="body">
+      <p class="lead">Databricks was founded by the original creators of Apache Spark, and Spark remains the engine powering large-scale ETL, batch, and streaming workloads on the platform. Databricks runs and manages it for you.</p>
+      <ul class="clean">
+        <li><strong>Distributed in-memory processing</strong> across a cluster — handles terabyte-scale transforms that a single machine never could.</li>
+        <li><strong>One engine, many workloads</strong>: batch ETL, Structured Streaming, interactive notebooks, and ML training all share the same runtime.</li>
+        <li><strong>Multi-language</strong>: write the same job in Python, SQL, Scala, or R notebooks — and reuse libraries from each ecosystem.</li>
+        <li><strong>Managed for you</strong>: Databricks handles cluster provisioning, autoscaling, and the Spark runtime — including Photon, its vectorized C++ engine for faster SQL and DataFrame workloads.</li>
+      </ul>
+    </div>
+    <div class="footer">05 · Apache Spark</div>
+  </section>
+
+  <!-- 6. Databricks SQL -->
+  <section class="slide" id="s6">
+    <div class="eyebrow">Analytics</div>
+    <h1 class="slide-title">Databricks SQL: warehouse-grade analytics on the lake</h1>
+    <div class="body">
+      <p class="lead">Databricks SQL (DBSQL) is a serverless, ANSI-compliant SQL engine that lets analysts query Lakehouse data with the performance and tools they expect from a cloud data warehouse — without moving or copying it.</p>
+      <div class="stack">
+        <div class="layer top">
+          <div class="ltag">Interface</div>
+          <div>
+            <div class="ltitle">Web SQL editor & BI connectors</div>
+            <div class="ldesc">Built-in editor, dashboards, alerts, plus connectors for Tableau, Power BI, Looker and more.</div>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="ltag">Compute</div>
+          <div>
+            <div class="ltitle">Serverless SQL warehouses</div>
+            <div class="ldesc">Auto-start/stop, auto-scaling SQL clusters — pay only while queries run.</div>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="ltag">Engine</div>
+          <div>
+            <div class="ltitle">Photon vectorized execution</div>
+            <div class="ldesc">C++ rewrite of the Spark execution layer for low-latency, high-concurrency BI workloads.</div>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="ltag">Data</div>
+          <div>
+            <div class="ltitle">Delta Lake tables</div>
+            <div class="ldesc">Same governed data your engineers and ML teams use — no separate warehouse copy.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">06 · Databricks SQL</div>
+  </section>
+
+  <!-- 7. Unity Catalog -->
+  <section class="slide" id="s7">
+    <div class="eyebrow">Governance</div>
+    <h1 class="slide-title">Unity Catalog: one governance layer for everything</h1>
+    <div class="body">
+      <p class="lead">Unity Catalog is Databricks' unified governance solution — a single place to define who can access what, across all data, code, models, and AI assets in the platform.</p>
+      <div class="grid three">
+        <div class="card">
+          <span class="tag">Access control</span>
+          <h3>Centralized permissions</h3>
+          <p>Role-based, attribute-based access enforced consistently across SQL, notebooks, jobs, and models — with row- and column-level security.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Lineage</span>
+          <h3>Automatic data lineage</h3>
+          <p>Visual end-to-end lineage: trace any dashboard or model back to its source tables, columns, and upstream pipelines.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Audit</span>
+          <h3>Audit & compliance</h3>
+          <p>Complete audit log of who accessed or changed what — supporting SOC 2, HIPAA, GDPR, and similar regimes.</p>
+        </div>
+      </div>
+      <ul class="clean" style="margin-top:22px;">
+        <li><strong>One namespace</strong> across all your workspaces and clouds — catalog → schema → table, with the same model applied to files, notebooks, and registered models.</li>
+      </ul>
+    </div>
+    <div class="footer">07 · Unity Catalog</div>
+  </section>
+
+  <!-- 8. Mosaic AI / ML / FMAPI -->
+  <section class="slide" id="s8">
+    <div class="eyebrow">AI & Machine Learning</div>
+    <h1 class="slide-title">Mosaic AI: from classical ML to Foundation Models</h1>
+    <div class="body">
+      <p class="lead">Mosaic AI is the platform's unified ML/AI suite — everything from experiment tracking and managed model training to serving generative models, all integrated with the same governed Lakehouse data.</p>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Training</span>
+          <h3>Managed ML lifecycle</h3>
+          <p>MLflow-based experiment tracking, feature engineering, managed model registry, and distributed training on Spark clusters.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Serving</span>
+          <h3>Model serving</h3>
+          <p>Real-time and batch endpoints for classical and deep-learning models, with auto-scaling and GPU support.</p>
+        </div>
+        <div class="card">
+          <span class="tag">GenAI</span>
+          <h3>Foundation Model API (FMAPI)</h3>
+          <p>Pay-per-token access to leading open large language models (e.g., Llama, Mistral) — plus fine-tuning, RAG, and agent tooling to build LLM apps on your own enterprise data.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Governance</span>
+          <h3>AI governance</h3>
+          <p>Models, prompts, and evaluations are first-class assets in Unity Catalog — tracked, permissioned, and audited like data.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">08 · Mosaic AI & FMAPI</div>
+  </section>
+
+  <!-- 9. Workflows -->
+  <section class="slide" id="s9">
+    <div class="eyebrow">Orchestration</div>
+    <h1 class="slide-title">Workflows: orchestrate the whole pipeline</h1>
+    <div class="body">
+      <p class="lead">Databricks Workflows is the built-in job orchestrator — schedule and chain notebooks, SQL statements, Python scripts, ML training, and model deployments into reliable, observable pipelines — no separate Airflow needed for platform-native jobs.</p>
+      <ul class="clean">
+        <li><strong>DAG-based scheduling</strong>: define task dependencies, retries, conditional branches, and SLA-driven triggers across notebook, SQL, Python wheel, and model tasks.</li>
+        <li><strong>Multiple triggers</strong>: run on a schedule, on file arrival, continuously as a stream, or via REST API from external systems.</li>
+        <li><strong>Built-in observability</strong>: per-task status, run history, logs, and automatic notifications on failure — visible in the same UI as the data.</li>
+        <li><strong>Reuses compute</strong>: jobs run on the same managed clusters/serverless as interactive work — no duplicate infra to operate.</li>
+      </ul>
+    </div>
+    <div class="footer">09 · Workflows</div>
+  </section>
+
+  <!-- 10. Multi-cloud + summary -->
+  <section class="slide" id="s10">
+    <div class="eyebrow">Deployment & Summary</div>
+    <h1 class="slide-title">Runs on every major cloud — and your data stays yours</h1>
+    <div class="body">
+      <div class="clouds">
+        <div class="cloud">
+          <div class="logo aws">AWS</div>
+          <p>Available natively in the AWS Marketplace, deployed into your VPC with S3 storage and IAM-based control.</p>
+        </div>
+        <div class="cloud">
+          <div class="logo az">Azure</div>
+          <p>Tight first-party integration as <em>Azure Databricks</em> — linked to your Azure subscription, ADLS, and Active Directory.</p>
+        </div>
+        <div class="cloud">
+          <div class="logo gcp">GCP</div>
+          <p>Runs on Google Cloud with Cloud Storage and IAM, integrated with BigQuery and your existing GCP projects.</p>
+        </div>
+      </div>
+      <p class="lead" style="margin-top:22px;">The control plane is managed by Databricks; the data and compute stay in <strong style="color:#fff;">your</strong> cloud account — so you keep custody of data while Databricks handles the platform.</p>
+      <div class="summary">
+        <div class="item"><div class="num">1</div><div class="txt"><b>Lakehouse</b> unifies the data lake and warehouse on one governed data store.</div></div>
+        <div class="item"><div class="num">2</div><div class="txt"><b>Delta Lake</b> adds ACID, schema, and performance to open storage.</div></div>
+        <div class="item"><div class="num">3</div><div class="txt"><b>Spark + Photon</b> power large-scale compute and fast SQL.</div></div>
+        <div class="item"><div class="num">4</div><div class="txt"><b>Unity Catalog</b> governs data, code, and AI in one place.</div></div>
+        <div class="item"><div class="num">5</div><div class="txt"><b>Mosaic AI & FMAPI</b> cover the full ML/GenAI lifecycle.</div></div>
+        <div class="item"><div class="num">6</div><div class="txt"><b>Workflows</b> orchestrate pipelines; deploys on <b>AWS, Azure, GCP</b>.</div></div>
+      </div>
+    </div>
+    <div class="footer">10 · Summary</div>
+  </section>
+
+</div>
+
+<div class="controls">
+  <div class="counter" id="counter">1 / 10</div>
+  <button class="btn" id="prev" aria-label="Previous slide">‹</button>
+  <button class="btn" id="next" aria-label="Next slide">›</button>
+</div>
+<div class="hint">Use ← → or arrow keys to navigate</div>
+
+<script>
+  (function(){
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var idx = 0;
+    var counter = document.getElementById('counter');
+    var prevBtn = document.getElementById('prev');
+    var nextBtn = document.getElementById('next');
+
+    function show(n){
+      if(n<0)n=0; if(n>=slides.length)n=slides.length-1;
+      slides.forEach(function(s,i){ s.classList.toggle('active', i===n); });
+      idx=n;
+      counter.textContent=(n+1)+' / '+slides.length;
+      prevBtn.disabled = (n===0);
+      nextBtn.disabled = (n===slides.length-1);
+    }
+    prevBtn.addEventListener('click',function(){ show(idx-1); });
+    nextBtn.addEventListener('click',function(){ show(idx+1); });
+    document.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); show(idx+1); }
+      else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); show(idx-1); }
+      else if(e.key==='Home'){ show(0); }
+      else if(e.key==='End'){ show(slides.length-1); }
+    });
+    show(0);
+  })();
+</script>
+</body>
+</html>

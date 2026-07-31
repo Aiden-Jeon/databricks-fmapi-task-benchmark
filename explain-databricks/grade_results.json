@@ -1,0 +1,19 @@
+[
+  {
+    "candidate": "glm",
+    "harness": "direct-fmapi",
+    "model": "databricks-glm-5-2",
+    "mode": "direct-fmapi",
+    "valid": true,
+    "slide_count": 10,
+    "keywords": "8/8",
+    "console_errors": 0,
+    "external_refs": 0,
+    "wall_seconds": 126.17,
+    "auto_score": 1.0,
+    "screenshots": [
+      "slide_01.png"
+    ],
+    "note": ""
+  }
+]
