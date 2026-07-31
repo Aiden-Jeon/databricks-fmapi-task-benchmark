@@ -1,0 +1,6 @@
+lr0.01   acc=0.6232 auc=0.6757
+lr0.02   acc=0.6262 auc=0.6747
+lr0.05   acc=0.6281 auc=0.6731
+gb       acc=0.6104 auc=0.6674
+ENSEMBLE acc@0.5=0.6255  acc@q=0.6255 (thr=0.4855)  auc=0.6755
+submission written: n=664  pos_rate=0.498  (95s)

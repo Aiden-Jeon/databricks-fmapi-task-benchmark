@@ -1,0 +1,17 @@
+reps 48.0s
+dm_lsa_char_C0.01: acc=0.5625 auc=0.5879 48s
+dm_lsa_char_C0.1: acc=0.5573 auc=0.5799 51s
+dm_lsa_char_C1.0: acc=0.5565 auc=0.5784 52s
+dm_lsa_word_C0.01: acc=0.5445 auc=0.5561 54s
+dm_lsa_word_C0.1: acc=0.5358 auc=0.5504 55s
+dm_lsa_word_C1.0: acc=0.5343 auc=0.5492 58s
+dm_w20_lsa_char_C0.01: acc=0.5381 auc=0.5674 59s
+dm_w20_lsa_char_C0.1: acc=0.5377 auc=0.5602 60s
+dm_w20_lsa_char_C1.0: acc=0.5369 auc=0.5590 62s
+sm_char_C0.1: acc=0.5060 auc=0.5728 64s
+sm_char_C1.0: acc=0.5463 auc=0.5756 74s
+sm_char_C10.0: acc=0.5671 auc=0.5832 103s
+sm_word_C0.1: acc=0.5064 auc=0.5488 106s
+sm_word_C1.0: acc=0.5543 auc=0.5495 122s
+sm_word_C10.0: acc=0.5573 auc=0.5496 148s
+148.3s

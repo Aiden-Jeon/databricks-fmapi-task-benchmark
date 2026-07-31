@@ -1,0 +1,4 @@
+  B 0/3400 37s
+  B 2000/3400 569s
+pass B done 658s
+mean f1 top1 0.1870 | answerable-only 0.2699 | oracle top8 0.5208 | unans 0.307

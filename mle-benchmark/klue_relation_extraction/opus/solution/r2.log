@@ -1,0 +1,14 @@
+features (25976, 1148081) 39s
+  svc015 (w=1.0) done (27s)
+  svc02 (w=0.7) done (32s)
+  svc025bal (w=1.5) done (35s)
+wrote submission (6494, 2) total 134s
+no_relation                  1948
+org:top_members/employees     883
+per:employee_of               776
+per:title                     433
+org:member_of                 343
+per:origin                    296
+org:alternate_names           254
+org:place_of_headquarters     252
+Name: label, dtype: int64

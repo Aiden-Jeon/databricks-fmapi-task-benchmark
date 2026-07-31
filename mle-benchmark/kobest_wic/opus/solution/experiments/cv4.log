@@ -1,0 +1,18 @@
+content 0.0s (2654, 63)
+=== use_prior False
+  lr   acc=0.5946 auc=0.6342
+  hgb  acc=0.5878 auc=0.6315
+  et   acc=0.6032 auc=0.6376
+  rf   acc=0.5912 auc=0.6330
+  gb   acc=0.5908 auc=0.6342
+  ens  acc=0.5991 auc=0.6428
+  ens2 acc=0.5953 auc=0.6394
+=== use_prior True
+  lr   acc=0.6100 auc=0.6588
+  hgb  acc=0.6002 auc=0.6520
+  et   acc=0.6017 auc=0.6520
+  rf   acc=0.6025 auc=0.6463
+  gb   acc=0.5965 auc=0.6524
+  ens  acc=0.6089 auc=0.6598
+  ens2 acc=0.6066 auc=0.6551
+158.2s

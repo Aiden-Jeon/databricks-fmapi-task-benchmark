@@ -1,0 +1,12 @@
+X (20780, 940045) neigh_w 1.0
+svc02: acc=0.7598 f1m=0.5857 (24s)
+svc05: acc=0.7577 f1m=0.5836 (44s)
+svcbal: acc=0.7581 f1m=0.6140 (26s)
+sgdlog: acc=0.7381 f1m=0.5497 (16s)
+cnb: acc=0.7025 f1m=0.4882 (2s)
+
+--- greedy blend (with repetition) ---
+  + svc02 -> 0.7598
+  + svcbal -> 0.7627
+  + svcbal -> 0.7629
+chosen: ['svc02', 'svcbal', 'svcbal']

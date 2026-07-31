@@ -1,0 +1,14 @@
+feat build 29s (20780, 939797)
+shapes (20780, 939797) (5196, 939797)
+/databricks/python/lib/python3.12/site-packages/sklearn/svm/_classes.py:31: FutureWarning: The default value of `dual` will change from `True` to `'auto'` in 1.5. Set the value of `dual` explicitly to suppress the warning.
+  warnings.warn(
+svc_C0.1: acc=0.7508 f1m=0.5611 (19s)
+/databricks/python/lib/python3.12/site-packages/sklearn/svm/_classes.py:31: FutureWarning: The default value of `dual` will change from `True` to `'auto'` in 1.5. Set the value of `dual` explicitly to suppress the warning.
+  warnings.warn(
+svc_C0.2: acc=0.7506 f1m=0.5673 (25s)
+/databricks/python/lib/python3.12/site-packages/sklearn/svm/_classes.py:31: FutureWarning: The default value of `dual` will change from `True` to `'auto'` in 1.5. Set the value of `dual` explicitly to suppress the warning.
+  warnings.warn(
+svc_C0.35: acc=0.7502 f1m=0.5746 (35s)
+/databricks/python/lib/python3.12/site-packages/sklearn/svm/_classes.py:31: FutureWarning: The default value of `dual` will change from `True` to `'auto'` in 1.5. Set the value of `dual` explicitly to suppress the warning.
+  warnings.warn(
+svc_C0.5: acc=0.7513 f1m=0.5742 (44s)
