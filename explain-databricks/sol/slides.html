@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What Is Databricks?</title>
+  <style>
+    :root {
+      --ink: #152238;
+      --muted: #5f6b7a;
+      --paper: #f7f8fa;
+      --card: #ffffff;
+      --line: #dce1e8;
+      --red: #ff3621;
+      --red-dark: #c92412;
+      --blue: #1868db;
+      --teal: #008f83;
+      --amber: #e49b12;
+      --violet: #6750c7;
+      --navy: #14273f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      background: var(--navy);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 5.5vh 6.5vw;
+      background:
+        radial-gradient(circle at 92% 8%, rgba(255, 54, 33, 0.08), transparent 23%),
+        linear-gradient(135deg, #ffffff 0%, #f7f8fa 68%, #f1f3f7 100%);
+    }
+
+    .slide.dark {
+      color: #ffffff;
+      background:
+        radial-gradient(circle at 82% 22%, rgba(255, 54, 33, 0.24), transparent 28%),
+        radial-gradient(circle at 10% 88%, rgba(24, 104, 219, 0.20), transparent 30%),
+        linear-gradient(140deg, #102035, #172d49 68%, #0d1b2d);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 9rem;
+      height: 0.38rem;
+      background: var(--red);
+    }
+
+    .slide-number {
+      position: absolute;
+      top: 2rem;
+      right: 3rem;
+      color: #8792a2;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .dark .slide-number {
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .eyebrow {
+      margin: 0 0 0.7rem;
+      color: var(--red-dark);
+      font-size: clamp(0.72rem, 1vw, 0.92rem);
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .dark .eyebrow {
+      color: #ff8a7b;
+    }
+
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 950px;
+      margin-bottom: 1rem;
+      font-size: clamp(3rem, 7vw, 6.8rem);
+      line-height: 0.97;
+      letter-spacing: -0.055em;
+    }
+
+    h2 {
+      max-width: 1000px;
+      margin-bottom: 1.6rem;
+      font-size: clamp(2rem, 4.2vw, 4.25rem);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    h3 {
+      margin-bottom: 0.55rem;
+      font-size: clamp(1rem, 1.5vw, 1.28rem);
+      line-height: 1.2;
+    }
+
+    p {
+      line-height: 1.55;
+    }
+
+    .lede {
+      max-width: 880px;
+      margin-bottom: 1.7rem;
+      color: var(--muted);
+      font-size: clamp(1.03rem, 1.7vw, 1.5rem);
+      line-height: 1.52;
+    }
+
+    .dark .lede {
+      color: #c7d2e0;
+    }
+
+    .accent {
+      color: var(--red);
+    }
+
+    .rule {
+      width: 4.2rem;
+      height: 0.3rem;
+      margin: 1rem 0 1.5rem;
+      border-radius: 1rem;
+      background: var(--red);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+
+    .pill {
+      padding: 0.58rem 0.9rem;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      color: #e8eef5;
+      background: rgba(255,255,255,0.07);
+      font-size: 0.88rem;
+      font-weight: 650;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      position: relative;
+      min-width: 0;
+      padding: 1.25rem 1.3rem;
+      border: 1px solid var(--line);
+      border-radius: 0.9rem;
+      background: rgba(255,255,255,0.93);
+      box-shadow: 0 8px 24px rgba(20, 39, 63, 0.06);
+    }
+
+    .card p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(0.83rem, 1.05vw, 1rem);
+    }
+
+    .card-top {
+      border-top: 0.28rem solid var(--red);
+    }
+
+    .icon {
+      display: inline-grid;
+      width: 2.35rem;
+      height: 2.35rem;
+      margin-bottom: 0.8rem;
+      place-items: center;
+      border-radius: 0.68rem;
+      color: #ffffff;
+      background: var(--navy);
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .icon.red { background: var(--red); }
+    .icon.blue { background: var(--blue); }
+    .icon.teal { background: var(--teal); }
+    .icon.violet { background: var(--violet); }
+    .icon.amber { background: var(--amber); }
+
+    .split {
+      display: grid;
+      grid-template-columns: 0.88fr 1.12fr;
+      align-items: center;
+      gap: 4vw;
+    }
+
+    .clean-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .clean-list li {
+      position: relative;
+      margin: 0 0 0.85rem;
+      padding-left: 1.4rem;
+      color: var(--muted);
+      font-size: clamp(0.9rem, 1.25vw, 1.1rem);
+      line-height: 1.45;
+    }
+
+    .clean-list li::before {
+      content: "";
+      position: absolute;
+      top: 0.58em;
+      left: 0;
+      width: 0.52rem;
+      height: 0.52rem;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    .clean-list strong {
+      color: var(--ink);
+    }
+
+    .architecture {
+      display: grid;
+      gap: 0.85rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .arch-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+
+    .arch-box {
+      padding: 1rem 1.2rem;
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      text-align: center;
+      background: #ffffff;
+      box-shadow: 0 6px 18px rgba(20,39,63,0.06);
+    }
+
+    .arch-box strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 1.05rem;
+    }
+
+    .arch-box span {
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .arch-box.unified {
+      padding: 1.1rem;
+      border-color: rgba(255,54,33,0.35);
+      color: #ffffff;
+      background: linear-gradient(120deg, var(--red-dark), var(--red));
+    }
+
+    .arch-box.unified span {
+      color: #ffe5e0;
+    }
+
+    .foundation {
+      padding: 0.95rem;
+      border-radius: 0.8rem;
+      text-align: center;
+      color: #ffffff;
+      background: var(--navy);
+      font-weight: 750;
+    }
+
+    .arrow {
+      color: var(--red);
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 900;
+      line-height: 0.5;
+    }
+
+    .delta-visual {
+      padding: 1.6rem;
+      border-radius: 1.1rem;
+      color: #ffffff;
+      background: linear-gradient(145deg, #122641, #1d3b60);
+      box-shadow: 0 16px 40px rgba(20,39,63,0.18);
+    }
+
+    .delta-layer {
+      margin: 0.62rem 0;
+      padding: 0.92rem 1rem;
+      border-radius: 0.65rem;
+      background: rgba(255,255,255,0.09);
+      border-left: 0.32rem solid #77b4ff;
+    }
+
+    .delta-layer:first-child {
+      border-left-color: #ff7564;
+    }
+
+    .delta-layer strong {
+      display: block;
+      margin-bottom: 0.18rem;
+    }
+
+    .delta-layer span {
+      color: #cbd7e5;
+      font-size: 0.82rem;
+    }
+
+    .catalog-center {
+      display: grid;
+      width: 11rem;
+      height: 11rem;
+      margin: 0 auto;
+      place-items: center;
+      border: 0.55rem solid #ffd2cb;
+      border-radius: 50%;
+      color: #ffffff;
+      text-align: center;
+      background: var(--red);
+      box-shadow: 0 0 0 0.55rem #fff0ed;
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: 1fr 12rem 1fr;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .catalog-side {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .mini {
+      padding: 0.95rem;
+      border: 1px solid var(--line);
+      border-radius: 0.75rem;
+      background: #ffffff;
+    }
+
+    .mini strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 0.94rem;
+    }
+
+    .mini span {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: 0.7rem;
+    }
+
+    .flow-step {
+      display: flex;
+      min-height: 8.5rem;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: 0.85rem;
+      background: #ffffff;
+    }
+
+    .flow-step b {
+      margin-bottom: 0.45rem;
+      font-size: 1.05rem;
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .flow-arrow {
+      align-self: center;
+      color: var(--red);
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+
+    .ai-stack {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 1.2rem;
+    }
+
+    .stack {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .stack-row {
+      padding: 0.9rem 1.05rem;
+      border-radius: 0.72rem;
+      color: #ffffff;
+      background: var(--navy);
+    }
+
+    .stack-row:nth-child(2) { background: #214a75; }
+    .stack-row:nth-child(3) { background: var(--violet); }
+    .stack-row:nth-child(4) { background: var(--red-dark); }
+
+    .stack-row strong {
+      display: block;
+      margin-bottom: 0.15rem;
+      font-size: 0.96rem;
+    }
+
+    .stack-row span {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.79rem;
+    }
+
+    .clouds {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.9rem;
+      margin-top: 1.1rem;
+    }
+
+    .cloud {
+      padding: 1.05rem;
+      border: 1px solid rgba(255,255,255,0.17);
+      border-radius: 0.8rem;
+      text-align: center;
+      background: rgba(255,255,255,0.07);
+    }
+
+    .cloud strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: #ffffff;
+      font-size: 1.05rem;
+    }
+
+    .cloud span {
+      color: #bdc9d8;
+      font-size: 0.82rem;
+    }
+
+    .takeaway {
+      display: grid;
+      grid-template-columns: 2.1rem 1fr;
+      align-items: start;
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .takeaway-num {
+      display: grid;
+      width: 2.1rem;
+      height: 2.1rem;
+      place-items: center;
+      border-radius: 50%;
+      color: #ffffff;
+      background: var(--red);
+      font-weight: 800;
+    }
+
+    .takeaway p {
+      margin: 0;
+      color: #cbd6e3;
+      font-size: 1rem;
+    }
+
+    .takeaway strong {
+      color: #ffffff;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 6.5vw;
+      color: #8b96a4;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .dark .footer {
+      color: rgba(255,255,255,0.42);
+    }
+
+    .hint {
+      position: absolute;
+      right: 3rem;
+      bottom: 1.5rem;
+      color: #9ba5b2;
+      font-size: 0.67rem;
+    }
+
+    @media (max-width: 820px), (max-height: 600px) {
+      .slide {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+        padding: 4.5rem 2rem;
+      }
+
+      .grid-3, .grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .split, .ai-stack {
+        grid-template-columns: 1fr;
+        gap: 1.2rem;
+      }
+
+      .catalog-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .catalog-side {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+      }
+
+      .slide-number {
+        right: 1.5rem;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .grid-2, .grid-3, .grid-4, .clouds, .arch-row, .catalog-side {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 3.2rem;
+      }
+    }
+
+    @media print {
+      html, body {
+        background: #ffffff;
+        scroll-snap-type: none;
+      }
+
+      .slide {
+        width: 13.333in;
+        height: 7.5in;
+        min-height: 7.5in;
+        break-after: page;
+        page-break-after: always;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="slide dark" id="slide-1">
+    <div class="slide-number">01 / 09</div>
+    <p class="eyebrow">Platform primer</p>
+    <h1>What is<br><span class="accent">Databricks?</span></h1>
+    <div class="rule"></div>
+    <p class="lede">A multi-cloud data and AI platform built around the lakehouse: one environment for data engineering, analytics, data warehousing, machine learning, and generative AI.</p>
+    <div class="pill-row">
+      <span class="pill">Open data formats</span>
+      <span class="pill">Shared governance</span>
+      <span class="pill">Elastic compute</span>
+      <span class="pill">SQL + Python + Scala + R</span>
+    </div>
+    <div class="footer">Databricks explained</div>
+    <div class="hint">Scroll to continue ↓</div>
+  </section>
+
+  <section class="slide" id="slide-2">
+    <div class="slide-number">02 / 09</div>
+    <p class="eyebrow">The problem</p>
+    <h2>Data work often lives in disconnected systems</h2>
+    <p class="lede">Separate platforms can optimize individual workloads—but create duplicated data, fragmented security, and slow handoffs.</p>
+    <div class="grid-4">
+      <div class="card card-top">
+        <span class="icon blue">01</span>
+        <h3>Data engineering</h3>
+        <p>Ingests and transforms large volumes with batch and streaming pipelines.</p>
+      </div>
+      <div class="card card-top">
+        <span class="icon amber">02</span>
+        <h3>BI &amp; warehousing</h3>
+        <p>Serves governed tables and fast SQL queries to analysts and dashboards.</p>
+      </div>
+      <div class="card card-top">
+        <span class="icon violet">03</span>
+        <h3>Machine learning</h3>
+        <p>Builds features, trains models, tracks experiments, and deploys inference.</p>
+      </div>
+      <div class="card card-top">
+        <span class="icon teal">04</span>
+        <h3>Governance</h3>
+        <p>Must consistently control users, data, models, lineage, and auditing.</p>
+      </div>
+    </div>
+    <p style="margin:1.35rem 0 0; color:var(--ink); font-weight:700;">Databricks’ premise: bring these workloads to shared data and shared governance instead of moving copies between silos.</p>
+    <div class="footer">Why a unified platform?</div>
+  </section>
+
+  <section class="slide" id="slide-3">
+    <div class="slide-number">03 / 09</div>
+    <p class="eyebrow">Core concept</p>
+    <h2>The lakehouse architecture</h2>
+    <p class="lede">A lakehouse unifies the low-cost, open storage of a data lake with the management and performance capabilities associated with a data warehouse.</p>
+    <div class="architecture">
+      <div class="arch-row">
+        <div class="arch-box">
+          <strong>Data lake strengths</strong>
+          <span>All data types · open formats · scalable object storage</span>
+        </div>
+        <div class="arch-box">
+          <strong>Data warehouse strengths</strong>
+          <span>Reliable tables · SQL performance · governance · BI semantics</span>
+        </div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="arch-box unified">
+        <strong>Databricks Lakehouse Platform</strong>
+        <span>Engineering, streaming, SQL analytics, ML, and AI on one governed data foundation</span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="foundation">Cloud object storage + open table formats</div>
+    </div>
+    <p style="margin:1.15rem auto 0; max-width:900px; color:var(--muted); text-align:center; font-size:.92rem;">The result is not one giant compute cluster: storage and compute are separated, so each workload can scale independently.</p>
+    <div class="footer">Lakehouse = lake flexibility + warehouse reliability</div>
+  </section>
+
+  <section class="slide" id="slide-4">
+    <div class="slide-number">04 / 09</div>
+    <p class="eyebrow">Data + compute foundation</p>
+    <h2>Delta Lake makes lake data dependable</h2>
+    <div class="split">
+      <div>
+        <p class="lede">Delta Lake is the open table layer that adds ACID transactions on the lake, turning cloud files into reliable, queryable tables.</p>
+        <ul class="clean-list">
+          <li><strong>ACID transactions:</strong> concurrent reads and writes remain consistent.</li>
+          <li><strong>Schema enforcement and evolution:</strong> control change without freezing it.</li>
+          <li><strong>Time travel:</strong> query or restore earlier table versions.</li>
+          <li><strong>Batch and streaming:</strong> use the same table for both patterns.</li>
+        </ul>
+      </div>
+      <div class="delta-visual">
+        <div class="delta-layer">
+          <strong>Delta transaction log</strong>
+          <span>Table versions · metadata · atomic commits</span>
+        </div>
+        <div class="delta-layer">
+          <strong>Open columnar data files</strong>
+          <span>Typically Parquet files in cloud object storage</span>
+        </div>
+        <div class="delta-layer">
+          <strong>Apache Spark / distributed compute</strong>
+          <span>Parallel processing for ETL, streaming, SQL, and ML workloads</span>
+        </div>
+      </div>
+    </div>
+    <p style="margin:1.2rem 0 0; padding:1rem 1.2rem; border-left:.3rem solid var(--red); background:#fff3f1; color:var(--ink);">
+      <strong>Apache Spark</strong> is a core distributed compute engine in Databricks; the platform also adds optimized runtimes, managed compute, and serverless options.
+    </p>
+    <div class="footer">Reliable tables on open cloud storage</div>
+  </section>
+
+  <section class="slide" id="slide-5">
+    <div class="slide-number">05 / 09</div>
+    <p class="eyebrow">Governance layer</p>
+    <h2>Unity Catalog governs data and AI assets</h2>
+    <p class="lede">Unity Catalog provides a common governance model across workspaces and workloads—from files and tables to functions, notebooks, and models.</p>
+    <div class="catalog-grid">
+      <div class="catalog-side">
+        <div class="mini">
+          <strong>Access control</strong>
+          <span>Central permissions at catalog, schema, table, view, row, and column levels.</span>
+        </div>
+        <div class="mini">
+          <strong>Discovery</strong>
+          <span>Searchable metadata and business context help users find trusted assets.</span>
+        </div>
+      </div>
+      <div class="catalog-center">Unity<br>Catalog</div>
+      <div class="catalog-side">
+        <div class="mini">
+          <strong>Lineage</strong>
+          <span>Tracks how data flows through queries, pipelines, dashboards, and models.</span>
+        </div>
+        <div class="mini">
+          <strong>Audit &amp; sharing</strong>
+          <span>Usage visibility plus controlled data sharing across teams and organizations.</span>
+        </div>
+      </div>
+    </div>
+    <p style="margin:1.35rem auto 0; max-width:940px; text-align:center; color:var(--muted);">A single policy plane reduces the need to rebuild governance separately for engineering, Databricks SQL, machine learning, and AI.</p>
+    <div class="footer">Governance, lineage, and access control</div>
+  </section>
+
+  <section class="slide" id="slide-6">
+    <div class="slide-number">06 / 09</div>
+    <p class="eyebrow">Workloads</p>
+    <h2>One foundation, multiple ways to work</h2>
+    <div class="grid-3">
+      <div class="card">
+        <span class="icon blue">DE</span>
+        <h3>Data engineering</h3>
+        <p>Notebooks, code, and declarative pipelines ingest, clean, and transform batch or streaming data.</p>
+      </div>
+      <div class="card">
+        <span class="icon red">SQL</span>
+        <h3>Databricks SQL</h3>
+        <p>SQL warehouses provide data warehousing, BI connectivity, dashboards, and governed analytics.</p>
+      </div>
+      <div class="card">
+        <span class="icon violet">ML</span>
+        <h3>Data science &amp; ML</h3>
+        <p>Collaborative development, feature engineering, experiment tracking, model registry, and serving.</p>
+      </div>
+    </div>
+    <div style="margin-top:1.15rem; padding:1.2rem 1.3rem; border-radius:.9rem; color:#fff; background:var(--navy);">
+      <div style="display:grid; grid-template-columns:auto 1fr; gap:1rem; align-items:center;">
+        <span class="icon red" style="margin:0;">↔</span>
+        <div>
+          <h3 style="margin-bottom:.25rem;">Shared assets, fit-for-purpose compute</h3>
+          <p style="margin:0; color:#c9d4e1; font-size:.92rem;">Engineers, analysts, and scientists can use different interfaces and compute while working from the same Delta tables and Unity Catalog policies.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Engineering · Databricks SQL · machine learning</div>
+  </section>
+
+  <section class="slide" id="slide-7">
+    <div class="slide-number">07 / 09</div>
+    <p class="eyebrow">AI and machine learning</p>
+    <h2>Mosaic AI connects models to governed enterprise data</h2>
+    <div class="ai-stack">
+      <div class="stack">
+        <div class="stack-row">
+          <strong>Build and prepare</strong>
+          <span>Notebooks, features, vector search, data preparation</span>
+        </div>
+        <div class="stack-row">
+          <strong>Train and evaluate</strong>
+          <span>Traditional ML, fine-tuning, experiments, quality evaluation</span>
+        </div>
+        <div class="stack-row">
+          <strong>Govern and monitor</strong>
+          <span>Model registry, lineage, permissions, observability</span>
+        </div>
+        <div class="stack-row">
+          <strong>Deploy and serve</strong>
+          <span>Endpoints for real-time or batch inference</span>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="height:100%; border-top:.32rem solid var(--violet);">
+          <span class="icon violet">AI</span>
+          <h3>Foundation Model API (FMAPI)</h3>
+          <p style="margin-bottom:.8rem;">The Foundation Model API exposes hosted foundation models through familiar APIs, enabling teams to prototype and serve generative AI without managing model infrastructure.</p>
+          <ul class="clean-list">
+            <li>Use pay-per-token endpoints or provisioned throughput.</li>
+            <li>Call supported third-party or open models.</li>
+            <li>Combine models with governed lakehouse data for RAG and agents.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p style="margin:1rem 0 0; color:var(--muted); font-size:.9rem;"><strong style="color:var(--ink);">Mosaic AI</strong> is the platform capability set for developing, evaluating, governing, and deploying machine learning and generative AI applications.</p>
+    <div class="footer">From ML experiments to production AI</div>
+  </section>
+
+  <section class="slide dark" id="slide-8">
+    <div class="slide-number">08 / 09</div>
+    <p class="eyebrow">Operations and deployment</p>
+    <h2>Automate workloads; run on your cloud</h2>
+    <p class="lede">Databricks Workflows provides job orchestration for production pipelines, notebooks, SQL tasks, model training, and other dependencies.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <b>Ingest</b>
+        <span>Scheduled, event-driven, batch, or streaming sources</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <b>Transform &amp; train</b>
+        <span>Task dependencies, retries, parameters, alerts, and monitoring</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <b>Serve</b>
+        <span>Tables, dashboards, features, models, and applications</span>
+      </div>
+    </div>
+    <div class="clouds">
+      <div class="cloud">
+        <strong>AWS</strong>
+        <span>Deploy with Amazon Web Services storage, identity, and networking.</span>
+      </div>
+      <div class="cloud">
+        <strong>Microsoft Azure</strong>
+        <span>Available as Azure Databricks with Azure service integrations.</span>
+      </div>
+      <div class="cloud">
+        <strong>Google Cloud / GCP</strong>
+        <span>Deploy with Google Cloud storage, identity, and networking.</span>
+      </div>
+    </div>
+    <p style="margin:1rem 0 0; color:#c7d2e0; font-size:.88rem;">The experience is broadly consistent across clouds, while available features, regions, integrations, and commercial terms can differ.</p>
+    <div class="footer">Workflows / job orchestration · AWS · Azure · GCP</div>
+  </section>
+
+  <section class="slide dark" id="slide-9">
+    <div class="slide-number">09 / 09</div>
+    <p class="eyebrow">In summary</p>
+    <h2>Databricks is a governed platform for data and AI</h2>
+    <div style="max-width:920px;">
+      <div class="takeaway">
+        <div class="takeaway-num">1</div>
+        <p><strong>Lakehouse architecture:</strong> combines data lake openness and economics with data warehouse reliability and performance.</p>
+      </div>
+      <div class="takeaway">
+        <div class="takeaway-num">2</div>
+        <p><strong>Shared foundation:</strong> Delta Lake, Apache Spark and elastic compute support engineering, Databricks SQL, analytics, and machine learning.</p>
+      </div>
+      <div class="takeaway">
+        <div class="takeaway-num">3</div>
+        <p><strong>Unified governance:</strong> Unity Catalog centralizes access control, discovery, auditing, and lineage for data and AI assets.</p>
+      </div>
+      <div class="takeaway">
+        <div class="takeaway-num">4</div>
+        <p><strong>Production operations:</strong> Mosaic AI, the Foundation Model API, and Workflows move pipelines and AI applications from development to operation.</p>
+      </div>
+      <div class="takeaway">
+        <div class="takeaway-num">5</div>
+        <p><strong>Multi-cloud:</strong> organizations can deploy Databricks on AWS, Azure, or GCP while keeping data in their chosen cloud environment.</p>
+      </div>
+    </div>
+    <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,.16); color:#ffb3a9; font-weight:750;">
+      The practical question is not “lake or warehouse?”—it is which workloads benefit from sharing one governed data foundation.
+    </div>
+    <div class="footer">End</div>
+  </section>
+
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What is Databricks?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #1b1f2a;
+    color: #1a1a1a;
+    line-height: 1.5;
+  }
+  .deck {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 16px;
+  }
+  .slide {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 48px 56px;
+    margin: 0 auto 32px auto;
+    min-height: 480px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    border-top: 8px solid #ff5722;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .slide h1 {
+    font-size: 2.6rem;
+    color: #12233b;
+    margin-bottom: 16px;
+    line-height: 1.15;
+  }
+  .slide h2 {
+    font-size: 1.9rem;
+    color: #ff5722;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+  }
+  .slide h3 {
+    font-size: 1.15rem;
+    color: #12233b;
+    margin: 18px 0 6px 0;
+  }
+  .slide p { font-size: 1.1rem; margin-bottom: 12px; color: #333; }
+  .slide ul { margin: 8px 0 8px 26px; }
+  .slide li { font-size: 1.1rem; margin-bottom: 12px; color: #2a2a2a; }
+  .slide li b { color: #12233b; }
+  .subtitle { font-size: 1.35rem; color: #566; margin-top: 8px; }
+  .tag {
+    display: inline-block;
+    background: #12233b;
+    color: #fff;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+  }
+  .title-slide {
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(135deg, #12233b 0%, #24344f 100%);
+    border-top: 8px solid #ff5722;
+  }
+  .title-slide h1 { color: #fff; font-size: 3.2rem; }
+  .title-slide .subtitle { color: #cdd6e2; }
+  .cols { display: flex; gap: 28px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 220px; }
+  .card {
+    background: #f4f6fa;
+    border-left: 4px solid #ff5722;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+  .card b { color: #12233b; }
+  .footer { margin-top: auto; font-size: 0.8rem; color: #99a; padding-top: 20px; }
+  .clouds span {
+    display: inline-block;
+    background: #12233b;
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 6px;
+    margin: 6px 8px 6px 0;
+    font-size: 1.1rem;
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <section class="slide title-slide">
+    <div>
+      <h1>What is Databricks?</h1>
+      <p class="subtitle">An introduction to the Lakehouse Platform for data engineering, analytics &amp; AI</p>
+    </div>
+    <div class="footer">A primer for data engineers, analytics leads &amp; engineering managers</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">THE PROBLEM</span>
+    <h2>Why Databricks exists</h2>
+    <p>Most organizations run <b>two disconnected data stacks</b>:</p>
+    <ul>
+      <li><b>Data lakes</b> — cheap, flexible storage for raw and unstructured data, but weak on reliability, governance, and fast SQL.</li>
+      <li><b>Data warehouses</b> — great for structured BI and SQL, but rigid, costly at scale, and poorly suited to ML and unstructured data.</li>
+    </ul>
+    <p>Copying data between them creates <b>duplication, stale copies, brittle pipelines, and governance gaps</b>. Databricks unifies these worlds into one platform.</p>
+    <div class="footer">One idea: end the split between lakes and warehouses.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">CORE CONCEPT</span>
+    <h2>The Lakehouse Architecture</h2>
+    <p>The <b>Lakehouse</b> combines the best of both models on <b>open, low-cost cloud object storage</b>:</p>
+    <ul>
+      <li>The <b>flexibility and scale of a data lake</b> — store any data (structured, semi-structured, unstructured) in open formats.</li>
+      <li>The <b>reliability, performance and governance of a data warehouse</b> — ACID transactions, schema management, and fast SQL.</li>
+    </ul>
+    <p>Result: <b>one copy of data</b> serving BI, data engineering, streaming, and AI — no separate warehouse to sync.</p>
+    <div class="footer">Data lake + data warehouse = Lakehouse.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">FOUNDATION</span>
+    <h2>Delta Lake &amp; Apache Spark</h2>
+    <div class="cols">
+      <div class="col">
+        <h3>Delta Lake — the storage layer</h3>
+        <div class="card"><b>ACID transactions</b> on data-lake files, so reads and writes are reliable and consistent.</div>
+        <div class="card"><b>Time travel</b> &amp; versioning to query or roll back to prior states.</div>
+        <div class="card"><b>Schema enforcement</b> and evolution keep data clean; unifies batch and streaming.</div>
+      </div>
+      <div class="col">
+        <h3>Apache Spark — the compute engine</h3>
+        <div class="card"><b>Distributed compute</b> that scales processing across many machines.</div>
+        <div class="card">Handles <b>huge batch and streaming workloads</b> in SQL, Python, Scala, R.</div>
+        <div class="card">Databricks was founded by Spark's original creators and runs an optimized engine (Photon).</div>
+      </div>
+    </div>
+    <div class="footer">Reliable open storage (Delta Lake) on top of scalable compute (Spark).</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">GOVERNANCE</span>
+    <h2>Unity Catalog</h2>
+    <p>A single governance layer across all data and AI assets on the Lakehouse:</p>
+    <ul>
+      <li><b>Access control</b> — fine-grained, centrally managed permissions on catalogs, schemas, tables, files, and models.</li>
+      <li><b>Data lineage</b> — automatic, column-level tracking of how data flows and transforms across pipelines.</li>
+      <li><b>Discovery &amp; auditing</b> — one searchable catalog with full audit logs for compliance.</li>
+      <li><b>Consistent policies</b> across workspaces and clouds — govern data, notebooks, dashboards, and ML models together.</li>
+    </ul>
+    <div class="footer">One governance model for every asset, everywhere.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">ANALYTICS</span>
+    <h2>Databricks SQL &amp; Data Warehousing</h2>
+    <p>Run warehouse-style analytics <b>directly on the Lakehouse</b> — no separate warehouse required:</p>
+    <ul>
+      <li><b>Databricks SQL</b> provides fast, serverless SQL warehouses tuned by the Photon engine.</li>
+      <li>Familiar experience: SQL editor, dashboards, and easy <b>BI-tool connectivity</b> (Power BI, Tableau, dbt, etc.).</li>
+      <li>Query the same governed tables that engineering and ML teams use — <b>no data copies, no drift</b>.</li>
+    </ul>
+    <div class="footer">Warehouse performance and simplicity, on open Lakehouse data.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">AI / ML</span>
+    <h2>Machine Learning &amp; Mosaic AI</h2>
+    <p>Databricks provides the full ML and generative-AI lifecycle on the same platform:</p>
+    <ul>
+      <li><b>Mosaic AI</b> — the unified toolset to build, train, tune, evaluate, and serve ML and LLM applications.</li>
+      <li><b>MLflow</b> for experiment tracking, model registry, and deployment.</li>
+      <li><b>Foundation Model API (FMAPI)</b> — call state-of-the-art foundation and large language models via a simple API, either pay-per-token or on dedicated throughput.</li>
+      <li>Build <b>RAG apps, fine-tune models, and serve them securely</b> — all governed by Unity Catalog.</li>
+    </ul>
+    <div class="footer">From classic ML to generative AI on governed enterprise data.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">AUTOMATION &amp; CLOUD</span>
+    <h2>Workflows &amp; Multi-Cloud</h2>
+    <div class="cols">
+      <div class="col">
+        <h3>Workflows / Orchestration</h3>
+        <div class="card"><b>Databricks Workflows</b> orchestrates jobs — pipelines, notebooks, SQL, and ML tasks — with dependencies and scheduling.</div>
+        <div class="card">Built-in <b>monitoring, retries, and alerting</b>; no separate orchestration tool needed.</div>
+      </div>
+      <div class="col">
+        <h3>Multi-Cloud Deployment</h3>
+        <p>The same platform runs natively across the major clouds:</p>
+        <div class="clouds">
+          <span>AWS</span><span>Azure</span><span>GCP</span>
+        </div>
+        <p>Consistent experience and governance everywhere — avoid lock-in and meet data-residency needs.</p>
+      </div>
+    </div>
+    <div class="footer">Automate the pipeline; run it on your cloud of choice.</div>
+  </section>
+
+  <section class="slide">
+    <span class="tag">SUMMARY</span>
+    <h2>Putting it all together</h2>
+    <ul>
+      <li><b>Lakehouse</b> unifies data lake + warehouse into one open platform.</li>
+      <li><b>Delta Lake</b> brings ACID reliability; <b>Apache Spark</b> powers distributed compute.</li>
+      <li><b>Unity Catalog</b> governs access, lineage, and discovery across everything.</li>
+      <li><b>Databricks SQL</b> delivers warehouse-grade analytics on the same data.</li>
+      <li><b>Mosaic AI</b> and the <b>Foundation Model API</b> cover ML and generative AI.</li>
+      <li><b>Workflows</b> orchestrate it all, deployable across <b>AWS, Azure, and GCP</b>.</li>
+    </ul>
+    <p><b>One platform</b> for data engineering, analytics, and AI — no silos, one governance model.</p>
+    <div class="footer">Thanks for reading — that's Databricks in a nutshell.</div>
+  </section>
+
+</div>
+</body>
+</html>
