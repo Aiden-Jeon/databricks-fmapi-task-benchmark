@@ -25,11 +25,14 @@ Two phases:
     - --merge-human:      join a downloaded human_scores.json back onto the rows and
                           re-emit grade_results.json with auto_score + human_score.
 
+Run the CLIs from the repo root (task dirs are resolved from the working directory).
+
 Usage:
-  python grade_tasks.py --task explain-databricks              # grade all candidates
-  python grade_tasks.py --task explain-databricks --candidates opus glm
-  python grade_tasks.py --task explain-databricks --no-render  # validation only
-  python grade_tasks.py --task explain-databricks --merge-human explain-databricks/gallery/human_scores.json
+  grade-task --task explain-databricks              # grade all candidates
+  grade-task --task explain-databricks --candidates opus glm
+  grade-task --task explain-databricks --no-render  # validation only
+  grade-task --task explain-databricks --merge-human explain-databricks/gallery/human_scores.json
+  # equivalently:  python -m benchmark.grade_tasks --task ...
 """
 import argparse
 import json
@@ -37,7 +40,7 @@ from pathlib import Path
 
 from lxml import html as lxml_html
 
-import task_spec
+from benchmark import task_spec
 
 # Files that live in the task dir but are NOT candidate output directories.
 RESERVED = {"gallery", "__pycache__"}

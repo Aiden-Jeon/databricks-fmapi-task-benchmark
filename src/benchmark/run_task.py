@@ -25,11 +25,14 @@ A `--manual` mode reuses the identical setup for GENUINELY UI-only agents (Datab
 Playground, an IDE side-panel): a human is a pure "keyboard proxy" who pastes prompt.txt
 and brackets the agent-active time with two Enter presses.
 
+Run the CLIs from the repo root (task dirs are resolved from the working directory).
+
 Usage:
-  python run_task.py --task explain-databricks --candidate opus --harness direct-fmapi --model databricks-claude-opus-4-1
-  python run_task.py --task explain-databricks --candidate glm  --harness direct-fmapi --model databricks-glm-...
-  python run_task.py --task explain-databricks --candidate opus --harness claude-code
-  python run_task.py --task explain-databricks --candidate sol  --harness omnigent --model databricks-... --manual
+  run-task --task explain-databricks --candidate opus --harness direct-fmapi --model databricks-claude-opus-4-1
+  run-task --task explain-databricks --candidate glm  --harness direct-fmapi --model databricks-glm-...
+  run-task --task explain-databricks --candidate opus --harness claude-code
+  run-task --task explain-databricks --candidate sol  --harness omnigent --model databricks-... --manual
+  # equivalently:  python -m benchmark.run_task --task ...
 """
 import argparse
 import json
@@ -41,7 +44,7 @@ import sys
 import time
 from pathlib import Path
 
-import task_spec
+from benchmark import task_spec
 
 HARNESSES = ("direct-fmapi", "claude-code", "codex", "omnigent")
 

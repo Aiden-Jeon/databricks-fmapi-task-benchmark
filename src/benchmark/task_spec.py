@@ -2,13 +2,18 @@
 """
 task_spec.py — SINGLE SOURCE OF TRUTH for a benchmark task.
 
-Layout is task-centric: each task lives in its own directory at the repo root:
+Layout is task-centric: each task lives in its own directory under the benchmark root:
 
     <task_id>/
     ├── README.md            # task overview
     ├── TASK_DESCRIPTION.md   # canonical brief + hard format contract (the instructions)
     ├── keywords.json         # machine grading config (slide bounds + required topics)
     └── <candidate>/          # one output dir per compared model/candidate (opus, sol, glm, …)
+
+This package is reusable across tasks and may be pip-installed, so task directories are
+resolved relative to the BENCHMARK ROOT — the current working directory by default (run
+the CLIs from the repo root), overridable with the BENCHMARK_ROOT env var. It is NOT
+resolved from this file's install location.
 
 Both run_task.py (the runner) and grade_tasks.py (the grader) import from here so the
 prompt, the task description, and the grading contract can NEVER drift apart. This mirrors
@@ -18,9 +23,8 @@ produces the artifact" is byte-identical across every candidate.
 Nothing in this module has side effects — it is pure constants + functions.
 """
 import json
+import os
 from pathlib import Path
-
-PROJECT_DIR = Path(__file__).resolve().parent
 
 DEFAULT_TASK = "explain-databricks"
 ARTIFACT = "slides.html"
@@ -41,9 +45,17 @@ COMMON_PROMPT = (
 )
 
 
+def benchmark_root() -> Path:
+    """Root directory that holds the per-task directories.
+
+    Defaults to the current working directory (run the CLIs from the repo root);
+    override with the BENCHMARK_ROOT env var."""
+    return Path(os.environ.get("BENCHMARK_ROOT", Path.cwd())).resolve()
+
+
 def task_dir(task: str = DEFAULT_TASK) -> Path:
     """The directory holding a task's description, config, and candidate outputs."""
-    return PROJECT_DIR / task
+    return benchmark_root() / task
 
 
 def load_task(task: str = DEFAULT_TASK) -> dict:
@@ -51,7 +63,9 @@ def load_task(task: str = DEFAULT_TASK) -> dict:
     kw_path = task_dir(task) / "keywords.json"
     if not kw_path.exists():
         raise FileNotFoundError(
-            f"task config missing: {kw_path} — expected {task}/keywords.json"
+            f"task config missing: {kw_path} — expected {task}/keywords.json "
+            f"under the benchmark root ({benchmark_root()}). Run from the repo root "
+            f"or set BENCHMARK_ROOT."
         )
     return json.loads(kw_path.read_text(encoding="utf-8"))
 
@@ -63,6 +77,8 @@ def load_description(task: str = DEFAULT_TASK) -> str:
     desc_path = task_dir(task) / "TASK_DESCRIPTION.md"
     if not desc_path.exists():
         raise FileNotFoundError(
-            f"task description missing: {desc_path} — expected {task}/TASK_DESCRIPTION.md"
+            f"task description missing: {desc_path} — expected {task}/TASK_DESCRIPTION.md "
+            f"under the benchmark root ({benchmark_root()}). Run from the repo root "
+            f"or set BENCHMARK_ROOT."
         )
     return desc_path.read_text(encoding="utf-8")

@@ -4,11 +4,15 @@
 
 ## 구조 (태스크-중심)
 
+공용 로직은 `src/benchmark/` 패키지로 묶여 모든 태스크가 재사용한다. 태스크 디렉토리는 **실행 위치(repo 루트)** 기준으로 찾는다 (`BENCHMARK_ROOT` 환경변수로 override 가능).
+
 ```
 <repo>/
-├── task_spec.py          # 단일 진실 공급원 — COMMON_PROMPT + 태스크 로더
-├── run_task.py           # 후보 1개 실행 → <task>/<candidate>/slides.html
-├── grade_tasks.py        # 후보들 동일 채점 + 렌더링 + 사람 리뷰 갤러리
+├── pyproject.toml        # 패키지 + console_scripts (run-task / grade-task)
+├── src/benchmark/        # 공용 소스 (태스크 무관, 재사용)
+│   ├── task_spec.py          # 단일 진실 공급원 — COMMON_PROMPT + 태스크 로더
+│   ├── run_task.py           # 후보 1개 실행 → <task>/<candidate>/slides.html
+│   └── grade_tasks.py        # 후보들 동일 채점 + 렌더링 + 사람 리뷰 갤러리
 └── <task_name>/          # 태스크 하나 = 디렉토리 하나
     ├── README.md             # 태스크 개요 + 실행법
     ├── TASK_DESCRIPTION.md    # 표준 브리프 + 포맷 계약 (각 후보에 instructions.txt로 복사)
@@ -26,7 +30,7 @@
 
 ```bash
 uv venv
-uv pip install openai playwright lxml cssselect
+uv pip install -e .                  # 패키지 + 의존성 설치 → run-task / grade-task 명령 생성
 uv run playwright install chromium   # 헤드리스 렌더링용 (~150MB)
 
 # FMAPI 인증 (direct-fmapi / omnigent 에 필요)
@@ -34,30 +38,35 @@ export DATABRICKS_HOST=https://<workspace>.cloud.databricks.com
 export DATABRICKS_TOKEN=dapi...
 ```
 
+> 명령은 **repo 루트에서** 실행한다 (태스크 디렉토리를 작업 디렉토리 기준으로 찾음).
+> 다른 위치에서 돌리려면 `BENCHMARK_ROOT=<repo>` 를 지정한다.
+
 ## 1) 후보별 실행
 
 ```bash
 # direct-fmapi — 에이전트 없이 FMAPI 단발 chat completion (가장 단순한 baseline)
-uv run python run_task.py --task explain-databricks --candidate opus \
+uv run run-task --task explain-databricks --candidate opus \
     --harness direct-fmapi --model databricks-claude-opus-4-1
-uv run python run_task.py --task explain-databricks --candidate glm \
+uv run run-task --task explain-databricks --candidate glm \
     --harness direct-fmapi --model databricks-glm-...
 
 # 에이전트 하네스 (candidate 는 산출물 폴더 라벨)
-uv run python run_task.py --task explain-databricks --candidate opus --harness claude-code
-uv run python run_task.py --task explain-databricks --candidate sol  --harness codex
+uv run run-task --task explain-databricks --candidate opus --harness claude-code
+uv run run-task --task explain-databricks --candidate sol  --harness codex
 
 # omnigent — Databricks 메타-하네스 (CLI 구문 확정 전까지 --manual 로)
-uv run python run_task.py --task explain-databricks --candidate sol \
+uv run run-task --task explain-databricks --candidate sol \
     --harness omnigent --model databricks-... --manual
+
+# (동등: uv run python -m benchmark.run_task --task ...)
 ```
 
 ## 2) 채점 + 사람 리뷰
 
 ```bash
-uv run python grade_tasks.py --task explain-databricks         # 모든 후보 채점
-uv run python grade_tasks.py --task explain-databricks --candidates opus glm
-uv run python grade_tasks.py --task explain-databricks --no-render   # 검증만
+uv run grade-task --task explain-databricks         # 모든 후보 채점
+uv run grade-task --task explain-databricks --candidates opus glm
+uv run grade-task --task explain-databricks --no-render   # 검증만
 ```
 
 **Phase A (자동):** HTML 파싱, 슬라이드 수(`.slide` 또는 `<section>` 둘 다 인정), 필수 토픽 키워드 커버리지, 외부 http 참조 경고, 헤드리스 렌더링(콘솔 에러 수집 + 슬라이드별 스크린샷).
@@ -65,15 +74,17 @@ uv run python grade_tasks.py --task explain-databricks --no-render   # 검증만
 
 **Phase B (사람):** `<task>/gallery/index.html`을 브라우저로 열어 덱을 나란히 보고 1-5점 + 메모 → `human_scores.json` 다운로드 → 병합:
 ```bash
-uv run python grade_tasks.py --task explain-databricks \
+uv run grade-task --task explain-databricks \
     --merge-human explain-databricks/gallery/human_scores.json
 ```
 
 ## 새 태스크 추가
 
+공용 소스(`src/benchmark/`)는 건드리지 않는다 — 태스크 디렉토리만 추가하면 된다.
+
 1. `<new_task>/` 디렉토리 생성.
 2. `TASK_DESCRIPTION.md`(브리프 + 포맷 계약)와 `keywords.json`(채점 설정) 작성.
-3. `run_task.py --task <new_task> --candidate <name> …`로 실행.
+3. `uv run run-task --task <new_task> --candidate <name> …`로 실행.
 
 ## 실전 유의점
 

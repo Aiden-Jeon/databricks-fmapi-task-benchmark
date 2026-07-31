@@ -22,19 +22,19 @@ Each candidate directory is one model/candidate being compared. The candidate na
 ## Run one candidate
 ```bash
 # from the repo root
-uv run python run_task.py --task explain-databricks --candidate opus \
+uv run run-task --task explain-databricks --candidate opus \
     --harness direct-fmapi --model databricks-claude-opus-4-1
 
-uv run python run_task.py --task explain-databricks --candidate glm \
+uv run run-task --task explain-databricks --candidate glm \
     --harness direct-fmapi --model databricks-glm-...
 
 # agent harnesses (candidate name is just a label for the output dir)
-uv run python run_task.py --task explain-databricks --candidate opus --harness claude-code
+uv run run-task --task explain-databricks --candidate opus --harness claude-code
 ```
 
 ## Grade + compare
 ```bash
-uv run python grade_tasks.py --task explain-databricks
+uv run grade-task --task explain-databricks
 # → comparison table across opus/sol/glm + grade_results.json + gallery/index.html
 ```
 See the repo-root `README.md` for the full playbook and fairness checklist.
