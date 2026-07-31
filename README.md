@@ -51,9 +51,14 @@ uv run run-task --task explain-databricks --candidate opus --harness direct-fmap
 uv run run-task --task explain-databricks --candidate glm  --harness direct-fmapi
 uv run run-task --task explain-databricks --candidate sol  --harness direct-fmapi
 
-# 에이전트 하네스 (candidate 는 산출물 폴더 라벨)
+# 에이전트 하네스 — 툴로 여러 턴 돌며 slides.html 을 직접 작성 (direct-fmapi 단발 호출과 대비)
 uv run run-task --task explain-databricks --candidate opus --harness claude-code
 uv run run-task --task explain-databricks --candidate sol  --harness codex
+
+# pi — Pi 코딩 에이전트를 ucode(Databricks AI Gateway) 설정으로 헤드리스 실행.
+# provider/model 은 후보에서 자동 결정 (opus/sol). ucode configure --agent pi 선행 필요.
+uv run run-task --task explain-databricks --candidate pi-opus --harness pi \
+    --pi-provider databricks-claude --model system.ai.claude-opus-5
 
 # omnigent — Databricks 메타-하네스 (CLI 구문 확정 전까지 --manual 로)
 uv run run-task --task explain-databricks --candidate sol \
@@ -61,6 +66,9 @@ uv run run-task --task explain-databricks --candidate sol \
 
 # (동등: uv run python -m benchmark.run_task --task ...)
 ```
+
+> `pi` 하네스는 ucode가 Pi provider를 설정해둬야 한다: `ucode configure --agent pi --skip-validate`.
+> 러너는 `PI_CODING_AGENT_DIR`을 ucode의 pi-home(`~/.ucode/pi-home/.pi/agent`)으로 주입해 gateway provider(`databricks-claude` / `databricks-openai` / `databricks-gemini`)에 붙는다.
 
 ## 2) 채점 + 사람 리뷰
 

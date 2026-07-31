@@ -36,6 +36,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -45,7 +46,11 @@ from pathlib import Path
 
 from benchmark import fmapi_auth, task_spec
 
-HARNESSES = ("direct-fmapi", "claude-code", "codex", "omnigent")
+HARNESSES = ("direct-fmapi", "claude-code", "codex", "pi", "omnigent")
+
+# ucode configures Pi's Databricks AI Gateway providers under an isolated home dir; pi
+# only sees those providers when PI_CODING_AGENT_DIR points here.
+UCODE_PI_AGENT_DIR = Path.home() / ".ucode" / "pi-home" / ".pi" / "agent"
 
 
 def candidate_dir(task: str, candidate: str) -> Path:
@@ -92,7 +97,7 @@ def build_omnigent_argv(model: str, inner_harness: str, max_turns: int) -> list[
 
 
 def build_argv(harness: str, model: str | None, inner_harness: str,
-               max_turns: int) -> list[str]:
+               max_turns: int, pi_provider: str | None = None) -> list[str]:
     """Per-harness headless invocation. The PROMPT (COMMON_PROMPT) is identical;
     only the wrapper flags differ. cwd is set to the workdir by the caller."""
     prompt = task_spec.COMMON_PROMPT
@@ -112,9 +117,29 @@ def build_argv(harness: str, model: str | None, inner_harness: str,
             "--skip-git-repo-check",
             prompt,
         ]
+    if harness == "pi":
+        # `pi --print` = non-interactive. Reads/writes files with its built-in tools, so
+        # it produces ./slides.html directly in the workdir. Provider/model come from
+        # ucode's gateway config (see pi_env). --no-session keeps runs ephemeral.
+        argv = ["pi", "--print", "--no-session"]
+        if pi_provider:
+            argv += ["--provider", pi_provider]
+        if model:
+            argv += ["--model", model]
+        argv.append(prompt)
+        return argv
     if harness == "omnigent":
         return build_omnigent_argv(model, inner_harness, max_turns)
     sys.exit(f"ERROR: harness {harness!r} has no subprocess argv (use run_direct_fmapi/manual)")
+
+
+def pi_env() -> dict:
+    """Env overlay so pi finds ucode's Databricks AI Gateway providers."""
+    if not (UCODE_PI_AGENT_DIR / "models.json").exists():
+        sys.exit(
+            f"ERROR: pi is not configured for Databricks ({UCODE_PI_AGENT_DIR}/models.json "
+            "missing). Run:  ucode configure --agent pi --skip-validate")
+    return {"PI_CODING_AGENT_DIR": str(UCODE_PI_AGENT_DIR)}
 
 
 def extract_html(text: str) -> str:
@@ -237,14 +262,22 @@ def run_direct_fmapi(task, candidate, harness, model, workdir, max_seconds) -> d
     return meta
 
 
-def run_subprocess(task, candidate, harness, model, workdir, argv, max_seconds, max_turns) -> dict:
-    """Headless subprocess path — factored from agent-ml/run_agent.py."""
+def run_subprocess(task, candidate, harness, model, workdir, argv, max_seconds, max_turns,
+                   env_overlay: dict | None = None) -> dict:
+    """Headless subprocess path — factored from agent-ml/run_agent.py.
+
+    env_overlay (if given) is merged onto the current environment for the child, e.g.
+    pointing pi at ucode's Databricks AI Gateway config."""
     artifact = workdir / task_spec.ARTIFACT
     log_path = workdir / "agent_output.log"
 
     meta = base_meta(task, candidate, harness, model, workdir, argv, "headless")
     meta["max_seconds"] = max_seconds
     meta["max_turns"] = max_turns
+
+    child_env = None
+    if env_overlay:
+        child_env = {**os.environ, **env_overlay}
 
     print(f"[run_task] argv={argv}")
     print(f"[run_task] launching (output tee -> {log_path}) ...")
@@ -256,6 +289,7 @@ def run_subprocess(task, candidate, harness, model, workdir, argv, max_seconds, 
             proc = subprocess.run(
                 argv, cwd=str(workdir), stdout=logf,
                 stderr=subprocess.STDOUT, timeout=max_seconds, text=True,
+                env=child_env,
             )
         meta["exit_code"] = proc.returncode
     except subprocess.TimeoutExpired:
@@ -382,13 +416,29 @@ def main() -> None:
                     help="turn cap for agents that support it (claude-code); default 40")
     ap.add_argument("--omnigent-inner", default="claude",
                     help="inner harness omnigent drives (default: claude)")
+    ap.add_argument("--pi-provider", default=None,
+                    help="pi harness gateway provider (databricks-claude/databricks-openai/"
+                         "databricks-gemini); defaults from the candidate")
     args = ap.parse_args()
 
     if not args.manual and args.harness not in HARNESSES:
         ap.error(f"argument --harness: invalid choice {args.harness!r} "
                  f"(choose from {HARNESSES}); use --manual for an arbitrary UI-only agent")
-    # Default the model from the candidate name when not given explicitly.
-    if args.model is None:
+    # Default model (+ pi provider) from the candidate name when not given explicitly.
+    if args.harness == "pi":
+        if args.model is None or args.pi_provider is None:
+            prov_model = task_spec.PI_CANDIDATE_MODELS.get(args.candidate)
+            if prov_model:
+                args.pi_provider = args.pi_provider or prov_model[0]
+                args.model = args.model or prov_model[1]
+        if not args.manual and (not args.model or not args.pi_provider):
+            ap.error(
+                f"--harness pi needs a gateway provider + model. Candidate "
+                f"{args.candidate!r} has no default in task_spec.PI_CANDIDATE_MODELS "
+                f"({', '.join(task_spec.PI_CANDIDATE_MODELS) or 'empty'}); pass "
+                f"--pi-provider and --model explicitly (e.g. --pi-provider databricks-claude "
+                f"--model system.ai.claude-opus-5).")
+    elif args.model is None:
         args.model = task_spec.CANDIDATE_MODELS.get(args.candidate)
     # direct-fmapi's model contract is enforced early (before we create the workdir).
     if not args.manual and args.harness == "direct-fmapi":
@@ -411,9 +461,13 @@ def main() -> None:
         meta = run_direct_fmapi(args.task, args.candidate, args.harness, args.model,
                                 workdir, args.max_seconds)
     else:
-        argv = build_argv(args.harness, args.model, args.omnigent_inner, args.max_turns)
+        argv = build_argv(args.harness, args.model, args.omnigent_inner, args.max_turns,
+                          pi_provider=args.pi_provider)
+        env_overlay = pi_env() if args.harness == "pi" else None
         meta = run_subprocess(args.task, args.candidate, args.harness, args.model, workdir,
-                              argv, args.max_seconds, args.max_turns)
+                              argv, args.max_seconds, args.max_turns, env_overlay=env_overlay)
+        if args.harness == "pi":
+            meta["effective_model"] = f"{args.pi_provider}/{args.model}"
 
     write_meta(workdir, meta)
 

@@ -38,6 +38,17 @@ CANDIDATE_MODELS = {
     "glm": "databricks-glm-5-2",
 }
 
+# For the `pi` agent harness (Pi driven via ucode's Databricks AI Gateway config), the
+# candidate maps to a (provider, model) pair. pi reaches the gateway, not the serving-
+# endpoint path, so model ids are the gateway `system.ai.*` names — different from
+# CANDIDATE_MODELS above. Only candidates with a natural gateway equivalent get a default;
+# anything else must pass --model (+ optionally --pi-provider). ucode's pi gateway offers
+# databricks-claude / databricks-openai / databricks-gemini (no GLM), so glm has no default.
+PI_CANDIDATE_MODELS = {
+    "opus": ("databricks-claude", "system.ai.claude-opus-5"),
+    "sol": ("databricks-openai", "system.ai.gpt-5-5"),
+}
+
 # ---- The COMMON PROMPT — MUST stay byte-identical for every candidate. ------
 # Kept short on the CLI; the heavy task detail lives in TASK_DESCRIPTION.md (written
 # into each candidate dir as instructions.txt), which the agent is told to read.
