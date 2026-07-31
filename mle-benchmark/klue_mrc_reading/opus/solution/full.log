@@ -1,0 +1,23 @@
+  A 0/9657 13s
+  A 2000/9657 84s
+  A 4000/9657 158s
+  A 6000/9657 232s
+  A 8000/9657 309s
+pass A done (772957, 90) 375s
+stage1 rows (772957, 90) pos frac 0.1411993163914681
+  stage1 fold0 fit 55s on 393197 rows
+  stage1 fold1 fit 53s on 379760 rows
+  B 0/8000 17s
+  B 2000/8000 260s
+  B 4000/8000 523s
+  B 6000/8000 758s
+pass B done 997s
+mean f1 of top1 (always answer): 0.3429
+  on answerable only: 0.4990
+  oracle top8 answerable: 0.7643
+  C 0/3536 26s
+  C 1000/3536 239s
+  C 2000/3536 465s
+  C 3000/3536 787s
+pass C done 961s
+test recs 3536

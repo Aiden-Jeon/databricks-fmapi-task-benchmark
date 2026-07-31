@@ -1,0 +1,16 @@
+features (25976, 1147833) 89s
+  svc02 done (84s)
+  svc05 done (92s)
+/databricks/python/lib/python3.12/site-packages/sklearn/linear_model/_stochastic_gradient.py:723: ConvergenceWarning: Maximum number of iteration reached before convergence. Consider increasing max_iter to improve the fit.
+  warnings.warn(
+  sgdmh done (20s)
+wrote submission (6494, 2) total 284s
+no_relation                  2302
+org:top_members/employees     856
+per:employee_of               747
+per:title                     417
+org:member_of                 300
+per:origin                    262
+org:alternate_names           236
+per:date_of_birth             229
+Name: label, dtype: int64

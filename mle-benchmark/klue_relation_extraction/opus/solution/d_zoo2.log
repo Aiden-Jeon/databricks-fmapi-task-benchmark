@@ -1,0 +1,16 @@
+assembled (20780, 939797)
+svc02: acc=0.7506 f1m=0.5673 (26s)
+svc05: acc=0.7513 f1m=0.5742 (43s)
+svcbal: acc=0.7456 f1m=0.5963 (26s)
+/databricks/python/lib/python3.12/site-packages/sklearn/linear_model/_stochastic_gradient.py:723: ConvergenceWarning: Maximum number of iteration reached before convergence. Consider increasing max_iter to improve the fit.
+  warnings.warn(
+sgdmh: acc=0.7105 f1m=0.4956 (13s)
+/databricks/python/lib/python3.12/site-packages/sklearn/linear_model/_stochastic_gradient.py:723: ConvergenceWarning: Maximum number of iteration reached before convergence. Consider increasing max_iter to improve the fit.
+  warnings.warn(
+sgdlog: acc=0.7415 f1m=0.5631 (16s)
+/databricks/python/lib/python3.12/site-packages/sklearn/linear_model/_stochastic_gradient.py:723: ConvergenceWarning: Maximum number of iteration reached before convergence. Consider increasing max_iter to improve the fit.
+  warnings.warn(
+sgdmh2: acc=0.7015 f1m=0.4724 (15s)
+cnb: acc=0.6944 f1m=0.4769 (2s)
+mnb: acc=0.6984 f1m=0.4457 (2s)
+knn: acc=0.6245 f1m=0.3402 (11s)

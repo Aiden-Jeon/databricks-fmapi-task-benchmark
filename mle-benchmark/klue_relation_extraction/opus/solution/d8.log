@@ -1,0 +1,2 @@
+seed=7 baseline(no-neigh, svc02): acc=0.7481 f1m=0.5951 (55s)
+seed=7 final(neigh, blend): acc=0.7537 f1m=0.6173 (102s)

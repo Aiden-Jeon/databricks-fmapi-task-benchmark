@@ -1,0 +1,57 @@
+text fields 3s
+  marked_c: 157554 feats (7s)
+  marked_w: 83174 feats (3s)
+  btw_c: 85250 feats (2s)
+  btw_w: 21500 feats (1s)
+  subj_c: 33979 feats (0s)
+  obj_c: 25846 feats (0s)
+  subj_f: 9234 feats (0s)
+  obj_f: 7694 feats (0s)
+  xbtw_w: 13860 feats (0s)
+  sctx_c: 95393 feats (2s)
+  octx_c: 98928 feats (2s)
+  sctx_w: 16105 feats (0s)
+  octx_w: 16118 feats (0s)
+  pair_f: 12776 feats (0s)
+  left_c: 25188 feats (1s)
+  right_c: 55380 feats (2s)
+  sent_c: 181774 feats (6s)
+ALL n=19 d=939797 C=0.2: acc=0.7506 f1m=0.5673 (26s)
+-marked_c n=18 d=782243 C=0.2: acc=0.7517 f1m=0.5702 (19s)
+   delta marked_c: +0.0012
+-marked_w n=18 d=856623 C=0.2: acc=0.7527 f1m=0.5776 (25s)
+   delta marked_w: +0.0021
+-btw_c n=18 d=854547 C=0.2: acc=0.7490 f1m=0.5746 (24s)
+   delta btw_c: -0.0015
+-btw_w n=18 d=918297 C=0.2: acc=0.7538 f1m=0.5761 (25s)
+   delta btw_w: +0.0033
+-subj_c n=18 d=905818 C=0.2: acc=0.7475 f1m=0.5617 (25s)
+   delta subj_c: -0.0031
+-obj_c n=18 d=913951 C=0.2: acc=0.7385 f1m=0.5549 (25s)
+   delta obj_c: -0.0121
+-subj_f n=18 d=930563 C=0.2: acc=0.7512 f1m=0.5624 (25s)
+   delta subj_f: +0.0006
+-obj_f n=18 d=932103 C=0.2: acc=0.7481 f1m=0.5713 (25s)
+   delta obj_f: -0.0025
+-xbtw_w n=18 d=925937 C=0.2: acc=0.7504 f1m=0.5787 (25s)
+   delta xbtw_w: -0.0002
+-sctx_c n=18 d=844404 C=0.2: acc=0.7506 f1m=0.5754 (23s)
+   delta sctx_c: +0.0000
+-octx_c n=18 d=840869 C=0.2: acc=0.7490 f1m=0.5694 (23s)
+   delta octx_c: -0.0015
+-sctx_w n=18 d=923692 C=0.2: acc=0.7525 f1m=0.5769 (25s)
+   delta sctx_w: +0.0019
+-octx_w n=18 d=923679 C=0.2: acc=0.7525 f1m=0.5718 (27s)
+   delta octx_w: +0.0019
+-pair_f n=18 d=927021 C=0.2: acc=0.7496 f1m=0.5718 (32s)
+   delta pair_f: -0.0010
+-left_c n=18 d=914609 C=0.2: acc=0.7515 f1m=0.5736 (33s)
+   delta left_c: +0.0010
+-right_c n=18 d=884417 C=0.2: acc=0.7504 f1m=0.5678 (31s)
+   delta right_c: -0.0002
+-sent_c n=18 d=758023 C=0.2: acc=0.7513 f1m=0.5668 (24s)
+   delta sent_c: +0.0008
+-type_oh n=18 d=939787 C=0.2: acc=0.7506 f1m=0.5688 (28s)
+   delta type_oh: +0.0000
+-num n=18 d=939763 C=0.2: acc=0.7463 f1m=0.5542 (28s)
+   delta num: -0.0042
