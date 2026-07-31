@@ -1,0 +1,115 @@
+{
+  "per_task_scores": {
+    "IMG-1/minimal": {
+      "opus": 0.3381,
+      "sol": 0.4376
+    },
+    "IMG-2/minimal": {
+      "opus": 0.1966,
+      "sol": 0.2472
+    },
+    "IMG-3/minimal": {
+      "opus": 0.7,
+      "sol": 0.6333
+    },
+    "IMG-4/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9333
+    },
+    "IMG-5/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9667
+    },
+    "TXT-1/minimal": {
+      "opus": 0.0047,
+      "sol": 0.0264,
+      "glm": 0.0216
+    },
+    "TXT-2/minimal": {
+      "opus": 0.1,
+      "sol": 0.0,
+      "glm": 0.2
+    },
+    "TXT-3/minimal": {
+      "opus": 0.9432,
+      "sol": 0.9791,
+      "glm": 0.9733
+    },
+    "TXT-4/minimal": {
+      "opus": 0.8783,
+      "sol": 0.8957,
+      "glm": 0.9584
+    },
+    "TXT-5/minimal": {
+      "opus": 0.3208,
+      "sol": 0.3144,
+      "glm": 0.2818
+    },
+    "TXT-6/minimal": {
+      "opus": 0.8667,
+      "sol": 0.8333,
+      "glm": 0.8333
+    },
+    "TXT-7/minimal": {
+      "opus": 0.3571,
+      "sol": 0.4066,
+      "glm": 0.5099
+    },
+    "TXT-8/minimal": {
+      "opus": 0.8,
+      "sol": 0.8,
+      "glm": 0.8667
+    }
+  },
+  "task_winners": {
+    "IMG-1/minimal": "sol",
+    "IMG-2/minimal": "sol",
+    "IMG-3/minimal": "opus",
+    "IMG-4/minimal": "opus",
+    "IMG-5/minimal": "sol",
+    "TXT-1/minimal": "sol",
+    "TXT-2/minimal": "glm",
+    "TXT-3/minimal": "sol",
+    "TXT-4/minimal": "glm",
+    "TXT-5/minimal": "opus",
+    "TXT-6/minimal": "opus",
+    "TXT-7/minimal": "glm",
+    "TXT-8/minimal": "glm"
+  },
+  "win_counts": {
+    "sol": 5,
+    "opus": 4,
+    "glm": 4
+  },
+  "cheapest_model": "glm",
+  "fastest_model": "glm",
+  "perf": {
+    "opus": {
+      "n_calls": 370,
+      "errors": 1,
+      "latency_ms_median": 2641.2,
+      "latency_ms_p95": 7578.4,
+      "total_usd": 1.829125,
+      "in_tokens": 161119,
+      "out_tokens": 40941
+    },
+    "sol": {
+      "n_calls": 370,
+      "errors": 0,
+      "latency_ms_median": 1762.9,
+      "latency_ms_p95": 5314.3,
+      "total_usd": 1.359158,
+      "in_tokens": 119179,
+      "out_tokens": 25442
+    },
+    "glm": {
+      "n_calls": 220,
+      "errors": 0,
+      "latency_ms_median": 972.5,
+      "latency_ms_p95": 7377.6,
+      "total_usd": 0.222865,
+      "in_tokens": 71850,
+      "out_tokens": 28421
+    }
+  }
+}
