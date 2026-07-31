@@ -69,3 +69,23 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 - `results/`·`reports/`는 gitignore. 리포트를 커밋하려면 `git add -f`로 명시(report.md·facts.json·
   presentation.html·chart_*.png·gallery_*.png·manifest.json·scores.json). **samples.jsonl·images/는 커밋 제외**(용량·raw, NSFW).
 - 태스크 코드 수정 후 `python -m pytest tests/` + `python tests/check_all_tasks.py` 통과 확인.
+
+## 리포트 생성 후 커밋·푸시 절차 (재조사 불필요 — 이대로 실행)
+리포트를 새로 뽑은 뒤 커밋/푸시 요청이 오면 아래를 그대로 따른다. repo 루트(`sme-llm-benchmark/`)에서 실행.
+1. **run-id 확인**: 방금 생성된 `reports/<run-id>/`·`results/<run-id>/` (예: `2026-07-31T10-58`).
+2. **강제 스테이징** (`reports/`·`results/`가 ignore라 `-f` 필수). gallery 파일명은 run마다 다름
+   (`gallery_<TASK>_s<sample_id>.png` — sample_id가 매번 바뀜) → **하드코딩 말고 실제 존재하는 것만** 추가:
+   ```bash
+   R=image-text-performance; RID=<run-id>
+   git add -f $R/reports/$RID/report.md $R/reports/$RID/facts.json \
+     $R/reports/$RID/presentation.html $R/reports/$RID/chart_*.png \
+     $R/reports/$RID/gallery_*.png \
+     $R/results/$RID/manifest.json $R/results/$RID/scores.json
+   git add $R/reports/index.md      # index.md는 tracked(비-ignore) → 일반 add. runner가 자동 갱신함
+   ```
+   - **커밋 제외 확인**: `samples.jsonl`·`images/`(용량·raw·NSFW), `logs/`, repo 루트 `.isaac/`. `git diff --cached --name-only`로 검수.
+3. **브랜치**: 이 repo는 리포트를 **`main`에 직접 커밋**하는 관례(과거 모든 run·index.md가 main에 있음). 리포트 산출물 커밋은 별도 브랜치 만들지 말고 main에 그대로.
+4. **커밋 메시지**: 한국어 요약체(과거 로그 스타일) — run-id·모델·샘플수·핵심결과·검증내용 1~2줄.
+5. **푸시**: `git push origin main` (upstream=origin/main, fast-forward).
+6. **훅 잡음(정상)**: Databricks pre-commit/commit-msg/pre-push secret-scan이 돌고, 푸시 때
+   `Missing github token, skipping the repo check`가 뜨는데 **실패 아님**(exit 0 확인). `Unknown project name: None, skipping linting`도 정상.
