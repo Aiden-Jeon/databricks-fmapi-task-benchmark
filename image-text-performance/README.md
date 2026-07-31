@@ -88,94 +88,50 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 ---
 
-## 사용법
+## 사용법 — Vibe agent로 실행
 
-> ⚠️ 아직 스캐폴딩 단계다. 아래는 목표 인터페이스이며 구현이 진행되면 갱신된다.
+이 벤치마크는 **Vibe agent(Claude Code 기반 SA 에이전트)에게 자연어로 지시**해 운영한다.
+설치·모델 추가·실험 실행·리포트 생성·결과 해석까지 아래 명령들을 그대로 붙여넣으면 된다.
+(에이전트가 내부적으로 의존성 설치, `config/*.yaml` 편집, 벤치마크 실행, 리포트·프레젠테이션 생성을 수행한다.)
 
-### 사전 요구
+**전제**: Databricks CLI 프로파일(기본 `ai_devtools`)이 설정돼 있어야 한다(FMAPI 호출·`system.ai_gateway.usage` 조회용).
 
-- Python 3.10+
-- Databricks CLI 프로파일(기본 `ai_devtools`) — FMAPI 호출과 `system.ai_gateway.usage` 조회에 사용
-- 데이터셋은 HuggingFace에서 **streaming**으로 필요한 샘플만 받는다(전체 다운로드 X). `.cache/`에 캐시(gitignore).
+### 1) 최초 설치·환경 준비
 
-### 설치
+> "image-text-performance 벤치마크를 처음 실행할 수 있게 필요한 라이브러리를 설치하고 환경을 준비해줘.
+> 한국어 형태소 분석(mecab)이나 BERTScore(torch)는 없으면 자동 fallback되니 무거우면 건너뛰어도 돼."
 
-```bash
-pip install -e .          # pyproject.toml의 의존성 설치
-```
+- 에이전트가 `pyproject.toml`의 의존성을 설치한다.
+- 데이터셋은 HuggingFace **streaming**으로 필요한 샘플만 받는다(전체 다운로드 X, `.cache/`에 캐시).
+- 선택 의존성: **mecab**(한국어 형태소 — 없으면 음절 fallback), **bert-score+torch**(의미유사도 — 없으면 `deferred`, ROUGE·judge로 대체). 리포트에 어떤 backend가 쓰였는지 표시된다.
 
-**선택 의존성 (없어도 fallback으로 동작):**
-- **한국어 형태소 분석** (`konlpy` + `mecab`, `mecab-ko-dic`): 설치 시 ROUGE·Token-F1의 한국어 채점이 형태소 단위로 정밀해진다. **미설치 시 음절(syllable) 단위로 자동 fallback** (공백 분리보다 정확). 리포트에 사용된 backend가 표시된다.
-  - macOS: `brew install mecab` + `mecab-ko-dic` 별도 설치
-  - Linux: `apt-get install mecab libmecab-dev mecab-ko-dic`
-- **BERTScore** (`bert-score` + `torch`, 수 GB): 설치 시 IMG-1·TXT-5 의미유사도 채점 활성화. 미설치 시 해당 지표는 `deferred`로 표시되고 ROUGE·token-F1·judge로 대체된다.
+### 2) 실험 실행 → 리포트 생성
 
-### 실행
+> "image-text-performance 벤치마크를 10샘플로 돌려서 리포트를 새로 뽑아줘."
 
-```bash
-# 전체 벤치마크 (3모델 × 13태스크 × reasoning{minimal,full} × 50샘플)
-python -m src.runner
+- 3모델(opus·sol·glm) × 13태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다.
+- 빠른 확인만 원하면: > "opus와 sol만 텍스트 태스크로 3샘플만 빠르게 돌려줘."
+- 대규모(정확도 우선): > "HF 토큰 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플로 백그라운드 실행해줘." (전체는 HF rate limit·glm 지연으로 수 시간+ 걸린다.)
 
-# 빠른 확인: 특정 모델·모드·샘플 수로 제한
-python -m src.runner --models sol --reasoning-modes minimal --samples 3
+### 3) 모델 추가 후 재실험
 
-# 실행 매트릭스만 미리보기(FMAPI 호출 없음)
-python -m src.runner --dry-run
-```
+> "이 벤치마크에 `databricks-claude-sonnet-5`를 sonnet이라는 별칭으로 추가하고(vision 지원, reasoning은 off),
+> pricing 단가도 채운 다음 10샘플로 재실행해서 리포트를 새로 뽑아줘."
 
-결과는 `results/<run-id>/`(원시 JSONL·scores·manifest), 리포트는 `reports/<run-id>/report.md`,
-전체 run 목록은 `reports/index.md`에 생성된다.
+- 에이전트가 `config/models.yaml`(모델·capability·reasoning)과 `config/pricing.yaml`(DBU 단가)을 편집하고 재실행한다.
+- 새 `run-id` 리포트가 생성되고 기존 run은 보존된다 → `reports/index.md`에서 시점 비교 가능.
+- 모델 제거·교체도 동일하게 지시하면 된다.
 
-**주요 옵션:** `--models opus,sol,glm` (모델 필터) · `--reasoning-modes minimal,full` · `--samples N` (샘플 수) · `--dry-run` · `--config` / `--tasks` (설정 경로).
+### 4) 결과 해석
 
----
+> "가장 최근 리포트에서 한국어 태스크(TXT-4) 성능과 모델별 비용·속도를 요약해줘."
+> "정성 비교에서 모델 판정이 갈린 이미지 샘플을 보여주고 어느 모델이 맞았는지 알려줘."
 
-## 모델 추가 후 리포트 재생성
+### 5) reasoning 비교가 필요하면
 
-새 모델을 벤치마크에 추가하는 절차:
+> "reasoning을 켠 경우와 끈 경우를 비교하고 싶어. reasoning ON/OFF 둘 다로 돌려서 리포트 뽑아줘."
 
-1. **`config/models.yaml`의 `models:`에 항목 추가.** `id`(별칭), `endpoint`(Databricks model name),
-   `family`(`claude` 또는 `openai` — 응답 스키마·reasoning 제어 분기), `capabilities`(`text`,
-   필요 시 `vision`), `reasoning.minimal`(OFF 파라미터)을 채운다. 예:
-
-   ```yaml
-     - id: sonnet
-       endpoint: databricks-claude-sonnet-5      # 실제 서빙 엔드포인트명
-       family: claude
-       capabilities: [text, vision]
-       reasoning:
-         minimal: {thinking: {type: disabled}}
-   ```
-
-   - 엔드포인트명·vision 지원은 `databricks serving-endpoints list --profile ai_devtools`로 확인.
-   - `config/pricing.yaml`에도 같은 endpoint의 DBU 단가를 추가해야 비용이 계산된다(없으면 비용 N/A).
-
-2. **재실행** → 새 `run-id`로 리포트 생성 (기존 run은 보존됨):
-
-   ```bash
-   python -m src.runner                       # 전체 (모든 모델·태스크)
-   python -m src.runner --samples 10          # 빠른 확인
-   ```
-
-3. 결과: `reports/<새-run-id>/report.md`(그 시점의 **전체 모델** 비교) 생성, `reports/index.md`에
-   자동 등재. 과거 run과 나란히 시점 비교 가능(§12).
-
-> 모델 제거·교체도 동일하게 `models.yaml`만 편집 후 재실행. reasoning을 다시 ON까지 비교하려면
-> `reasoning_modes: [minimal, full]`로 바꾼다(실행 시간 배증 주의).
-
-## Vibe agent 명령 prompt
-
-이 프로젝트를 Vibe(Claude Code 기반 SA 에이전트)로 다룰 때, 아래처럼 자연어로 지시하면 된다:
-
-- **모델 추가 후 재실행**:
-  > "image-text-performance 벤치마크에 `databricks-claude-sonnet-5`를 sonnet이라는 별칭으로 추가하고(vision 지원, reasoning은 off), 10샘플로 재실행해서 리포트 새로 뽑아줘."
-- **특정 모델만 비교**:
-  > "opus와 sol만 대상으로 텍스트 태스크(TXT-*)를 50샘플로 돌려서 리포트 생성해줘."
-- **결과 해석**:
-  > "가장 최근 리포트에서 한국어 태스크(TXT-4) 성능과 모델별 비용을 요약해줘."
-- **전체 대규모 실행 (주의)**:
-  > "HF_TOKEN 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플 벤치마크를 백그라운드로 돌려줘."
-  > (전체 실행은 HF rate limit·glm 지연으로 수 시간+ 걸리므로 토큰·타임아웃 조정이 필요하다.)
+- 기본은 reasoning OFF 고정(실험 시간·비용 절감). 위처럼 지시하면 ON/OFF 둘 다 측정한다(실행 시간 배증).
 
 ---
 
@@ -226,7 +182,7 @@ python -m src.runner --dry-run
 ## 상태
 
 **구현 완료 — 13개 태스크 전체가 end-to-end 동작** (데이터 로딩 → FMAPI 실행 → 채점 → 시간·비용·Executive Summary 리포트). 로드맵 Phase 0~4 완료:
-- Phase 0 스캐폴딩(FMAPI 어댑터·설정·채점/비용 골격)
+- Phase 0 기반 구조(FMAPI 어댑터·설정·채점/비용 모듈)
 - Phase 1 텍스트 안전 태스크(TXT-4/5/6/8)
 - Phase 2 이미지 태스크(IMG-1~5)
 - Phase 3 문서·표 태스크(TXT-1/2/3/7)
