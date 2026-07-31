@@ -1,0 +1,24 @@
+{
+  "task_id": "explain-databricks",
+  "slide_count": { "min": 8, "max": 10 },
+  "required_topics": [
+    "Lakehouse architecture (unifying data lake + data warehouse)",
+    "Unity Catalog (governance, lineage, access control)",
+    "Delta Lake (ACID transactions on the lake)",
+    "Apache Spark / distributed compute",
+    "Databricks SQL / data warehousing",
+    "Machine learning, Mosaic AI, and the Foundation Model API (FMAPI)",
+    "Workflows / job orchestration",
+    "Multi-cloud deployment (AWS, Azure, GCP)"
+  ],
+  "keywords": {
+    "lakehouse": ["lakehouse"],
+    "unity_catalog": ["unity catalog", "governance"],
+    "delta_lake": ["delta lake", "delta"],
+    "spark": ["spark", "compute"],
+    "databricks_sql": ["databricks sql", "warehouse", "warehousing"],
+    "ml_ai": ["mosaic ai", "machine learning", "foundation model", "fmapi", "ml"],
+    "workflows": ["workflow", "orchestration", "job"],
+    "multicloud": ["aws", "azure", "gcp", "multi-cloud", "cloud"]
+  }
+}

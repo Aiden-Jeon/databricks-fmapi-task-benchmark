@@ -1,0 +1,16 @@
+# Python env / caches
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# Per-run outputs (artifacts, logs, screenshots, gallery) — regenerate with run_task.py
+runs/run_*/
+runs/gallery/
+runs/grade_results.json
+
+# Secrets (never commit)
+.env
+*.token
+access_token

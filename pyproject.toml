@@ -1,0 +1,14 @@
+[project]
+name = "databricks-fmapi-task-benchmark"
+version = "0.1.0"
+description = "Benchmark FMAPI models x agent harnesses on the 'explain Databricks' HTML-slide task"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "playwright>=1.40",
+    "lxml>=5.0",
+    "cssselect>=1.2",
+]
+
+[tool.uv]
+package = false
