@@ -76,6 +76,10 @@ class RunManifest:
     reasoning_modes: list[str]         # ["minimal", "full"]
     task_ids: list[str]                # ["IMG-1", "IMG-2", ..., "TXT-8"]
     git_commit: str | None             # 코드 버전 (short SHA)
+    datasets: dict[str, Any] = field(default_factory=dict)   # 태스크별 데이터셋 id·split (재현성 §12)
+    pricing: dict[str, Any] = field(default_factory=dict)    # usd_per_dbu 등 (비용 재현 §12)
+    samples_per_task: int | None = None                       # 태스크당 샘플 수
+    seed: int | None = None                                   # subset 고정 seed
     notes: str = ""                    # 추가 메모 (선택)
 
     def to_dict(self) -> dict[str, Any]:

@@ -194,6 +194,10 @@ def main() -> int:
                 }
             )
 
+    # 재현성 메타(§12): 데이터셋 id·split, pricing 버전, 샘플·seed 스냅샷
+    defaults = tasks_cfg.get("defaults", {})
+    datasets_snapshot, pricing_snapshot = _reproducibility_meta(all_tasks)
+
     manifest = RunManifest(
         run_id=run_id,
         created_at=datetime.now(timezone.utc).isoformat(),
@@ -201,7 +205,11 @@ def main() -> int:
         reasoning_modes=reasoning_override or models_cfg.reasoning_modes,
         task_ids=task_ids,
         git_commit=git_commit(),
-        notes=f"Phase 0 dry-run" if args.dry_run else "Phase 0 skeleton (real execution not yet implemented)",
+        datasets=datasets_snapshot,
+        pricing=pricing_snapshot,
+        samples_per_task=args.samples or defaults.get("samples", 50),
+        seed=defaults.get("seed", 42),
+        notes="dry-run" if args.dry_run else "full run",
     )
 
     manifest_path = write_manifest(run_dir, manifest)
@@ -393,7 +401,46 @@ def _run_samples(
     except Exception as e:
         print(f"  [리포트 생성 스킵] {type(e).__name__}: {e}")
 
+    # 전체 run 인덱스 재빌드 (§12 시점별 축적)
+    try:
+        from src.report.index import rebuild_index
+
+        idx = rebuild_index()
+        print(f"인덱스 갱신: {idx}")
+    except Exception as e:
+        print(f"  [인덱스 갱신 스킵] {type(e).__name__}: {e}")
+
     return 0
+
+
+def _reproducibility_meta(all_tasks: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """manifest용 데이터셋·pricing 스냅샷 (§12 재현성). 로드 실패해도 빈 dict."""
+    datasets_snapshot: dict[str, Any] = {}
+    try:
+        from src.datasets_loader import load_registry
+
+        registry = load_registry()
+        for t in all_tasks:
+            for lang, key in (t.get("datasets") or {}).items():
+                entry = registry.get(key, {})
+                datasets_snapshot[key] = {
+                    "hf_id": entry.get("hf_id"),
+                    "split": entry.get("split"),
+                    "config": entry.get("config"),
+                }
+    except Exception:
+        pass
+
+    pricing_snapshot: dict[str, Any] = {}
+    try:
+        from src.cost.pricing import load_pricing
+
+        p = load_pricing()
+        pricing_snapshot = {"usd_per_dbu": p.get("usd_per_dbu"), "routing": p.get("routing")}
+    except Exception:
+        pass
+
+    return datasets_snapshot, pricing_snapshot
 
 
 def _score_groups(groups: dict, task_cache: dict) -> dict[str, Any]:

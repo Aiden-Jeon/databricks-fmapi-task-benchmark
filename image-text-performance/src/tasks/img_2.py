@@ -272,20 +272,9 @@ if __name__ == "__main__":
     print(f"Loaded {len(samples)} test images\n")
 
     if not samples:
-        print("Failed to load test images. Using dummy samples...\n")
-        def create_dummy_image(size=(256, 256), color=(100, 150, 200)):
-            img = Image.new("RGB", size, color)
-            return img
-
-        samples = [
-            Sample(
-                sample_id=0,
-                inputs={"image": create_dummy_image(color=(100, 150, 200))},
-                reference={"person", "chair", "desk", "laptop"},
-                lang="en",
-                meta={"dataset": "img_tags", "source_idx": 0},
-            ),
-        ]
+        # 합성/더미 폴백 없음 — 실제 데이터가 안 되면 정직하게 실패한다.
+        print("실제 테스트 이미지를 로드하지 못했습니다. 네트워크·데이터셋을 확인하세요.")
+        raise SystemExit(1)
 
     for sample in samples[:1]:
         print(f"[Sample {sample.sample_id}]")
