@@ -1,12 +1,12 @@
 {
   "per_task_scores": {
     "IMG-1/minimal": {
-      "opus": 0.3068,
-      "sol": 0.4024
+      "opus": 0.294,
+      "sol": 0.3794
     },
     "IMG-2/minimal": {
-      "opus": 0.2466,
-      "sol": 0.1935
+      "opus": 0.24,
+      "sol": 0.1739
     },
     "IMG-3/minimal": {
       "opus": 0.5,
@@ -26,24 +26,24 @@
       "glm": 0.001
     },
     "TXT-2/minimal": {
-      "opus": 0.1,
+      "opus": 0.0,
       "sol": 0.0,
       "glm": 0.2
     },
     "TXT-3/minimal": {
-      "opus": 0.9508,
+      "opus": 0.9656,
       "sol": 0.9567,
-      "glm": 0.9567
+      "glm": 0.9645
     },
     "TXT-4/minimal": {
-      "opus": 0.7034,
+      "opus": 0.8461,
       "sol": 0.8833,
       "glm": 0.9193
     },
     "TXT-5/minimal": {
-      "opus": 0.292,
-      "sol": 0.3024,
-      "glm": 0.2697
+      "opus": 0.2832,
+      "sol": 0.3091,
+      "glm": 0.2434
     },
     "TXT-6/minimal": {
       "opus": 1.0,
@@ -51,14 +51,14 @@
       "glm": 1.0
     },
     "TXT-7/minimal": {
-      "opus": 0.4261,
-      "sol": 0.4211,
-      "glm": 0.5528
+      "opus": 0.4192,
+      "sol": 0.4318,
+      "glm": 0.4958
     },
     "TXT-8/minimal": {
-      "opus": 0.7,
+      "opus": 0.8,
       "sol": 0.8,
-      "glm": 0.9
+      "glm": 0.8
     }
   },
   "task_winners": {
@@ -69,17 +69,17 @@
     "IMG-5/minimal": "opus",
     "TXT-1/minimal": "sol",
     "TXT-2/minimal": "glm",
-    "TXT-3/minimal": "sol",
+    "TXT-3/minimal": "opus",
     "TXT-4/minimal": "glm",
     "TXT-5/minimal": "sol",
     "TXT-6/minimal": "opus",
     "TXT-7/minimal": "glm",
-    "TXT-8/minimal": "glm"
+    "TXT-8/minimal": "opus"
   },
   "win_counts": {
-    "sol": 4,
-    "opus": 5,
-    "glm": 4
+    "sol": 3,
+    "opus": 7,
+    "glm": 3
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
@@ -87,29 +87,29 @@
     "opus": {
       "n_calls": 130,
       "errors": 0,
-      "latency_ms_median": 3098.7,
-      "latency_ms_p95": 9567.3,
-      "total_usd": 0.707217,
+      "latency_ms_median": 2750.3,
+      "latency_ms_p95": 8000.2,
+      "total_usd": 0.697217,
       "in_tokens": 62968,
-      "out_tokens": 15695
+      "out_tokens": 15295
     },
     "sol": {
       "n_calls": 130,
       "errors": 0,
-      "latency_ms_median": 1884.3,
-      "latency_ms_p95": 5280.2,
-      "total_usd": 0.489216,
+      "latency_ms_median": 1819.4,
+      "latency_ms_p95": 4469.9,
+      "total_usd": 0.490566,
       "in_tokens": 45427,
-      "out_tokens": 8736
+      "out_tokens": 8781
     },
     "glm": {
       "n_calls": 80,
       "errors": 0,
-      "latency_ms_median": 1172.4,
-      "latency_ms_p95": 7091.0,
-      "total_usd": 0.079656,
+      "latency_ms_median": 1025.3,
+      "latency_ms_p95": 6224.2,
+      "total_usd": 0.083319,
       "in_tokens": 30528,
-      "out_tokens": 9775
+      "out_tokens": 9854
     }
   }
 }

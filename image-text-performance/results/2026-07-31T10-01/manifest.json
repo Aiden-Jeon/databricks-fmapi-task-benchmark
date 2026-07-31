@@ -1,6 +1,6 @@
 {
-  "run_id": "2026-07-31T06-14",
-  "created_at": "2026-07-31T06:14:11.305207+00:00",
+  "run_id": "2026-07-31T10-01",
+  "created_at": "2026-07-31T10:01:27.004141+00:00",
   "models": [
     {
       "id": "opus",
@@ -19,8 +19,7 @@
     }
   ],
   "reasoning_modes": [
-    "minimal",
-    "full"
+    "minimal"
   ],
   "task_ids": [
     "IMG-1",
@@ -37,7 +36,7 @@
     "TXT-7",
     "TXT-8"
   ],
-  "git_commit": "37cd829",
+  "git_commit": "cc03dd3",
   "datasets": {
     "img_caption": {
       "hf_id": "yerevann/coco-karpathy",

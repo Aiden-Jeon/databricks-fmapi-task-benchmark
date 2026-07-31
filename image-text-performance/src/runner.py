@@ -131,8 +131,22 @@ def main() -> int:
         default="results",
         help="결과 디렉터리 루트 (default: results)",
     )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="실행 전 기존 results/·reports/를 모두 삭제하고 새로 시작(index부터 재생성).",
+    )
 
     args = parser.parse_args()
+
+    # --fresh: 기존 리포트·결과 전부 삭제 후 새로 시작 (파괴적 — 명시할 때만)
+    if args.fresh and not args.dry_run:
+        import shutil
+
+        for d in (Path(args.out), Path("reports")):
+            if d.exists():
+                shutil.rmtree(d)
+                print(f"[--fresh] {d}/ 삭제됨")
 
     # 설정 로드
     try:
@@ -319,6 +333,10 @@ def _run_samples(
         except Exception as e:
             print(f"  [샘플 로드 실패] {task_id}: {type(e).__name__}: {e}")
             samples = []
+        # 이미지 태스크는 이 시점(실행 시)에 이미지를 run 폴더에 저장 → 갤러리가 재로드 없이
+        # 정확한 샘플 이미지를 참조(streaming 비재현성 버그 방지). NSFW(sensitive)는 D3대로 제외.
+        if samples and getattr(inst, "is_vision", False) and not getattr(inst, "sensitive", False):
+            _save_sample_images(run_dir, task_id, samples)
         task_cache[task_id] = (inst, samples)
         return task_cache[task_id]
 
@@ -442,6 +460,31 @@ def _reproducibility_meta(all_tasks: list[dict[str, Any]]) -> tuple[dict[str, An
         pass
 
     return datasets_snapshot, pricing_snapshot
+
+
+def _save_sample_images(run_dir: Path, task_id: str, samples: list) -> None:
+    """이미지 태스크 샘플의 입력 이미지를 run_dir/images/에 저장(갤러리 정합성).
+
+    파일명: <task_id>_s<sample_id>.jpg. 실행 시점 저장이라 sample_id ↔ 이미지가 정확.
+    실패는 조용히 무시(이미지 없이 텍스트 비교는 여전히 유효).
+    """
+    img_dir = run_dir / "images"
+    try:
+        from PIL import Image
+
+        img_dir.mkdir(parents=True, exist_ok=True)
+        for s in samples:
+            img = s.inputs.get("image") if isinstance(s.inputs, dict) else None
+            if img is None or not isinstance(img, Image.Image):
+                continue
+            im = img.convert("RGB") if img.mode not in ("RGB", "L") else img
+            w, h = im.size
+            if max(w, h) > 512:
+                sc = 512 / max(w, h)
+                im = im.resize((max(1, int(w * sc)), max(1, int(h * sc))))
+            im.save(img_dir / f"{task_id}_s{s.sample_id}.jpg", "JPEG", quality=85)
+    except Exception as e:
+        print(f"  [이미지 저장 스킵] {task_id}: {type(e).__name__}: {e}")
 
 
 def _score_groups(groups: dict, task_cache: dict) -> dict[str, Any]:

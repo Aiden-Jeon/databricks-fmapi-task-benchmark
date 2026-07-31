@@ -95,7 +95,7 @@ def generate_report(
     # 정성 갤러리: 모델 간 결과가 갈린 샘플을 태스크별로 (D1)
     sensitive = _load_sensitive_tasks()
     gallery_slides = _gallery_data(results, task_labels, sensitive)
-    _attach_gallery_images(gallery_slides)  # 이미지 태스크 샘플 이미지 재로드(NSFW 제외)
+    _attach_gallery_images(gallery_slides, run_dir)  # 실행 시 저장된 이미지 참조(NSFW 제외)
     if gallery_slides:
         md.append("## 정성 비교: 모델 간 결과가 갈린 샘플\n")
         md.append(
@@ -125,9 +125,16 @@ def generate_report(
         print(f"  [프레젠테이션 생성 스킵] {type(e).__name__}: {e}")
 
     if pres_path:
-        # 링크는 리포트 상단(모델표 다음)이 아니라, 문서 맨 위에 배너로 넣는 게 눈에 띔 →
-        # md[1]에 삽입(제목 다음).
-        md.insert(1, f"> 📊 **[고객 설명용 프레젠테이션 (HTML)](./{pres_path.name})** — 이 리포트 결과를 슬라이드로 정리\n")
+        # GitHub는 HTML을 소스로만 보여주므로, htmlpreview.github.io로 감싼 "바로 보기" 링크를
+        # 함께 제공(클릭 한 번에 렌더). 로컬/소스 링크도 병기.
+        preview = _htmlpreview_url(run_dir.name, pres_path.name)
+        banner = f"> 📊 고객 설명용 프레젠테이션: "
+        if preview:
+            banner += f"**[▶ 브라우저로 바로 보기]({preview})** · [HTML 소스](./{pres_path.name})"
+        else:
+            banner += f"**[HTML 열기](./{pres_path.name})**"
+        banner += " — 이 리포트 결과를 슬라이드로 정리\n"
+        md.insert(1, banner)
 
     md.append("## Fact Sheet (Executive Summary 근거 — 감사용)\n")
     md.append("```json\n" + json.dumps(facts, ensure_ascii=False, indent=2, default=str) + "\n```\n")
@@ -464,51 +471,25 @@ def _gallery_data(
     return slides
 
 
-def _attach_gallery_images(slides: list[dict[str, Any]], tasks_cfg_path: str = "config/tasks.yaml") -> None:
-    """이미지 태스크 갤러리 샘플의 이미지를 재로드해 data URI로 채운다(in-place).
+def _attach_gallery_images(slides: list[dict[str, Any]], run_dir: Path) -> None:
+    """갤러리 샘플의 이미지를 **실행 시 저장된 파일**(run_dir/images/)에서 읽어 data URI로 채운다.
 
-    갤러리에 뽑힌 소수 샘플만 처리. sensitive(NSFW)는 D3대로 이미지 미표시(건너뜀).
-    재로드 실패(네트워크·데이터셋)는 조용히 건너뜀(이미지 없이 텍스트 비교는 여전히 유효).
+    runner가 실행 시점에 `images/<task>_s<sid>.jpg`로 저장하므로 sample_id ↔ 이미지가 정확
+    (streaming 재로드의 비재현성 버그 방지). sensitive(NSFW)는 저장 안 됨 → 자동 스킵.
+    파일이 없으면(과거 run·저장 실패) 조용히 건너뜀.
     """
-    image_slides = [g for g in slides if g.get("is_image") and not g.get("sensitive")]
-    if not image_slides:
+    import base64
+
+    img_dir = Path(run_dir) / "images"
+    if not img_dir.exists():
         return
-    try:
-        import yaml
-
-        from src.adapters.images import pil_to_data_url
-        from src.datasets_loader import load_registry
-        from src.tasks.loader import discover_tasks
-
-        registry = load_registry()
-        task_classes = discover_tasks()
-        cfg = yaml.safe_load(open(tasks_cfg_path, encoding="utf-8"))
-        task_cfgs = {t["id"]: t for t in cfg.get("image_tasks", []) + cfg.get("text_tasks", [])}
-        defaults = cfg.get("defaults", {})
-        n, seed = defaults.get("samples", 50), defaults.get("seed", 42)
-
-        # 태스크별로 한 번만 load_samples(같은 seed → 같은 subset), sample_id로 매칭
-        by_task: dict[str, list] = {}
-        for g in image_slides:
-            by_task.setdefault(g["task_id"], []).append(g)
-
-        for task_id, gs in by_task.items():
-            cls = task_classes.get(task_id)
-            if cls is None:
-                continue
-            inst = cls(task_cfgs.get(task_id, {}), registry)
-            samples = inst.load_samples(n, seed)
-            by_sid = {s.sample_id: s for s in samples}
-            for g in gs:
-                s = by_sid.get(g["sample_id"])
-                img = s.inputs.get("image") if s else None
-                if img is not None:
-                    try:
-                        g["image_data_uri"] = pil_to_data_url(img, max_side=512)
-                    except Exception:
-                        pass
-    except Exception as e:
-        print(f"  [갤러리 이미지 재로드 스킵] {type(e).__name__}: {e}")
+    for g in slides:
+        if not g.get("is_image") or g.get("sensitive"):
+            continue
+        p = img_dir / f"{g['task_id']}_s{g['sample_id']}.jpg"
+        if p.exists():
+            b64 = base64.b64encode(p.read_bytes()).decode()
+            g["image_data_uri"] = f"data:image/jpeg;base64,{b64}"
 
 
 def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = None) -> str:
@@ -529,13 +510,17 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
         blocks.append(f"### {task_id} · {by_task[task_id][0]['label']}\n")
         for g in by_task[task_id]:
             tag = " (민감 태스크 — 입력 비표시, 판정값만)" if g["sensitive"] else ""
-            blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답: `{g['reference']}`\n")
+            ref = str(g["reference"])
+            # 정답: 여러 줄·HTML(예: TXT-3 <table>)이면 인라인 코드가 깨지므로 코드펜스로.
+            if "\n" in ref or "<" in ref:
+                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답:\n\n```\n{ref}\n```\n")
+            else:
+                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답: `{ref}`\n")
             # 입력 표시 (사람이 직접 판별용)
             if g.get("input_text"):
                 inp = g["input_text"].strip().replace("\n", "\n> ")
                 blocks.append(f"**입력:**\n> {inp}\n")
             elif g.get("image_data_uri") and reports_dir is not None:
-                # data URI를 png로 저장해 링크(리포트에서 바로 보이게)
                 fname = f"gallery_{task_id}_s{g['sample_id']}.png"
                 try:
                     b64 = g["image_data_uri"].split(",", 1)[1]
@@ -544,10 +529,46 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
                 except Exception:
                     pass
             elif g.get("is_image") and not g.get("sensitive"):
-                blocks.append("_(입력 이미지 재로드 실패 — 아래 출력만 참고)_\n")
+                blocks.append("_(입력 이미지 없음 — 아래 출력만 참고)_\n")
+            # 모델 출력: 표 셀 안이라 개행 제거 + | 이스케이프 + 백틱으로 감싸 HTML 태그 렌더 방지.
             blocks.append("| 모델 | 출력/판정 |")
             blocks.append("|---|---|")
             for mid, out in g["rows"]:
-                blocks.append(f"| {mid} | {out.replace('|', chr(92) + '|')} |")
+                blocks.append(f"| {mid} | `{_cell(out)}` |")
             blocks.append("")
     return "\n".join(blocks)
+
+
+def _cell(text: str) -> str:
+    """markdown 표 셀 안전화: 개행→공백, 백틱 제거, | 이스케이프."""
+    s = str(text).replace("\n", " ").replace("\r", " ").replace("`", "'")
+    return s.replace("|", "\\|")
+
+
+def _htmlpreview_url(run_id: str, filename: str) -> str | None:
+    """htmlpreview.github.io로 감싼 프레젠테이션 렌더 URL. git remote에서 owner/repo·branch 추출.
+
+    GitHub는 repo의 HTML을 소스로만 보여주므로 이 프록시로 클릭 한 번에 렌더한다.
+    비-git·remote 없음·파싱 실패 시 None(로컬 링크로 폴백).
+    """
+    import re
+    import subprocess
+
+    try:
+        remote = subprocess.run(
+            ["git", "remote", "get-url", "origin"], capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, timeout=5
+        ).stdout.strip() or "main"
+        # git@github.com:owner/repo.git  또는  https://github.com/owner/repo.git
+        m = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$", remote)
+        if not m:
+            return None
+        owner, repo = m.group(1), m.group(2)
+        # 이 프로젝트는 repo 안의 image-text-performance/ 서브디렉터리에 있음
+        path = f"image-text-performance/reports/{run_id}/{filename}"
+        blob = f"https://github.com/{owner}/{repo}/blob/{branch}/{path}"
+        return f"https://htmlpreview.github.io/?{blob}"
+    except Exception:
+        return None

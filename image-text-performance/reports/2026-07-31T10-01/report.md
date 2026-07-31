@@ -1,6 +1,6 @@
-# 벤치마크 리포트 — 2026-07-31T09-19
+# 벤치마크 리포트 — 2026-07-31T10-01
 
-> 📊 **[고객 설명용 프레젠테이션 (HTML)](./presentation.html)** — 이 리포트 결과를 슬라이드로 정리
+> 📊 고객 설명용 프레젠테이션: **[▶ 브라우저로 바로 보기](https://htmlpreview.github.io/?https://github.com/Aiden-Jeon/databricks-fmapi-task-benchmark/blob/main/image-text-performance/reports/2026-07-31T10-01/presentation.html)** · [HTML 소스](./presentation.html) — 이 리포트 결과를 슬라이드로 정리
 
 ## 평가 대상 모델 (Databricks hosted)
 
@@ -18,11 +18,9 @@
 
 ## Executive Summary
 
-제공된 데이터에 기반한 모델별 성능 및 속도·비용 트레이드오프 요약입니다.
+Opus는 총 7개 과제에서 1위를 차지하며 이미지와 텍스트 전반에서 가장 우수한 성능을 보였으나, TXT-2 과제에서는 0점을 기록하는 약점을 보였습니다. 반면 텍스트 과제에만 평가된 GLM은 타 모델이 0점을 받은 TXT-2를 포함해 3개 과제에서 우승했으며, Sol은 IMG-1과 TXT-1 등 3개 과제에서 부분적인 강점을 보였습니다. 속도와 비용 측면에서 GLM은 가장 빠르고(중앙값 1025.3ms) 저렴한($0.083) 반면, 종합 성능이 가장 높은 Opus는 가장 느리고(중앙값 2750.3ms) 비싼($0.697) 모델로 확인되었습니다. 따라서 최고의 종합 성능을 원한다면 비용과 시간을 감수하고 Opus를, 텍스트 처리에서 극단적인 가성비와 빠른 속도가 필요하다면 GLM을 선택하는 명확한 트레이드오프가 존재합니다.
 
-opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 차지해 가장 높은 종합 승수를 기록한 반면, glm은 텍스트(TXT) 태스크 4개 부문에서 우승하며 텍스트 처리에 강점을 보였습니다. 비용과 속도 면에서 glm은 중간 지연 시간 1172.4ms, 총비용 약 0.079달러로 가장 빠르고 저렴하여 압도적인 비용 효율성을 제공합니다. 반면 opus는 가장 비싸고(약 0.707달러) 느린(3098.7ms) 모델이며, sol은 4개 부문 우승과 함께 속도(1884.3ms) 및 비용(약 0.489달러)에서 두 모델 사이의 균형 잡힌 트레이드오프를 보여줍니다.
-
-<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 5회, sol 4회, glm 4회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 1172.4ms). 비용은 **glm**가 가장 낮다($0.079656).</sub>
+<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 7회, sol 3회, glm 3회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 1025.3ms). 비용은 **glm**가 가장 낮다($0.083319).</sub>
 
 ## 비교 그래프
 
@@ -41,28 +39,28 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 | 태스크 | 모델 | reasoning | 대표 메트릭 |
 |---|---|---|---|
 | TXT-1 · 문서(PDF) 이해 QA | glm | minimal | token_f1=0.001, exact_match=0.0, n_evaluated=10 |
-| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.2, token_f1=0.332, n_evaluated=10 |
-| TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.957, n_evaluated=10 |
+| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.2, token_f1=0.328, n_evaluated=10 |
+| TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.964, n_evaluated=10 |
 | TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.919, exact_match=0.8, n_evaluated=10 |
-| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.27, rouge2=0.11, rougeL=0.222, n_evaluated=10 |
+| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.243, rouge2=0.112, rougeL=0.22, n_evaluated=10 |
 | TXT-6 · 감정 분석 | glm | minimal | accuracy=1.0, macro_f1=1.0, n_evaluated=10, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | glm | minimal | precision=0.576, recall=0.531, f1=0.553, n_evaluated=10 |
-| TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.9, f1=0.667, n_evaluated=10, n_unparsed=0 |
-| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.307, n_evaluated=10 |
-| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.161, micro_recall=0.529, micro_f1=0.247, macro_precision=0.17 |
+| TXT-7 · 키워드 추출 | glm | minimal | precision=0.536, recall=0.461, f1=0.496, n_evaluated=10 |
+| TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.8, f1=0.5, n_evaluated=10, n_unparsed=0 |
+| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.294, n_evaluated=10 |
+| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.155, micro_recall=0.529, micro_f1=0.24, macro_precision=0.162 |
 | IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.5, f1=0.667, n_evaluated=10, n_unparsed=0 |
 | IMG-4 · 성인/NSFW 이미지 판별 | opus | minimal | accuracy=0.8, f1=0.75, n_evaluated=10, n_unparsed=0 |
 | IMG-5 · 사람 포함 여부 판별 | opus | minimal | accuracy=0.9, f1=0.909, n_evaluated=10, n_unparsed=0 |
 | TXT-1 · 문서(PDF) 이해 QA | opus | minimal | token_f1=0.002, exact_match=0.0, n_evaluated=10 |
-| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.1, token_f1=0.22, n_evaluated=10 |
-| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.951, n_evaluated=10 |
-| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.703, exact_match=0.4, n_evaluated=10 |
-| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.292, rouge2=0.143, rougeL=0.238, n_evaluated=10 |
+| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.0, token_f1=0.169, n_evaluated=10 |
+| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.966, n_evaluated=10 |
+| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.846, exact_match=0.6, n_evaluated=10 |
+| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.283, rouge2=0.145, rougeL=0.243, n_evaluated=10 |
 | TXT-6 · 감정 분석 | opus | minimal | accuracy=1.0, macro_f1=1.0, n_evaluated=10, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | opus | minimal | precision=0.38, recall=0.484, f1=0.426, n_evaluated=10 |
-| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.7, f1=0.4, n_evaluated=10, n_unparsed=0 |
-| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.402, n_evaluated=10 |
-| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.153, micro_recall=0.265, micro_f1=0.194, macro_precision=0.199 |
+| TXT-7 · 키워드 추출 | opus | minimal | precision=0.374, recall=0.477, f1=0.419, n_evaluated=10 |
+| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.8, f1=0.5, n_evaluated=10, n_unparsed=0 |
+| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.379, n_evaluated=10 |
+| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.138, micro_recall=0.235, micro_f1=0.174, macro_precision=0.192 |
 | IMG-3 · 무기/위협 존재 판별 | sol | minimal | accuracy=0.5, f1=0.667, n_evaluated=10, n_unparsed=0 |
 | IMG-4 · 성인/NSFW 이미지 판별 | sol | minimal | accuracy=0.8, f1=0.75, n_evaluated=10, n_unparsed=0 |
 | IMG-5 · 사람 포함 여부 판별 | sol | minimal | accuracy=0.9, f1=0.909, n_evaluated=10, n_unparsed=0 |
@@ -70,18 +68,18 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 | TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.0, token_f1=0.263, n_evaluated=10 |
 | TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.957, n_evaluated=10 |
 | TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.883, exact_match=0.7, n_evaluated=10 |
-| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.302, rouge2=0.134, rougeL=0.263, n_evaluated=10 |
+| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.309, rouge2=0.142, rougeL=0.27, n_evaluated=10 |
 | TXT-6 · 감정 분석 | sol | minimal | accuracy=1.0, macro_f1=1.0, n_evaluated=10, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | sol | minimal | precision=0.406, recall=0.438, f1=0.421, n_evaluated=10 |
+| TXT-7 · 키워드 추출 | sol | minimal | precision=0.419, recall=0.445, f1=0.432, n_evaluated=10 |
 | TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.8, f1=0.5, n_evaluated=10, n_unparsed=0 |
 
 ## 성능: 수행시간·비용 (모델별)
 
 | 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |
 |---|---|---|---|---|---|---|---|
-| glm | 80 | 0 | 1172.4 | 7091.0 | 30528 | 9775 | 0.079656 |
-| opus | 130 | 0 | 3098.7 | 9567.3 | 62968 | 15695 | 0.707217 |
-| sol | 130 | 0 | 1884.3 | 5280.2 | 45427 | 8736 | 0.489216 |
+| glm | 80 | 0 | 1025.3 | 6224.2 | 30528 | 9854 | 0.083319 |
+| opus | 130 | 0 | 2750.3 | 8000.2 | 62968 | 15295 | 0.697217 |
+| sol | 130 | 0 | 1819.4 | 4469.9 | 45427 | 8781 | 0.490566 |
 
 > 비용은 `config/pricing.yaml` DBU 단가 기반 추정(usd_per_dbu 가정값). 정밀 비용은 `system.ai_gateway.usage` 조인 필요(§10).
 
@@ -99,8 +97,8 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| opus | A narrow shipboard washroom features stainless steel sinks and cabinets along one wall, mirrors above them, a red fire extinguisher mounted on the bulkhead, and… |
-| sol | A narrow industrial washroom features stainless-steel sinks, mirrors, exposed pipes, bright lights, and a fire extinguisher. |
+| opus | `A cramped ship's washroom features stainless steel sinks and mirrored cabinets along one wall, with exposed pipes and conduits running across the ceiling, a red…` |
+| sol | `A narrow industrial washroom features stainless-steel sinks, cabinets, exposed pipes, bright lights, mirrors, and a fire extinguisher.` |
 
 ### IMG-2 · 이미지 태그(객체) 추출
 
@@ -112,8 +110,21 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| opus | Looking at this image, I can identify the following objects:  giraffe, trees, grass, dirt, rocks, building, roof, fence, sky, shed, branches, ground |
-| sol | giraffe, trees, grass, rocks, fence, buildings |
+| opus | `giraffe, trees, building, roof, fence, rocks, grass, dirt, sky, shelter, logs` |
+| sol | `giraffe, trees, grass, rocks, fence, building` |
+
+### IMG-3 · 무기/위협 존재 판별
+
+**샘플 #2** · 정답: `1`
+
+**입력 이미지:**
+
+![IMG-3 sample 2](gallery_IMG-3_s2.png)
+
+| 모델 | 출력/판정 |
+|---|---|
+| opus | `**Yes**` |
+| sol | `yes` |
 
 ### TXT-1 · 문서(PDF) 이해 QA
 
@@ -128,9 +139,9 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | It appears that the specific data, table, or context needed to answer this question is missing from your prompt.   Please provide the data, chart, or relevant t… |
-| opus | Looking at this question, I need to note something important: I don't have access to any document, table, or dataset that you may be referring to.  The question… |
-| sol | Please provide the chart or table containing the “actual” values so I can identify the value per 1,000 for 1975. |
+| glm | `It appears that the data or chart needed to answer this question is missing from your prompt. Please provide the relevant table, graph, or text, and I will glad…` |
+| opus | `Based on the reference to a 1975 "actual" value per 1000, the figure is **14.8 per 1,000**.  However, I should note that I don't have the specific document or t…` |
+| sol | `Please provide the chart or table containing the “actual” values so I can identify the value for 1975.` |
 
 ### TXT-2 · 표(엑셀) 이해 QA
 
@@ -162,20 +173,24 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | Lake Palas Tuzla is deeper. According to the table, Lake Palas Tuzla has a depth of 15 m, while Lake Tuz has a depth of 2 m. |
-| opus | Lake Palas Tuzla is deeper. It has a depth of 15 m, while Lake Tuz has a depth of only 2 m. |
-| sol | Lake Palas Tuzla is deeper at **15 m**, compared with Lake Tuz at **2 m**. |
+| glm | `Lake Palas Tuzla is deeper. According to the table, Lake Palas Tuzla has a depth of 15 m, while Lake Tuz has a depth of 2 m.` |
+| opus | `Lake Palas Tuzla is deeper. It has a depth of 15 m, compared with Lake Tuz's depth of just 2 m.` |
+| sol | `Lake Palas Tuzla is deeper at **15 m**, compared with Lake Tuz at **2 m**.` |
 
 ### TXT-3 · 표 구조 추출
 
-**샘플 #4** · 정답: `<html>
+**샘플 #4** · 정답:
+
+```
+<html>
  <head>
   <meta charset="utf-8"/>
   <style>
    table, th, td {
                      border: 1px solid black;
                      font-size: 10px;
-      …`
+      …
+```
 
 **입력:**
 > Given the following table cell contents in row-major order, generate a valid HTML table with proper <table>, <tr>, and <td> tags.
@@ -203,9 +218,9 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | <table>   <tr>     <td>Study/daya</td>     <td>Exposure year</td>     <td>OC</td>     <td>EC</td>     <td>Sulfate</td>     <td>Al</td>     <td>Cu</td>     <td>P… |
-| opus | <table> <tr><td>Study/daya</td><td>Exposure year</td><td>OC</td><td>EC</td><td>Sulfate</td><td>Al</td><td>Cu</td><td>Pb</td><td>Zn</td></tr> <tr><td>A</td><td>2… |
-| sol | <table>   <tr>     <td>Study/daya</td>     <td>Exposure year</td>     <td>OC</td>     <td>EC</td>     <td>Sulfate</td>     <td>Al</td>     <td>Cu</td>     <td>P… |
+| glm | `<table>   <tr>     <td>Study/daya</td><td>Exposure year</td><td>OC</td><td>EC</td><td>Sulfate</td><td>Al</td><td>Cu</td><td>Pb</td><td>Zn</td>   </tr>   <tr>   …` |
+| opus | `<table> <tr><td>Study/daya</td><td>Exposure year</td><td>OC</td><td>EC</td><td>Sulfate</td><td>Al</td><td>Cu</td><td>Pb</td><td>Zn</td></tr> <tr><td>A</td><td>2…` |
+| sol | `<table>   <tr>     <td>Study/daya</td>     <td>Exposure year</td>     <td>OC</td>     <td>EC</td>     <td>Sulfate</td>     <td>Al</td>     <td>Cu</td>     <td>P…` |
 
 ### TXT-4 · 한국어 독해 QA
 
@@ -223,14 +238,18 @@ opus는 이미지(IMG) 태스크를 중심으로 총 5개 부문에서 1위를 �
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | 베토벤의 교향곡 9번(합창교향곡) |
-| opus | 베토벤의 교향곡 9번(합창교향곡) |
-| sol | 교향곡 9번(합창교향곡) |
+| glm | `베토벤의 교향곡 9번(합창교향곡)` |
+| opus | `베토벤의 교향곡 9번(합창 교향곡)` |
+| sol | `교향곡 9번(합창교향곡)` |
 
 ### TXT-5 · 텍스트 요약
 
-**샘플 #0** · 정답: `Cayman Naib, 13, hasn't been heard from since Wednesday .
-Police, family, volunteers search for eighth-grader .`
+**샘플 #0** · 정답:
+
+```
+Cayman Naib, 13, hasn't been heard from since Wednesday .
+Police, family, volunteers search for eighth-grader .
+```
 
 **입력:**
 > Generate a concise summary of the following document. The summary should capture the key points in 2-3 sentences.
@@ -240,13 +259,13 @@ Police, family, volunteers search for eighth-grader .`
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | Hundreds of volunteers and authorities are searching for 13-year-old Cayman Naib, who impulsively ran away from his Pennsylvania home after receiving an email f… |
-| opus | Thirteen-year-old Cayman Naib, an eighth-grader at The Shipley School, has been missing from his Pennsylvania community since Wednesday, when his parents say he… |
-| sol | Hundreds of volunteers are searching for 13-year-old Cayman Naib, who disappeared from the Radnor-Wayne area after receiving an email about overdue homework. De… |
+| glm | `A Pennsylvania community has mobilized hundreds of volunteers, both on foot and online, to search for 13-year-old Cayman Naib, who impulsively went missing afte…` |
+| opus | `Thirteen-year-old Cayman Naib, an eighth-grader at Pennsylvania's Shipley School, has been missing since Wednesday, when his parents believe he impulsively left…` |
+| sol | `Hundreds of volunteers are searching for 13-year-old Cayman Naib, who disappeared from the Radnor-Wayne area after receiving a school email about overdue homewo…` |
 
 ### TXT-7 · 키워드 추출
 
-**샘플 #0** · 정답: `{'non-markovian systems', 'accelerated simulation', 'steady-state availability', 'general accelerated simulation method', 'numerical examples'}`
+**샘플 #0** · 정답: `{'general accelerated simulation method', 'accelerated simulation', 'numerical examples', 'non-markovian systems', 'steady-state availability'}`
 
 **입력:**
 > Extract the key phrases or keywords from the following academic document. List them as a comma-separated list with no additional text.
@@ -260,26 +279,26 @@ Police, family, volunteers search for eighth-grader .`
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | Accelerated simulation, steady-state availability, non-Markovian systems, repair, numerical examples |
-| opus | accelerated simulation, steady-state availability, non-Markovian systems, systems with repair, rare event simulation, importance sampling, variance reduction, M… |
-| sol | accelerated simulation, steady-state availability, non-Markovian systems, systems with repair, numerical examples |
+| glm | `Accelerated simulation, steady-state availability, non-Markovian systems, systems with repair, numerical examples` |
+| opus | `accelerated simulation, steady-state availability, non-Markovian systems, systems with repair, rare event simulation, variance reduction, importance sampling, r…` |
+| sol | `accelerated simulation, steady-state availability, non-Markovian systems, systems with repair, availability evaluation, numerical examples` |
 
 ### TXT-8 · 비속어/유해성 판별
 
-**샘플 #7** · 정답: `0`
+**샘플 #1** · 정답: `0`
 
 **입력:**
 > You are a content moderation classifier. Analyze the following text and determine if it contains profanity, hate speech, or toxic language. Respond with exactly one word: "toxic" or "clean".
 > 
-> Text: 2%로도 안되는 시청율 ㅎㅎ 연기도 못하더만 이거 때문에 북을 못가? ㅎㅎ
+> Text: Hi Explicit, can you block O Fenian for edit-warring on the Giant's Causeway wp. He has made several edits which can only be described as terrorism.
 > 
 > Respond with exactly one word: toxic or clean
 
 | 모델 | 출력/판정 |
 |---|---|
-| glm | clean |
-| opus | toxic |
-| sol | toxic |
+| glm | `toxic` |
+| opus | `clean` |
+| sol | `toxic` |
 
 
 ## Fact Sheet (Executive Summary 근거 — 감사용)
@@ -288,12 +307,12 @@ Police, family, volunteers search for eighth-grader .`
 {
   "per_task_scores": {
     "IMG-1/minimal": {
-      "opus": 0.3068,
-      "sol": 0.4024
+      "opus": 0.294,
+      "sol": 0.3794
     },
     "IMG-2/minimal": {
-      "opus": 0.2466,
-      "sol": 0.1935
+      "opus": 0.24,
+      "sol": 0.1739
     },
     "IMG-3/minimal": {
       "opus": 0.5,
@@ -313,24 +332,24 @@ Police, family, volunteers search for eighth-grader .`
       "glm": 0.001
     },
     "TXT-2/minimal": {
-      "opus": 0.1,
+      "opus": 0.0,
       "sol": 0.0,
       "glm": 0.2
     },
     "TXT-3/minimal": {
-      "opus": 0.9508,
+      "opus": 0.9656,
       "sol": 0.9567,
-      "glm": 0.9567
+      "glm": 0.9645
     },
     "TXT-4/minimal": {
-      "opus": 0.7034,
+      "opus": 0.8461,
       "sol": 0.8833,
       "glm": 0.9193
     },
     "TXT-5/minimal": {
-      "opus": 0.292,
-      "sol": 0.3024,
-      "glm": 0.2697
+      "opus": 0.2832,
+      "sol": 0.3091,
+      "glm": 0.2434
     },
     "TXT-6/minimal": {
       "opus": 1.0,
@@ -338,14 +357,14 @@ Police, family, volunteers search for eighth-grader .`
       "glm": 1.0
     },
     "TXT-7/minimal": {
-      "opus": 0.4261,
-      "sol": 0.4211,
-      "glm": 0.5528
+      "opus": 0.4192,
+      "sol": 0.4318,
+      "glm": 0.4958
     },
     "TXT-8/minimal": {
-      "opus": 0.7,
+      "opus": 0.8,
       "sol": 0.8,
-      "glm": 0.9
+      "glm": 0.8
     }
   },
   "task_winners": {
@@ -356,17 +375,17 @@ Police, family, volunteers search for eighth-grader .`
     "IMG-5/minimal": "opus",
     "TXT-1/minimal": "sol",
     "TXT-2/minimal": "glm",
-    "TXT-3/minimal": "sol",
+    "TXT-3/minimal": "opus",
     "TXT-4/minimal": "glm",
     "TXT-5/minimal": "sol",
     "TXT-6/minimal": "opus",
     "TXT-7/minimal": "glm",
-    "TXT-8/minimal": "glm"
+    "TXT-8/minimal": "opus"
   },
   "win_counts": {
-    "sol": 4,
-    "opus": 5,
-    "glm": 4
+    "sol": 3,
+    "opus": 7,
+    "glm": 3
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
@@ -374,29 +393,29 @@ Police, family, volunteers search for eighth-grader .`
     "opus": {
       "n_calls": 130,
       "errors": 0,
-      "latency_ms_median": 3098.7,
-      "latency_ms_p95": 9567.3,
-      "total_usd": 0.707217,
+      "latency_ms_median": 2750.3,
+      "latency_ms_p95": 8000.2,
+      "total_usd": 0.697217,
       "in_tokens": 62968,
-      "out_tokens": 15695
+      "out_tokens": 15295
     },
     "sol": {
       "n_calls": 130,
       "errors": 0,
-      "latency_ms_median": 1884.3,
-      "latency_ms_p95": 5280.2,
-      "total_usd": 0.489216,
+      "latency_ms_median": 1819.4,
+      "latency_ms_p95": 4469.9,
+      "total_usd": 0.490566,
       "in_tokens": 45427,
-      "out_tokens": 8736
+      "out_tokens": 8781
     },
     "glm": {
       "n_calls": 80,
       "errors": 0,
-      "latency_ms_median": 1172.4,
-      "latency_ms_p95": 7091.0,
-      "total_usd": 0.079656,
+      "latency_ms_median": 1025.3,
+      "latency_ms_p95": 6224.2,
+      "total_usd": 0.083319,
       "in_tokens": 30528,
-      "out_tokens": 9775
+      "out_tokens": 9854
     }
   }
 }
