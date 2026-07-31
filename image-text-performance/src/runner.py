@@ -339,6 +339,7 @@ def _run_samples(
         params = model.reasoning_params(mode)
         gkey = (model.id, task_id, mode)
         groups.setdefault(gkey, {"parsed": [], "samples": [], "outputs": []})
+        print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 실행...", flush=True)
         for s in samples:
             messages = inst.build_prompt(s)
             t0 = time.perf_counter()

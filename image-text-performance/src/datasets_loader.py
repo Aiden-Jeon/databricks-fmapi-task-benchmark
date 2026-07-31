@@ -49,8 +49,9 @@ def load_hf_split(
     # 1) streaming 시도 (다운로드 최소화)
     try:
         ds = load_dataset(hf_id, name=config, split=split, streaming=True)
-        # buffer shuffle로 앞쪽 편향 완화(전체 셔플은 streaming서 불가). buffer는 n의 배수.
-        buffer = max(1000, n * 10)
+        # buffer shuffle로 앞쪽 편향 완화(전체 셔플은 streaming서 불가).
+        # buffer가 크면 다운로드가 많아 느려짐 → n의 소배수로 제한(속도·편향 균형).
+        buffer = min(max(50, n * 3), 500)
         ds = ds.shuffle(seed=seed, buffer_size=buffer)
         rows = list(ds.take(n)) if n else list(ds)
         if rows:

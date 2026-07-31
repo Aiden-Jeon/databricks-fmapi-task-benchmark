@@ -1,0 +1,156 @@
+{
+  "per_task_scores": {
+    "IMG-3/minimal": {
+      "opus": 0.5,
+      "sol": 0.5
+    },
+    "IMG-3/full": {
+      "opus": 0.5,
+      "sol": 0.5
+    },
+    "IMG-4/minimal": {
+      "opus": 0.8,
+      "sol": 0.8
+    },
+    "IMG-4/full": {
+      "opus": 0.8,
+      "sol": 0.8
+    },
+    "IMG-5/minimal": {
+      "opus": 0.9,
+      "sol": 0.9
+    },
+    "IMG-5/full": {
+      "opus": 1.0,
+      "sol": 0.9
+    },
+    "TXT-1/minimal": {
+      "opus": 0.0011,
+      "sol": 0.0125,
+      "glm": 0.0022
+    },
+    "TXT-1/full": {
+      "opus": 0.0,
+      "sol": 0.01,
+      "glm": 0.0
+    },
+    "TXT-2/minimal": {
+      "opus": 0.1,
+      "sol": 0.0,
+      "glm": 0.3
+    },
+    "TXT-2/full": {
+      "opus": 0.0,
+      "sol": 0.0,
+      "glm": 0.3
+    },
+    "TXT-4/minimal": {
+      "opus": 0.7059,
+      "sol": 0.8833,
+      "glm": 0.8526
+    },
+    "TXT-4/full": {
+      "opus": 0.551,
+      "sol": 0.8693,
+      "glm": 0.8667
+    },
+    "TXT-5/minimal": {
+      "opus": 0.2854,
+      "sol": 0.3175,
+      "glm": 0.2565
+    },
+    "TXT-5/full": {
+      "opus": 0.2744,
+      "sol": 0.2758,
+      "glm": 0.1624
+    },
+    "TXT-6/minimal": {
+      "opus": 1.0,
+      "sol": 1.0,
+      "glm": 1.0
+    },
+    "TXT-6/full": {
+      "opus": 1.0,
+      "sol": 1.0,
+      "glm": 1.0
+    },
+    "TXT-7/minimal": {
+      "opus": 0.4382,
+      "sol": 0.4179,
+      "glm": 0.4737
+    },
+    "TXT-7/full": {
+      "opus": 0.3891,
+      "sol": 0.4586,
+      "glm": 0.3166
+    },
+    "TXT-8/minimal": {
+      "opus": 0.7,
+      "sol": 0.8,
+      "glm": 1.0
+    },
+    "TXT-8/full": {
+      "opus": 0.7,
+      "sol": 0.8,
+      "glm": 0.8889
+    }
+  },
+  "task_winners": {
+    "IMG-3/minimal": "opus",
+    "IMG-3/full": "opus",
+    "IMG-4/minimal": "opus",
+    "IMG-4/full": "opus",
+    "IMG-5/minimal": "opus",
+    "IMG-5/full": "opus",
+    "TXT-1/minimal": "sol",
+    "TXT-1/full": "sol",
+    "TXT-2/minimal": "glm",
+    "TXT-2/full": "glm",
+    "TXT-4/minimal": "sol",
+    "TXT-4/full": "sol",
+    "TXT-5/minimal": "sol",
+    "TXT-5/full": "sol",
+    "TXT-6/minimal": "opus",
+    "TXT-6/full": "opus",
+    "TXT-7/minimal": "glm",
+    "TXT-7/full": "sol",
+    "TXT-8/minimal": "glm",
+    "TXT-8/full": "glm"
+  },
+  "win_counts": {
+    "opus": 8,
+    "sol": 7,
+    "glm": 5
+  },
+  "cheapest_model": "glm",
+  "fastest_model": "sol",
+  "perf": {
+    "opus": {
+      "n_calls": 260,
+      "errors": 0,
+      "latency_ms_median": 2953.0,
+      "latency_ms_p95": 8823.6,
+      "total_usd": 1.595909,
+      "in_tokens": 125936,
+      "out_tokens": 38649
+    },
+    "sol": {
+      "n_calls": 260,
+      "errors": 0,
+      "latency_ms_median": 1740.6,
+      "latency_ms_p95": 4754.4,
+      "total_usd": 1.220562,
+      "in_tokens": 90854,
+      "out_tokens": 20083
+    },
+    "glm": {
+      "n_calls": 160,
+      "errors": 19,
+      "latency_ms_median": 4014.1,
+      "latency_ms_p95": 21611.8,
+      "total_usd": 0.252097,
+      "in_tokens": 50900,
+      "out_tokens": 41751
+    }
+  }
+}

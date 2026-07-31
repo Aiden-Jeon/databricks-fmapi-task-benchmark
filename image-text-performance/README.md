@@ -102,9 +102,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 - Python 3.10+
 - Databricks CLI 프로파일(기본 `ai_devtools`) — FMAPI 호출과 `system.ai_gateway.usage` 조회에 사용
-- 한국어 채점용 시스템 의존성: `mecab`, `mecab-ko-dic`
-  - macOS: `brew install mecab mecab-ko mecab-ko-dic`
-  - Linux: `apt-get install mecab libmecab-dev mecab-ko mecab-ko-dic`
+- 데이터셋은 HuggingFace에서 **streaming**으로 필요한 샘플만 받는다(전체 다운로드 X). `.cache/`에 캐시(gitignore).
 
 ### 설치
 
@@ -112,15 +110,29 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 pip install -e .          # pyproject.toml의 의존성 설치
 ```
 
-### 실행 (목표)
+**선택 의존성 (없어도 fallback으로 동작):**
+- **한국어 형태소 분석** (`konlpy` + `mecab`, `mecab-ko-dic`): 설치 시 ROUGE·Token-F1의 한국어 채점이 형태소 단위로 정밀해진다. **미설치 시 음절(syllable) 단위로 자동 fallback** (공백 분리보다 정확). 리포트에 사용된 backend가 표시된다.
+  - macOS: `brew install mecab` + `mecab-ko-dic` 별도 설치
+  - Linux: `apt-get install mecab libmecab-dev mecab-ko-dic`
+- **BERTScore** (`bert-score` + `torch`, 수 GB): 설치 시 IMG-1·TXT-5 의미유사도 채점 활성화. 미설치 시 해당 지표는 `deferred`로 표시되고 ROUGE·token-F1·judge로 대체된다.
+
+### 실행
 
 ```bash
-# 데이터셋 준비(해시 검증 다운로드; 대용량·민감 데이터는 로컬 캐시에만)
-python -m src.datasets.download
+# 전체 벤치마크 (3모델 × 13태스크 × reasoning{minimal,full} × 50샘플)
+python -m src.runner
 
-# 벤치마크 실행 → reports/<run-id>/ 생성
-python -m src.runner --config config/models.yaml --tasks config/tasks.yaml
+# 빠른 확인: 특정 모델·모드·샘플 수로 제한
+python -m src.runner --models sol --reasoning-modes minimal --samples 3
+
+# 실행 매트릭스만 미리보기(FMAPI 호출 없음)
+python -m src.runner --dry-run
 ```
+
+결과는 `results/<run-id>/`(원시 JSONL·scores·manifest), 리포트는 `reports/<run-id>/report.md`,
+전체 run 목록은 `reports/index.md`에 생성된다.
+
+**주요 옵션:** `--models opus,sol,glm` (모델 필터) · `--reasoning-modes minimal,full` · `--samples N` (샘플 수) · `--dry-run` · `--config` / `--tasks` (설정 경로).
 
 ---
 
@@ -145,7 +157,7 @@ python -m src.runner --config config/models.yaml --tasks config/tasks.yaml
 - **비용 공식**: `usd = usd_per_dbu × (billable_input×dbu_in + billable_output×dbu_out + cache…) / 1e6`
 - **reasoning 토큰 주의**: `billable_output = completion_tokens + reasoning_tokens`. reasoning 토큰이
   `completion_tokens`에 포함되지 않으므로, 이를 빼먹으면 비용이 크게 과소 계상된다.
-- `config/pricing.yaml`의 `usd_per_dbu`(기본 0.07 가정)·라우팅·프로모는 실제 계약 단가로 확정 필요.
+- **단가 확정 상태**: DBU 단가는 Databricks 공식 pricing 페이지에서 2개 소스로 교차검증(GLM-5.2는 재확인 완료). `usd_per_dbu=0.07`은 Premium Model Serving 표준단가로 확정 채택 — `system.billing`은 워크스페이스 권한이 없어 계약별 실단가 대조는 불가(권한 확보 시 사후 대조 가능). 계약 단가가 다르면 `pricing.yaml`의 이 한 줄만 바꾸면 전체 비용이 재계산된다.
 
 ---
 
@@ -160,7 +172,21 @@ python -m src.runner --config config/models.yaml --tasks config/tasks.yaml
 
 ---
 
+## 데이터셋 로딩 (streaming)
+
+대상 데이터셋 일부는 매우 크다(COCO ~19GB, PubTabNet ~16GB, DocVQA ~11GB). 전체를 받으면
+디스크가 폭발하므로, `src/datasets_loader.py`는 HuggingFace **streaming**으로 seed 고정 subset만
+받는다(50샘플에 수십 GB를 받지 않음). script-based로 로드 불가한 원본은 parquet mirror로 대체하고
+(`datasets/registry.yaml`의 `mirror_of` 기록), 실제 로드 실패 시 **합성 데이터로 우회하지 않고**
+명확히 실패한다(표준 데이터셋 원칙, requirement #5).
+
 ## 상태
 
-스캐폴딩 이전(설계 확정). 로드맵은 [`plan.md` §9](./plan.md) 참고: Phase 0 스캐폴딩 → Phase 1 텍스트
-안전 태스크(파이프라인 전체 완성) → Phase 2 이미지 → Phase 3 문서·표 → Phase 4 자동화·축적.
+**구현 완료 — 13개 태스크 전체가 end-to-end 동작** (데이터 로딩 → FMAPI 실행 → 채점 → 시간·비용·Executive Summary 리포트). 로드맵 Phase 0~4 완료:
+- Phase 0 스캐폴딩(FMAPI 어댑터·설정·채점/비용 골격)
+- Phase 1 텍스트 안전 태스크(TXT-4/5/6/8)
+- Phase 2 이미지 태스크(IMG-1~5)
+- Phase 3 문서·표 태스크(TXT-1/2/3/7)
+- Phase 4 시점별 리포트 축적·재현성 메타·인덱스
+
+세부 설계·의사결정은 [`plan.md`](./plan.md), 결정 이력은 §2(D1–D14) 참고.
