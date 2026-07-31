@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -231,11 +232,10 @@ def main() -> int:
         print("=" * 70)
         return 0
 
-    # 실제 실행 경로 (Phase 1 구현 예정)
+    # 실제 실행 경로 (Phase 1)
     print("실제 샘플 루프 시작...")
     print("=" * 70)
 
-    # FMAPIClient 생성 (나중에 사용할 예정)
     try:
         fmapi = FMAPIClient(
             profile=models_cfg.profile,
@@ -248,18 +248,200 @@ def main() -> int:
         return 1
 
     try:
-        # TODO: Phase 1
-        # - 데이터셋 로더 (datasets/registry.yaml에서 구성)
-        # - 태스크 플러그인 (src/tasks/<id>.py에서 동적 로드)
-        # - per-sample 루프: (model, task, reasoning_mode, sample) → FMAPI 호출 → SampleResult 저장
-        # - 각 호출의 request_id 기록 → 나중에 cost/latency 조인용
-        raise NotImplementedError(
-            "실제 샘플 루프는 Phase 1에서 구현 예정. "
-            "데이터셋 로더·태스크 플러그인·FMAPI 호출 루프 필요."
+        rc = _run_samples(
+            fmapi=fmapi,
+            models_cfg=models_cfg,
+            tasks_cfg=tasks_cfg,
+            matrix=matrix,
+            run_dir=run_dir,
+            sample_cap=args.samples,
         )
-
     finally:
         fmapi.close()
+
+    print("=" * 70)
+    return rc
+
+
+def _run_samples(
+    fmapi: FMAPIClient,
+    models_cfg,
+    tasks_cfg: dict[str, Any],
+    matrix: list[dict[str, Any]],
+    run_dir: Path,
+    sample_cap: int | None,
+) -> int:
+    """실행 매트릭스를 순회하며 각 (모델×태스크×reasoning×샘플)을 호출·채점·저장.
+
+    - 태스크 플러그인을 동적 로드. 미구현 태스크는 스킵(점진 구현 허용).
+    - 샘플은 태스크당 1회 로드해 (모델×모드)가 동일 subset을 공유(공정 비교·재현성).
+    - 각 호출의 request_id 기록 → 나중에 ai_gateway.usage와 조인(비용·시간).
+    """
+    from datetime import datetime, timezone
+
+    from src.datasets_loader import load_registry
+    from src.results import SampleResult, write_sample_results
+    from src.tasks.base import Sample
+    from src.tasks.loader import discover_tasks
+
+    registry = load_registry()
+    task_classes = discover_tasks()
+    print(f"로드된 태스크: {sorted(task_classes)}")
+
+    defaults = tasks_cfg.get("defaults", {})
+    n_samples = sample_cap or defaults.get("samples", 50)
+    seed = defaults.get("seed", 42)
+
+    # task_id → 설정 dict
+    all_task_cfgs = {t["id"]: t for t in tasks_cfg.get("image_tasks", []) + tasks_cfg.get("text_tasks", [])}
+
+    # 태스크별 (플러그인 인스턴스, 샘플) 캐시 — 모델·모드 간 재사용
+    task_cache: dict[str, tuple[Any, list[Sample]]] = {}
+
+    def _get_task(task_id: str):
+        if task_id in task_cache:
+            return task_cache[task_id]
+        cls = task_classes.get(task_id)
+        if cls is None:
+            task_cache[task_id] = (None, [])
+            return task_cache[task_id]
+        inst = cls(all_task_cfgs.get(task_id, {}), registry)
+        try:
+            samples = inst.load_samples(n_samples, seed)
+        except Exception as e:
+            print(f"  [샘플 로드 실패] {task_id}: {type(e).__name__}: {e}")
+            samples = []
+        task_cache[task_id] = (inst, samples)
+        return task_cache[task_id]
+
+    results: list[SampleResult] = []
+    # (model_id, task_id, mode) → {"parsed": [...], "samples": [...], "outputs": [...]}
+    groups: dict[tuple[str, str, str], dict[str, list]] = {}
+    executed = skipped_tasks = 0
+
+    for cell in matrix:
+        task_id = cell["task_id"]
+        model = models_cfg.get_model(cell["model_id"])
+        mode = cell["reasoning_mode"]
+        inst, samples = _get_task(task_id)
+        if inst is None or not samples:
+            skipped_tasks += 1
+            continue
+
+        params = model.reasoning_params(mode)
+        gkey = (model.id, task_id, mode)
+        groups.setdefault(gkey, {"parsed": [], "samples": [], "outputs": []})
+        for s in samples:
+            messages = inst.build_prompt(s)
+            t0 = time.perf_counter()
+            try:
+                resp = fmapi.chat(
+                    model.endpoint,
+                    messages,
+                    max_tokens=models_cfg.runtime.max_tokens,
+                    extra_params=params,
+                )
+                latency_ms = (time.perf_counter() - t0) * 1000
+                output_text = resp.text
+                req_id, finish, usage = resp.request_id, resp.finish_reason, resp.usage
+            except Exception as e:
+                latency_ms = (time.perf_counter() - t0) * 1000
+                output_text = f"__ERROR__: {type(e).__name__}: {e}"
+                req_id, finish, usage = None, "error", {}
+
+            # 채점용 파싱 (실패해도 실행은 계속)
+            try:
+                parsed = inst.parse_output(output_text, s)
+            except Exception:
+                parsed = None
+            groups[gkey]["parsed"].append(parsed)
+            groups[gkey]["samples"].append(s)
+            groups[gkey]["outputs"].append(output_text)
+
+            results.append(
+                SampleResult(
+                    model_id=model.id,
+                    task_id=task_id,
+                    sample_id=s.sample_id,
+                    reasoning_mode=mode,
+                    prompt=_truncate(_prompt_text(messages), 2000),
+                    model_output=output_text,
+                    reference=s.reference,
+                    request_id=req_id,
+                    finish_reason=finish,
+                    usage=usage,
+                    latency_ms_local=latency_ms,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+            executed += 1
+
+    # 그룹별 채점 집계
+    scores = _score_groups(groups, task_cache)
+
+    path = write_sample_results(run_dir, results)
+    _write_json(run_dir / "scores.json", scores)
+    print(f"\n실행 완료: {executed}개 샘플 호출, 태스크 미구현으로 스킵된 셀 {skipped_tasks}")
+    print(f"결과 저장: {path}")
+
+    # 리포트 생성 (Executive Summary + 정량 + 시간/비용)
+    try:
+        from src.report.generate import generate_report
+
+        report_path = generate_report(run_dir, results, scores, models_cfg)
+        print(f"리포트 생성: {report_path}")
+    except Exception as e:
+        print(f"  [리포트 생성 스킵] {type(e).__name__}: {e}")
+
+    return 0
+
+
+def _score_groups(groups: dict, task_cache: dict) -> dict[str, Any]:
+    """(model, task, mode) 그룹별로 태스크 score()를 호출해 집계.
+
+    태스크마다 score() 반환 형식이 달라도 그대로 저장(리포트가 흡수).
+    키는 "model_id::task_id::mode" 문자열.
+    """
+    out: dict[str, Any] = {}
+    for (model_id, task_id, mode), g in groups.items():
+        inst = task_cache.get(task_id, (None, []))[0]
+        if inst is None:
+            continue
+        try:
+            metrics = inst.score(g["parsed"], g["samples"])
+        except Exception as e:
+            metrics = {"error": f"{type(e).__name__}: {e}"}
+        out[f"{model_id}::{task_id}::{mode}"] = {
+            "model_id": model_id,
+            "task_id": task_id,
+            "reasoning_mode": mode,
+            "n": len(g["samples"]),
+            "metrics": metrics,
+        }
+    return out
+
+
+def _write_json(path: Path, obj: Any) -> None:
+    import json
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2, default=str)
+
+
+def _prompt_text(messages: list[dict[str, Any]]) -> str:
+    """저장·표시용으로 messages에서 텍스트만 추출."""
+    parts = []
+    for m in messages:
+        c = m.get("content")
+        if isinstance(c, str):
+            parts.append(c)
+        elif isinstance(c, list):
+            parts.extend(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text")
+    return "\n".join(parts)
+
+
+def _truncate(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + "…"
 
 
 if __name__ == "__main__":

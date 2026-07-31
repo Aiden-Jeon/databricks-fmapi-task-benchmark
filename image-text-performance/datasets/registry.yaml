@@ -95,6 +95,7 @@ klue_mrc:
 
 summarization_en:
   hf_id: "abisee/cnn_dailymail"
+  config: "3.0.0"
   license: "apache-2.0"
   commercial_ok: true
   languages: [en]
@@ -136,12 +137,13 @@ keyphrase:
   expected_sha256: null
 
 toxicity_en:
-  hf_id: "thesofakillers/jigsaw-unintended-bias-2021"
-  license: "mirror CC-BY-SA / original CC-BY-SA"
-  commercial_ok: false
+  hf_id: "thesofakillers/jigsaw-toxic-comment-classification-challenge"
+  license: "mirror CC-BY-SA / original CC-BY-SA (Wikipedia text) + CC0 (annotations)"
+  commercial_ok: true
   languages: [en]
-  split: "test"
-  mirror_of: "Original google/jigsaw_multilingual_toxicity_classifier script-based; parquet mirror."
+  split: "train"                      # test split은 라벨이 없어 train 사용 (실측)
+  label_column: "toxic"
+  mirror_of: "Canonical google/jigsaw_toxicity_pred is script-based; this is a parquet mirror."
   expected_sha256: null
 
 toxicity_ko:

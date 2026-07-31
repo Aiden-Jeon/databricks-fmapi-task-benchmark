@@ -1,8 +1,10 @@
 # 데이터셋·모델 로컬 캐시 (민감 데이터 포함 — 절대 커밋 금지, plan D3)
 .cache/
 
-# 벤치마크 원시 결과 (용량 큼; 리포트는 reports/에 커밋, 원시결과 results/는 제외)
+# 벤치마크 원시 결과·리포트: 개발 중 부산물은 제외.
+# 실제 배포용 리포트는 필요 시 `git add -f reports/<run-id>/`로 명시적으로 추가(§12).
 results/
+reports/
 
 # Python
 __pycache__/
