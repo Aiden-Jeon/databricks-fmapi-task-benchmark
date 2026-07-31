@@ -36,7 +36,6 @@ Usage:
 """
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -44,7 +43,7 @@ import sys
 import time
 from pathlib import Path
 
-from benchmark import task_spec
+from benchmark import fmapi_auth, task_spec
 
 HARNESSES = ("direct-fmapi", "claude-code", "codex", "omnigent")
 
@@ -185,10 +184,15 @@ def run_direct_fmapi(task, candidate, harness, model, workdir, max_seconds) -> d
             "ERROR: --harness direct-fmapi requires --model starting with 'databricks-'.\n"
             "A bare 'claude-*'/'gpt-*' name routes to the vendor backend, NOT FMAPI."
         )
-    host = os.getenv("DATABRICKS_HOST")
-    token = os.getenv("DATABRICKS_TOKEN")
+    # Host/token: explicit env vars win; otherwise auto-resolve via ucode (AI Gateway CLI).
+    host, token, source = fmapi_auth.resolve_host_token()
     if not host or not token:
-        sys.exit("ERROR: set DATABRICKS_HOST and DATABRICKS_TOKEN for direct-fmapi.")
+        sys.exit(
+            "ERROR: could not resolve FMAPI credentials.\n"
+            "Set DATABRICKS_HOST + DATABRICKS_TOKEN, or ensure `ucode` is installed and "
+            "configured (~/.codex/ucode.config.toml)."
+        )
+    print(f"[run_task] FMAPI host={host} (auth source: {source})")
 
     artifact = workdir / task_spec.ARTIFACT
     instructions_text = (workdir / "instructions.txt").read_text(encoding="utf-8")
@@ -207,7 +211,7 @@ def run_direct_fmapi(task, candidate, harness, model, workdir, max_seconds) -> d
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": content}],
-            max_tokens=16000,
+            max_tokens=32000,
         )
         html = extract_html(resp.choices[0].message.content or "")
         artifact.write_text(html, encoding="utf-8")
@@ -216,6 +220,12 @@ def run_direct_fmapi(task, candidate, harness, model, workdir, max_seconds) -> d
         if usage is not None:
             meta["prompt_tokens"] = getattr(usage, "prompt_tokens", None)
             meta["completion_tokens"] = getattr(usage, "completion_tokens", None)
+        # Warn if the model hit the token ceiling — the deck is likely truncated.
+        finish = getattr(resp.choices[0], "finish_reason", None)
+        if finish == "length":
+            meta["note"] = ("completion hit max_tokens (finish_reason=length) — "
+                            "slides.html may be truncated")
+            print(f"[run_task] WARNING: {meta['note']}")
     except Exception as e:  # noqa: BLE001 — record any failure, never crash the run
         meta["note"] = f"FMAPI call failed ({type(e).__name__}: {e})"
         print(f"[run_task] ERROR: {meta['note']}")
@@ -361,7 +371,9 @@ def main() -> None:
     ap.add_argument("--harness", required=True,
                     help=f"one of {HARNESSES} (or any name with --manual)")
     ap.add_argument("--model", default=None,
-                    help="FMAPI model (databricks-*); required for direct-fmapi & omnigent")
+                    help="FMAPI model (databricks-*); for direct-fmapi/omnigent. If omitted, "
+                         "defaults from the candidate name (see task_spec.CANDIDATE_MODELS: "
+                         f"{', '.join(f'{k}={v}' for k, v in task_spec.CANDIDATE_MODELS.items())})")
     ap.add_argument("--manual", action="store_true",
                     help="semi-automated UI-only mode: no subprocess, human is a keyboard proxy")
     ap.add_argument("--max-seconds", type=int, default=900,
@@ -375,10 +387,16 @@ def main() -> None:
     if not args.manual and args.harness not in HARNESSES:
         ap.error(f"argument --harness: invalid choice {args.harness!r} "
                  f"(choose from {HARNESSES}); use --manual for an arbitrary UI-only agent")
+    # Default the model from the candidate name when not given explicitly.
+    if args.model is None:
+        args.model = task_spec.CANDIDATE_MODELS.get(args.candidate)
     # direct-fmapi's model contract is enforced early (before we create the workdir).
     if not args.manual and args.harness == "direct-fmapi":
         if not args.model or not args.model.startswith("databricks-"):
-            ap.error("--harness direct-fmapi requires --model starting with 'databricks-'")
+            ap.error(
+                f"--harness direct-fmapi needs a databricks-* model. Candidate "
+                f"{args.candidate!r} has no default in task_spec.CANDIDATE_MODELS "
+                f"({', '.join(task_spec.CANDIDATE_MODELS) or 'empty'}); pass --model explicitly.")
 
     workdir = prepare_workdir(args.task, args.candidate)
     print(f"[run_task] task={args.task}  candidate={args.candidate}")

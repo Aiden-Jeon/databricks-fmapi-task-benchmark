@@ -29,6 +29,15 @@ from pathlib import Path
 DEFAULT_TASK = "explain-databricks"
 ARTIFACT = "slides.html"
 
+# Default candidate -> FMAPI model mapping. The candidate name (opus/sol/glm) is a stable
+# label; the model it points at can be refreshed here. Override per-run with --model.
+# These are FMAPI serving-endpoint names (must start with 'databricks-').
+CANDIDATE_MODELS = {
+    "opus": "databricks-claude-opus-4-8",
+    "sol": "databricks-gpt-5-6-sol",
+    "glm": "databricks-glm-5-2",
+}
+
 # ---- The COMMON PROMPT — MUST stay byte-identical for every candidate. ------
 # Kept short on the CLI; the heavy task detail lives in TASK_DESCRIPTION.md (written
 # into each candidate dir as instructions.txt), which the agent is told to read.
@@ -41,7 +50,10 @@ COMMON_PROMPT = (
     "and it must render when opened directly via file:// with no network access "
     "required for the core content. Follow the exact format contract, slide "
     "count, and required topics described in instructions.txt. Iterate until "
-    "./slides.html exists and is a valid, complete, self-contained deck."
+    "./slides.html exists and is a valid, complete, self-contained deck.\n\n"
+    "Output requirement: respond with ONLY the complete HTML document — start at "
+    "`<!DOCTYPE html>` and end at `</html>`, with NO explanation, reasoning, "
+    "preamble, or markdown code fences before or after it."
 )
 
 

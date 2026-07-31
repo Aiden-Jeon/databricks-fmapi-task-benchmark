@@ -32,11 +32,12 @@
 uv venv
 uv pip install -e .                  # 패키지 + 의존성 설치 → run-task / grade-task 명령 생성
 uv run playwright install chromium   # 헤드리스 렌더링용 (~150MB)
-
-# FMAPI 인증 (direct-fmapi / omnigent 에 필요)
-export DATABRICKS_HOST=https://<workspace>.cloud.databricks.com
-export DATABRICKS_TOKEN=dapi...
 ```
+
+**FMAPI 인증 (direct-fmapi / omnigent).** 별도 export 불필요 — `ucode`(Databricks AI Gateway CLI)가 설치돼 있으면 host/token을 자동으로 가져온다 (`~/.codex/ucode.config.toml`에서 host, `ucode auth-token`으로 매 실행마다 신선한 토큰 → 15분 만료 자동 해결). 명시적으로 덮어쓰려면 `DATABRICKS_HOST`/`DATABRICKS_TOKEN` 환경변수를 설정한다 (env가 항상 우선).
+
+후보 이름은 기본 모델에 매핑된다 (`--model`로 덮어쓰기 가능):
+`opus` → `databricks-claude-opus-4-8`, `sol` → `databricks-gpt-5-6-sol`, `glm` → `databricks-glm-5-2`.
 
 > 명령은 **repo 루트에서** 실행한다 (태스크 디렉토리를 작업 디렉토리 기준으로 찾음).
 > 다른 위치에서 돌리려면 `BENCHMARK_ROOT=<repo>` 를 지정한다.
@@ -45,10 +46,10 @@ export DATABRICKS_TOKEN=dapi...
 
 ```bash
 # direct-fmapi — 에이전트 없이 FMAPI 단발 chat completion (가장 단순한 baseline)
-uv run run-task --task explain-databricks --candidate opus \
-    --harness direct-fmapi --model databricks-claude-opus-4-1
-uv run run-task --task explain-databricks --candidate glm \
-    --harness direct-fmapi --model databricks-glm-...
+# 모델은 후보 이름에서 자동 결정 (opus/sol/glm). --model 로 덮어쓰기 가능.
+uv run run-task --task explain-databricks --candidate opus --harness direct-fmapi
+uv run run-task --task explain-databricks --candidate glm  --harness direct-fmapi
+uv run run-task --task explain-databricks --candidate sol  --harness direct-fmapi
 
 # 에이전트 하네스 (candidate 는 산출물 폴더 라벨)
 uv run run-task --task explain-databricks --candidate opus --harness claude-code

@@ -21,12 +21,15 @@ Each candidate directory is one model/candidate being compared. The candidate na
 
 ## Run one candidate
 ```bash
-# from the repo root
-uv run run-task --task explain-databricks --candidate opus \
-    --harness direct-fmapi --model databricks-claude-opus-4-1
+# from the repo root. Model defaults from the candidate name (opus/sol/glm);
+# FMAPI auth is auto-resolved via ucode (or DATABRICKS_HOST/TOKEN env vars).
+uv run run-task --task explain-databricks --candidate opus --harness direct-fmapi
+uv run run-task --task explain-databricks --candidate sol  --harness direct-fmapi
+uv run run-task --task explain-databricks --candidate glm  --harness direct-fmapi
 
-uv run run-task --task explain-databricks --candidate glm \
-    --harness direct-fmapi --model databricks-glm-...
+# override the model explicitly if needed
+uv run run-task --task explain-databricks --candidate opus \
+    --harness direct-fmapi --model databricks-claude-opus-5
 
 # agent harnesses (candidate name is just a label for the output dir)
 uv run run-task --task explain-databricks --candidate opus --harness claude-code
