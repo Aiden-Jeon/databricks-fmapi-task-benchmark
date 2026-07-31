@@ -12,13 +12,11 @@
 
 > Judge: `databricks-gemini-3-1-pro`
 
-## Reasoning 정책
-
-**Reasoning OFF(minimal) 단일 모드로 고정.** reasoning의 효과가 특정 태스크 성능 개선에만 한정되는 반면 실험 시간을 크게 늘리기 때문(특히 GLM은 full reasoning 시 타임아웃 빈발). 각 모델의 최소 reasoning으로 측정하며, `databricks-claude-opus-5`와 judge는 완전 OFF가 불가해 지원 최소값을 사용한다.
-
 ## Executive Summary
 
-제공된 데이터에 따르면 Opus는 총 13개 태스크 중 7개에서 1위를 차지해 전반적인 성능이 가장 우수하지만, 특정 텍스트 작업(TXT-2)에서는 0점을 기록하는 약점도 보였습니다. 반면 GLM은 일부 텍스트 작업(TXT-2, TXT-4, TXT-7)에서 가장 높은 점수를 기록하며 강점을 보였고, Sol은 특정 이미지 작업(IMG-1)과 텍스트 작업(TXT-1, TXT-5)에서 우위를 점했습니다. 비용과 속도 측면에서 GLM은 중간 지연 시간 1025.3ms, 총비용 약 0.083달러로 가장 빠르고 저렴해 효율성이 뛰어납니다. 반면 Opus는 성능이 가장 높은 대신 중간 지연 시간 2750.3ms, 총비용 약 0.697달러로 가장 느리고 비싸, 성능과 비용·속도 간의 명확한 트레이드오프를 보여줍니다.
+제공된 데이터에 기반한 요약은 다음과 같습니다.
+
+'opus'는 총 7개 작업에서 1위를 차지하며 이미지와 텍스트 전반에서 가장 우수한 성능을 보였으나, 'sol'은 IMG-1 등 3개 작업에서, 'glm'은 TXT-2 등 3개 텍스트 작업에서 각각 강점을 나타냈습니다. 속도와 비용 측면에서 'glm'은 응답 중간값 1025.3ms, 총비용 약 0.08달러로 가장 빠르고 저렴한 모델이었습니다. 반면 'opus'는 응답 중간값 2750.3ms, 총비용 약 0.70달러로 가장 느리고 비쌌으며, 'sol'은 성능과 비용 모두 중간 수준을 기록했습니다. 따라서 최고의 종합 성능이 필요하다면 비용과 지연 시간을 감수하고 'opus'를, 빠르고 경제적인 텍스트 처리가 목적이라면 'glm'을 선택하는 것이 합리적인 트레이드오프입니다.
 
 <sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 7회, sol 3회, glm 3회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 1025.3ms). 비용은 **glm**가 가장 낮다($0.083319).</sub>
 
@@ -303,6 +301,10 @@ Police, family, volunteers search for eighth-grader .
 | opus | `clean` |
 | sol | `toxic` |
 
+
+## 참고: Reasoning 정책
+
+**Reasoning OFF(minimal) 단일 모드로 고정.** reasoning의 효과가 특정 태스크 성능 개선에만 한정되는 반면 실험 시간을 크게 늘리기 때문(특히 GLM은 full reasoning 시 타임아웃 빈발). 각 모델의 최소 reasoning으로 측정하며, `databricks-claude-opus-5`와 judge는 완전 OFF가 불가해 지원 최소값을 사용한다.
 
 ## Fact Sheet (Executive Summary 근거 — 감사용)
 

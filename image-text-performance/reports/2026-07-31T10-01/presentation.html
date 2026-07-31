@@ -48,12 +48,13 @@
       <table><thead><tr><th>별칭</th><th>Databricks model name</th><th>vision</th></tr></thead>
       <tbody><tr><td>opus</td><td><code>databricks-claude-opus-5</code></td><td>✅</td></tr><tr><td>sol</td><td><code>databricks-gpt-5-6-sol</code></td><td>✅</td></tr><tr><td>glm</td><td><code>databricks-glm-5-2</code></td><td>❌</td></tr></tbody></table>
       <p><b>Judge</b>: <code>databricks-gemini-3-1-pro</code></p>
-      <div class="note"><b>Reasoning</b>: OFF(minimal) 고정 — reasoning 효과가 특정 태스크에 한정되고 실험 시간을 크게 늘려서.</div>
     </section>
 
     <section class="slide">
       <h2>핵심 요약 (Executive Summary)</h2>
-      <p class="summary">제공된 데이터에 따르면 Opus는 총 13개 태스크 중 7개에서 1위를 차지해 전반적인 성능이 가장 우수하지만, 특정 텍스트 작업(TXT-2)에서는 0점을 기록하는 약점도 보였습니다. 반면 GLM은 일부 텍스트 작업(TXT-2, TXT-4, TXT-7)에서 가장 높은 점수를 기록하며 강점을 보였고, Sol은 특정 이미지 작업(IMG-1)과 텍스트 작업(TXT-1, TXT-5)에서 우위를 점했습니다. 비용과 속도 측면에서 GLM은 중간 지연 시간 1025.3ms, 총비용 약 0.083달러로 가장 빠르고 저렴해 효율성이 뛰어납니다. 반면 Opus는 성능이 가장 높은 대신 중간 지연 시간 2750.3ms, 총비용 약 0.697달러로 가장 느리고 비싸, 성능과 비용·속도 간의 명확한 트레이드오프를 보여줍니다.</p>
+      <p class="summary">제공된 데이터에 기반한 요약은 다음과 같습니다.
+
+&#x27;opus&#x27;는 총 7개 작업에서 1위를 차지하며 이미지와 텍스트 전반에서 가장 우수한 성능을 보였으나, &#x27;sol&#x27;은 IMG-1 등 3개 작업에서, &#x27;glm&#x27;은 TXT-2 등 3개 텍스트 작업에서 각각 강점을 나타냈습니다. 속도와 비용 측면에서 &#x27;glm&#x27;은 응답 중간값 1025.3ms, 총비용 약 0.08달러로 가장 빠르고 저렴한 모델이었습니다. 반면 &#x27;opus&#x27;는 응답 중간값 2750.3ms, 총비용 약 0.70달러로 가장 느리고 비쌌으며, &#x27;sol&#x27;은 성능과 비용 모두 중간 수준을 기록했습니다. 따라서 최고의 종합 성능이 필요하다면 비용과 지연 시간을 감수하고 &#x27;opus&#x27;를, 빠르고 경제적인 텍스트 처리가 목적이라면 &#x27;glm&#x27;을 선택하는 것이 합리적인 트레이드오프입니다.</p>
     </section>
 
     <section class="slide">
@@ -232,5 +233,10 @@ Respond with exactly one word: toxic or clean</div>
       <table class="qtable"><thead><tr><th>모델</th><th>출력/판정</th></tr></thead>
       <tbody><tr><td class='m'>glm</td><td>toxic</td></tr><tr><td class='m'>opus</td><td>clean</td></tr><tr><td class='m'>sol</td><td>toxic</td></tr></tbody></table>
     </section>
-<div class="nav">17 slides · 스크롤로 이동</div>
+
+    <section class="slide">
+      <h2>참고 · Reasoning 정책</h2>
+      <p class="summary">Reasoning OFF(minimal) 단일 모드로 고정. reasoning의 효과가 특정 태스크 성능 개선에만 한정되는 반면 실험 시간을 크게 늘리기 때문(특히 GLM은 full reasoning 시 타임아웃 빈발). 각 모델의 최소 reasoning으로 측정하며, databricks-claude-opus-5와 judge는 완전 OFF가 불가해 지원 최소값을 사용한다.</p>
+    </section>
+<div class="nav">18 slides · 스크롤로 이동</div>
 </body></html>

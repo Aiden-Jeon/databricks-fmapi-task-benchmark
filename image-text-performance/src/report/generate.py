@@ -58,20 +58,20 @@ def generate_report(
         md.append(f"| {m.id} | `{m.endpoint}` | {'✅' if m.supports('vision') else '❌'} |")
     md.append(f"\n> Judge: `{models_cfg.judge}`\n")
 
-    # reasoning 정책 (OFF 고정 — 이유 명시)
-    md.append("## Reasoning 정책\n")
+    # Executive Summary는 평가 대상 모델 바로 뒤 (사용자 요구)
+    md.append("## Executive Summary\n")
+    md.append(summary + "\n")
+
+    # reasoning 정책 텍스트(맨 뒤 '참고'로 붙임)
     if modes == ["minimal"]:
-        md.append(
+        reasoning_policy = (
             "**Reasoning OFF(minimal) 단일 모드로 고정.** reasoning의 효과가 특정 태스크 성능 "
             "개선에만 한정되는 반면 실험 시간을 크게 늘리기 때문(특히 GLM은 full reasoning 시 "
             "타임아웃 빈발). 각 모델의 최소 reasoning으로 측정하며, `databricks-claude-opus-5`와 "
-            "judge는 완전 OFF가 불가해 지원 최소값을 사용한다.\n"
+            "judge는 완전 OFF가 불가해 지원 최소값을 사용한다."
         )
     else:
-        md.append(f"측정 reasoning 모드: {modes}\n")
-
-    md.append("## Executive Summary\n")
-    md.append(summary + "\n")
+        reasoning_policy = f"측정 reasoning 모드: {modes}"
 
     if charts:
         md.append("## 비교 그래프\n")
@@ -113,12 +113,10 @@ def generate_report(
             {"id": m.id, "endpoint": m.endpoint, "capabilities": list(m.capabilities)}
             for m in models_cfg.models
         ]
-        reasoning_note = (
-            "OFF(minimal) 고정 — reasoning 효과가 특정 태스크에 한정되고 실험 시간을 크게 늘려서."
-            if modes == ["minimal"] else f"측정 모드 {modes}"
-        )
+        # 프레젠테이션 맨 뒤 참고 슬라이드에 정책 전문 사용(markdown ** 강조는 제거)
+        pres_reasoning = reasoning_policy.replace("**", "").replace("`", "")
         pres_path = build_presentation(
-            reports_dir, run_dir.name, model_dicts, models_cfg.judge, reasoning_note,
+            reports_dir, run_dir.name, model_dicts, models_cfg.judge, pres_reasoning,
             summary, facts, perf, task_labels, charts, gallery_slides,
         )
     except Exception as e:
@@ -135,6 +133,10 @@ def generate_report(
             banner += f"**[HTML 열기](./{pres_path.name})**"
         banner += " — 이 리포트 결과를 슬라이드로 정리\n"
         md.insert(1, banner)
+
+    # Reasoning 정책은 맨 뒤 '참고'로 (사용자 요구 — 앞은 결과 중심)
+    md.append("## 참고: Reasoning 정책\n")
+    md.append(reasoning_policy + "\n")
 
     md.append("## Fact Sheet (Executive Summary 근거 — 감사용)\n")
     md.append("```json\n" + json.dumps(facts, ensure_ascii=False, indent=2, default=str) + "\n```\n")

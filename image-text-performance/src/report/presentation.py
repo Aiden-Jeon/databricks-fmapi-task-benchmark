@@ -63,7 +63,6 @@ def build_presentation(
       <table><thead><tr><th>별칭</th><th>Databricks model name</th><th>vision</th></tr></thead>
       <tbody>{model_rows}</tbody></table>
       <p><b>Judge</b>: <code>{_esc(judge)}</code></p>
-      <div class="note"><b>Reasoning</b>: {_esc(reasoning_note)}</div>
     </section>""")
 
     # 슬라이드 3: Executive Summary (규칙기반 대조용 <sub>...</sub> 꼬리는 고객용에선 제거)
@@ -126,6 +125,13 @@ def build_presentation(
       {input_html}
       <table class="qtable"><thead><tr><th>모델</th><th>출력/판정</th></tr></thead>
       <tbody>{rows}</tbody></table>
+    </section>""")
+
+    # 맨 뒤 참고 슬라이드: Reasoning 정책 (사용자 요구 — 앞은 결과 중심, 방법론은 참고로)
+    slides.append(f"""
+    <section class="slide">
+      <h2>참고 · Reasoning 정책</h2>
+      <p class="summary">{_esc(reasoning_note)}</p>
     </section>""")
 
     n = len(slides)
