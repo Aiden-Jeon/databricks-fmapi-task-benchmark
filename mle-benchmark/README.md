@@ -6,7 +6,7 @@ Three Foundation-Model-API models compared head-to-head under one fixed harness:
 
 **Claude Opus 5 · GPT-5.6-sol · GLM 5.2**
 
-## Results — 20 Korean tasks
+## Results — 24 Korean tasks
 
 | Task | metric | opus | sol | glm |
 |---|---|---|---|---|
@@ -30,7 +30,11 @@ Three Foundation-Model-API models compared head-to-head under one fixed harness:
 | [klue_relation_extraction](./klue_relation_extraction) | accuracy ↑ | **0.7743** | 0.7248 | 0.7091 |
 | [klue_mrc_reading](./klue_mrc_reading) | char-F1 ↑ | **0.3524** | 0.3451 | DNF |
 | [klue_ner_entities](./klue_ner_entities) | entity-F1 ↑ | 0.6573 | 0.7648 | **0.7712** |
-| **task wins** | | **13** | **5** | **2** |
+| [kmmlu_expert_knowledge](./kmmlu_expert_knowledge) | accuracy ↑ | **0.3558** | 0.3517 | 0.3075 |
+| [korfin_aspect_sentiment](./korfin_aspect_sentiment) | macro-F1 ↑ | **0.7084** | 0.6718 | DNF |
+| [kor_unsmile_multilabel_hate](./kor_unsmile_multilabel_hate) | macro-F1 (multi-label) ↑ | DNF | 0.7068 | **0.7093** |
+| [klue_dependency_parsing](./klue_dependency_parsing) | LAS ↑ | 0.5731 | **0.799** | 0.7213 |
+| **task wins** | | **15** | **6** | **3** |
 
 Bold = best per task. Scored against a **hidden test split** the agent never saw
 (leakage controlled by Unity Catalog ACL). n=1 run per cell.

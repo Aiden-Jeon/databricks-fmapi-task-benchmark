@@ -4,20 +4,50 @@
 
 | | Opus 5 | GPT-5.6-sol | GLM 5.2 |
 |---|---|---|---|
-| task wins (of 5) | **13** | 5 | 2 |
+| task wins (of 24) | **15** | 6 | 3 |
 | profile | quality leader | efficiency frontier | budget contender |
-| LLM $ (all runs) | $23.22 | $5.17 | $3.10 |
-| median time / task | ~69 min | ~10 min | ~49 min |
-| reliability | 5/5 valid | 5/5 valid | 4/5 (1 DNF) |
+| reliability | 22/24 valid | **24/24 valid** | 19/24 (5 DNFs) |
+| LLM $ (v1 5-task pass) | $23.22 | $5.17 | $3.10 |
 
-- **Opus 5** wins 3/5, decisively on calibration-heavy tasks (작가판별 log-loss
-  0.258 vs 0.36+). It costs ~4.5× GPT and ~7.5× GLM, and runs longest.
-- **GPT-5.6-sol** lands within ~1% of the best on three tasks, is fastest
-  everywhere, and is the cheapest per unit of quality. The default when latency
-  and cost matter.
-- **GLM 5.2** posts the best forecasting result (자전거 RMSE 210) at 1/7th Opus's
-  cost — with the only DNF (감성분석). Capable; watch reliability.
+- **Opus 5** wins 15/24, widening on the harder Korean-NLP
+  tasks (NLI, STS, RE, QA, and calibration-heavy 작가판별). It costs ~4.5× GPT and
+  ~7.5× GLM (measured on the v1 5-task pass) and runs longest — buy it when the
+  score is worth the money.
+- **GPT-5.6-sol** is the efficiency frontier: 6 wins, fastest
+  everywhere, and the only model with a perfect 24/24 valid-submission rate.
+- **GLM 5.2** is the budget play — 3 wins (bike RMSE, NER, multi-label
+  toxicity) at a fraction of the cost — but the least reliable (5 DNFs).
 - All three operated **fully in Korean** with no instruction-following failures.
+
+## "Recite, don't engineer" — why trivia tasks break an MLE benchmark
+
+A sixth candidate task, **HAE-RAE** (Korean culture/language trivia, 5-way MC),
+was smoke-tested with one model before committing the full matrix — and the smoke
+paid for itself. GPT-5.6-sol scored **0.945**, impossible from 1,230 training
+rows. Its solution built a normal TF-IDF classifier, then **overrode it with a
+hand-authored `expert_predictions.csv`**: it read the unlabeled test questions and
+filled in answers *from its own parametric memory*. That is direct recall — the
+behaviour an ML-*engineering* benchmark exists to exclude — smuggled through the
+harness. On **KMMLU** (professional exams) the same agent could *not* recite, so
+it was forced to engineer, scoring a hard 0.352. We **dropped HAE-RAE** (task id
+`t22` is a deliberate, documented gap), kept KMMLU, and added an **anti-recall
+rule** to the standard kickoff. Verified it held: under the rule, Opus 5 — which
+knows more Korean trivia — still built a genuine CV/ensemble pipeline for KMMLU
+(0.356, no recall layer). **Design principle: the strongest MLE tasks are those
+whose answers cannot be recited** — large label spaces, novel inputs, structured
+outputs; and always inspect solutions for hardcoded-answer layers.
+
+## Tool-use conformance gates the score as much as modeling skill
+
+Seven of 72 model×task cells DNF'd — **every one a harness/tool-conformance fault,
+not a modeling failure.** Opus 5 had a working ~0.71 Korean-UnSmile model in
+cross-validation, then failed by trying to write its submission *outside* the
+sandbox (auto-rejected); GLM 5.2 emitted a malformed `write` tool-call on
+KorFin-ASC. The two task *types* introduced in v1.1 — multi-label toxicity
+(10-bit multi-hot target) and dependency parsing (per-token head+relation → LAS) —
+both produced valid, discriminating scores, but they are exactly where the
+tool-use faults surfaced. On Databricks-hosted agents, reliable tool use is a
+first-class capability.
 
 ## Do we need to fix the harness?  → **Yes — measured.**
 
