@@ -28,11 +28,11 @@ Two phases:
 Run the CLIs from the repo root (task dirs are resolved from the working directory).
 
 Usage:
-  grade-task --task explain-databricks              # grade all candidates
-  grade-task --task explain-databricks --candidates opus glm
-  grade-task --task explain-databricks --no-render  # validation only
-  grade-task --task explain-databricks --merge-human explain-databricks/gallery/human_scores.json
-  # equivalently:  python -m benchmark.grade_tasks --task ...
+  grade-task                                       # grade all candidates (default task)
+  grade-task --candidates opus glm
+  grade-task --no-render                            # validation only
+  grade-task --merge-human html-slide-generation/gallery/human_scores.json
+  # equivalently:  python -m benchmark.grade_tasks ...
 """
 import argparse
 import json

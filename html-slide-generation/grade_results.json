@@ -7,14 +7,12 @@
     "valid": true,
     "slide_count": 10,
     "keywords": "8/8",
-    "console_errors": 0,
+    "console_errors": null,
     "external_refs": 0,
     "wall_seconds": 126.17,
-    "auto_score": 1.0,
-    "screenshots": [
-      "slide_01.png"
-    ],
-    "note": ""
+    "auto_score": 0.7,
+    "screenshots": [],
+    "note": "skipped"
   },
   {
     "candidate": "opus",
@@ -24,22 +22,12 @@
     "valid": true,
     "slide_count": 9,
     "keywords": "8/8",
-    "console_errors": 0,
+    "console_errors": null,
     "external_refs": 0,
     "wall_seconds": 45.18,
-    "auto_score": 1.0,
-    "screenshots": [
-      "slide_01.png",
-      "slide_02.png",
-      "slide_03.png",
-      "slide_04.png",
-      "slide_05.png",
-      "slide_06.png",
-      "slide_07.png",
-      "slide_08.png",
-      "slide_09.png"
-    ],
-    "note": ""
+    "auto_score": 0.7,
+    "screenshots": [],
+    "note": "skipped"
   },
   {
     "candidate": "pi-opus",
@@ -49,22 +37,12 @@
     "valid": true,
     "slide_count": 9,
     "keywords": "8/8",
-    "console_errors": 0,
+    "console_errors": null,
     "external_refs": 0,
     "wall_seconds": 147.79,
-    "auto_score": 1.0,
-    "screenshots": [
-      "slide_01.png",
-      "slide_02.png",
-      "slide_03.png",
-      "slide_04.png",
-      "slide_05.png",
-      "slide_06.png",
-      "slide_07.png",
-      "slide_08.png",
-      "slide_09.png"
-    ],
-    "note": ""
+    "auto_score": 0.7,
+    "screenshots": [],
+    "note": "skipped"
   },
   {
     "candidate": "sol",
@@ -74,21 +52,11 @@
     "valid": true,
     "slide_count": 9,
     "keywords": "8/8",
-    "console_errors": 0,
+    "console_errors": null,
     "external_refs": 0,
     "wall_seconds": 87.0,
-    "auto_score": 1.0,
-    "screenshots": [
-      "slide_01.png",
-      "slide_02.png",
-      "slide_03.png",
-      "slide_04.png",
-      "slide_05.png",
-      "slide_06.png",
-      "slide_07.png",
-      "slide_08.png",
-      "slide_09.png"
-    ],
-    "note": ""
+    "auto_score": 0.7,
+    "screenshots": [],
+    "note": "skipped"
   }
 ]

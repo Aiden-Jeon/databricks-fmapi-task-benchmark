@@ -26,7 +26,7 @@ import json
 import os
 from pathlib import Path
 
-DEFAULT_TASK = "explain-databricks"
+DEFAULT_TASK = "html-slide-generation"
 ARTIFACT = "slides.html"
 
 # Default candidate -> FMAPI model mapping. The candidate name (opus/sol/glm) is a stable

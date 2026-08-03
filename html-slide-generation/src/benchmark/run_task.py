@@ -3,7 +3,7 @@
 run_task.py — Drive ONE candidate of a benchmark task, keeping everything except the
 "produce slides.html" step byte-identical across candidates.
 
-Layout is task-centric: outputs go to  <task>/<candidate>/  (e.g. explain-databricks/opus/).
+Layout is task-centric: outputs go to  <task>/<candidate>/  (e.g. html-slide-generation/opus/).
 The candidate name (opus, sol, glm, …) is just a label for the output dir; the harness/model
 decide how slides.html is actually produced.
 
@@ -28,11 +28,11 @@ and brackets the agent-active time with two Enter presses.
 Run the CLIs from the repo root (task dirs are resolved from the working directory).
 
 Usage:
-  run-task --task explain-databricks --candidate opus --harness direct-fmapi --model databricks-claude-opus-4-1
-  run-task --task explain-databricks --candidate glm  --harness direct-fmapi --model databricks-glm-...
-  run-task --task explain-databricks --candidate opus --harness claude-code
-  run-task --task explain-databricks --candidate sol  --harness omnigent --model databricks-... --manual
-  # equivalently:  python -m benchmark.run_task --task ...
+  run-task --candidate opus --harness direct-fmapi --model databricks-claude-opus-4-1
+  run-task --candidate glm  --harness direct-fmapi --model databricks-glm-...
+  run-task --candidate opus --harness claude-code
+  run-task --candidate sol  --harness omnigent --model databricks-... --manual
+  # equivalently:  python -m benchmark.run_task ...
 """
 import argparse
 import json
