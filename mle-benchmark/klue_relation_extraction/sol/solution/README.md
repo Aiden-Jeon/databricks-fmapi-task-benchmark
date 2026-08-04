@@ -1,21 +1,20 @@
 # KLUE-RE solution
 
-The solution uses only `train.csv`. It marks subject/object mentions, combines word
-and character TF-IDF with exact entity categorical features, and trains a
-deterministic linear SVM. An optional entity-pair majority override is available,
-but is disabled by default because it reduced fixed-holdout accuracy.
+The solution uses only `train.csv`. It combines word and character TF-IDF
+features from entity-marked sentences, focused local context, entity names,
+and entity identity features. A linear SVM performs the 30-class prediction.
 
-Run from any directory:
+Run from the workspace root:
 
 ```bash
 python solution/train.py
 ```
 
-Optional fixed holdout diagnostics:
+This deterministically writes `outputs/submission.csv`. A fixed stratified
+holdout evaluation can be reproduced with:
 
 ```bash
-python solution/train.py --validate-only
+python solution/train.py --validate
 ```
 
-The prediction command writes `outputs/submission.csv` and validates its columns,
-ids, row count, and labels before completing.
+Dependencies: Python 3, pandas, NumPy, SciPy, and scikit-learn.

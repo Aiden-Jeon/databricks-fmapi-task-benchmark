@@ -1,14 +1,15 @@
 # KoBEST BoolQ solution
 
-Run from the task root:
+The solution uses only `train.csv`. It augments each question with trainable
+paragraph/question relation markers (negation polarity and number mismatch),
+then ensembles character and word TF-IDF linear SVM models. The ensemble scale
+is estimated with deterministic five-fold out-of-fold predictions.
+
+Run from any directory:
 
 ```bash
 python solution/train_predict.py
 ```
 
-The script only uses `train.csv` for supervised fitting. It combines character
-TF-IDF linear classifiers with lexical paragraph-question matching features and
-writes `outputs/submission.csv`. The fixed random seed and deterministic rank
-rule make the result reproducible.
-
-Required packages: Python 3.10+, NumPy, pandas, and scikit-learn.
+The default output is `outputs/submission.csv`. Python 3.10+, NumPy, and
+scikit-learn are required.

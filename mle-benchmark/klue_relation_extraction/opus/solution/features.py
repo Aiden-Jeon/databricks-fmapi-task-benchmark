@@ -1,215 +1,137 @@
-"""Feature engineering for KLUE-RE relation extraction (CPU / sklearn only)."""
+"""Feature engineering for KLUE-RE (classical ML, CPU only)."""
 import re
 import numpy as np
 import pandas as pd
 
-S_MARK = "\u24c8"  # circled S
-O_MARK = "\u24c4"  # circled O
+DATE_RE = re.compile(r"^\d{1,4}\s*(년|월|일|년대|세기)?$")
+NUM_RE = re.compile(r"^[\d,\.]+\s*(명|개|여명|만명|만|억|원|%|년|월|일)?$")
+HAS_DIGIT = re.compile(r"\d")
+HANGUL = re.compile(r"[\uac00-\ud7a3]")
+LATIN = re.compile(r"[A-Za-z]")
+HANJA = re.compile(r"[\u4e00-\u9fff]")
 
-RE_YEAR = re.compile(r"^\d{3,4}\s*년")
-RE_DATE = re.compile(r"\d+\s*월|\d+\s*일|\d{3,4}\s*년")
-RE_NUM = re.compile(r"^[\d,\.]+\s*(명|개|여명|만명|억|만|천|백|퍼센트|%|원|달러|년|월|일|위|회|차|호|배|km|㎞|m|kg)?$")
-RE_HANJA = re.compile(r"[\u4e00-\u9fff]")
-RE_LATIN = re.compile(r"[A-Za-z]")
-RE_HANGUL = re.compile(r"[\uac00-\ud7a3]")
-
-ORG_SUF = [
-    "회사", "주식회사", "그룹", "은행", "공사", "공단", "협회", "재단", "학회", "위원회", "협회",
-    "당", "정당", "연구소", "연구원", "센터", "청", "부", "처", "원", "국", "실", "과", "팀",
-    "대학교", "대학", "고등학교", "중학교", "초등학교", "학교", "병원", "교회", "사찰", "신문",
-    "방송", "방송국", "TV", "은행", "증권", "보험", "카드", "전자", "화학", "중공업", "건설",
-    "항공", "해운", "물산", "산업", "제철", "통신", "텔레콤", "생명", "홀딩스", "코퍼레이션",
-    "Inc", "Corp", "Ltd", "Co", "FC", "구단", "리그", "연맹", "노조", "조합", "군", "사단",
-]
-LOC_SUF = [
-    "시", "군", "구", "읍", "면", "리", "동", "도", "주", "현", "성", "국", "왕국", "공화국",
-    "산", "강", "호", "섬", "반도", "만", "해", "양", "대륙", "지방", "지역", "마을", "역",
-    "공항", "항", "로", "길", "가", "대로",
-]
-TITLE_SUF = [
-    "장", "사장", "회장", "대표", "이사", "부장", "과장", "팀장", "교수", "총장", "학장",
-    "감독", "코치", "선수", "의원", "장관", "차관", "대통령", "총리", "시장", "군수", "지사",
-    "위원", "위원장", "국장", "실장", "본부장", "센터장", "원장", "소장", "대사", "판사",
-    "검사", "변호사", "의사", "기자", "작가", "가수", "배우", "화가", "시인", "박사", "왕",
-    "황제", "제왕", "후보", "주장", "투수", "포수", "내야수", "외야수", "공격수", "수비수",
-    "미드필더", "골키퍼", "목사", "신부", "스님", "주교", "추기경",
-]
-PER_HINT = ["씨", "군", "양", "님"]
-
-COUNTRY = ["한국", "대한민국", "미국", "일본", "중국", "영국", "프랑스", "독일", "러시아",
-           "북한", "조선", "이탈리아", "스페인", "캐나다", "호주", "인도", "브라질", "멕시코"]
-
-RELIGION = ["기독교", "천주교", "불교", "이슬람", "개신교", "유교", "가톨릭", "힌두교",
-            "성공회", "장로교", "감리교", "천도교", "원불교", "이슬람교", "유대교"]
+ORG_SUF = ["사", "그룹", "당", "대학교", "대학", "학교", "청", "부", "원", "회", "단",
+           "팀", "국", "위원회", "협회", "재단", "공사", "은행", "교회", "연구소",
+           "센터", "협의회", "조합", "군", "시", "도", "구", "읍", "면", "동", "리",
+           "주", "현", "성", "공화국", "왕국", "제국", "연맹", "리그", "클럽", "방송",
+           "신문", "일보", "TV", "컴퍼니", "홀딩스", "전자", "화학", "중공업", "생명",
+           "증권", "카드", "보험", "건설", "산업", "물산", "공업", "제철", "통신"]
+LOC_SUF = ["시", "도", "군", "구", "읍", "면", "동", "리", "주", "현", "성", "국",
+           "공화국", "왕국", "제국", "지방", "지역", "반도", "산", "강", "호", "섬",
+           "대륙", "만", "해", "역", "공항", "로", "길", "가"]
+TITLE_WORDS = ["대통령", "회장", "사장", "총리", "장관", "의원", "감독", "선수", "교수",
+               "대표", "이사", "위원장", "부장", "차장", "과장", "실장", "국장", "본부장",
+               "단장", "대표이사", "총장", "원장", "청장", "지사", "시장", "군수", "구청장",
+               "부회장", "부사장", "상무", "전무", "고문", "위원", "의장", "코치", "작가",
+               "가수", "배우", "아나운서", "기자", "변호사", "판사", "검사", "의사", "박사",
+               "교사", "목사", "신부", "스님", "왕", "황제", "공작", "백작", "후작"]
+FAMILY_WORDS = ["아들", "딸", "아버지", "어머니", "부친", "모친", "형", "동생", "누나",
+                "언니", "오빠", "남편", "아내", "부인", "남편", "배우자", "결혼", "혼인",
+                "장남", "차남", "장녀", "차녀", "조카", "삼촌", "이모", "고모", "사촌",
+                "손자", "손녀", "며느리", "사위", "형제", "자매", "남매", "부부", "슬하"]
 
 
-def _suffix_flags(s, suffixes):
-    return 1.0 if any(s.endswith(x) for x in suffixes) else 0.0
+def _find_pair(sent, s, o):
+    """Choose the (subj, obj) occurrence pair minimizing distance."""
+    si = [m.start() for m in re.finditer(re.escape(s), sent)] or [0]
+    oi = [m.start() for m in re.finditer(re.escape(o), sent)] or [0]
+    best = None
+    for a in si:
+        for b in oi:
+            d = abs(a - b)
+            if best is None or d < best[0]:
+                best = (d, a, b)
+    return best[1], best[2]
 
 
-def entity_type_guess(s):
-    """Coarse entity-type guess -> one of DAT NOH PER ORG LOC POH."""
-    s = s.strip()
-    if RE_DATE.search(s) and len(s) <= 20:
+def _etype(e):
+    """Heuristic entity type."""
+    if DATE_RE.match(e) or re.match(r"^\d{4}년", e) or re.search(r"\d+년\s*\d+월", e):
         return "DAT"
-    if RE_NUM.match(s):
+    if NUM_RE.match(e):
         return "NOH"
-    if _suffix_flags(s, ORG_SUF):
+    if HAS_DIGIT.search(e) and len(e) <= 12:
+        return "NUM"
+    if any(e.endswith(x) for x in ORG_SUF) and len(e) >= 3:
         return "ORG"
-    if _suffix_flags(s, LOC_SUF) and len(s) <= 8:
+    if any(e.endswith(x) for x in LOC_SUF) and len(e) >= 3:
         return "LOC"
-    if s in COUNTRY:
-        return "LOC"
-    if _suffix_flags(s, TITLE_SUF):
-        return "POH"
-    # Korean person names: 2-4 hangul chars, no spaces
-    if RE_HANGUL.search(s) and len(s) <= 4 and " " not in s and not RE_LATIN.search(s):
+    if 2 <= len(e) <= 4 and HANGUL.search(e) and not LATIN.search(e):
         return "PER"
-    return "POH"
+    return "MSC"
 
 
-def find_span(sent, ent):
-    """Best occurrence of ent in sent: prefer one bounded by non-hangul."""
-    idxs = []
-    start = 0
-    while True:
-        i = sent.find(ent, start)
-        if i < 0:
-            break
-        idxs.append(i)
-        start = i + 1
-    if not idxs:
-        return -1, -1
-    return idxs[0], idxs[0] + len(ent)
-
-
-def _tok_window(sent, a, b, mark, k=2):
-    """Whitespace-token window around span [a,b) with the entity replaced by mark."""
-    pre = sent[:a].split(" ")
-    post = sent[b:].split(" ")
-    lt = pre[-1] if pre else ""
-    rt = post[0] if post else ""
-    lprev = " ".join([t for t in pre[-(k + 1):-1] if t])
-    rnext = " ".join([t for t in post[1:1 + k] if t])
-    return f"{lprev} {lt}{mark}{rt} {rnext}".strip()
-
-
-def build_text_fields(df):
-    n = len(df)
-    marked, between, left, right, subj, obj = [], [], [], [], [], []
-    tmarked, xbtw, sctx, octx = [], [], [], []
-    num = np.zeros((n, 34), dtype=np.float32)
-    sents = df["sentence"].values
-    subs = df["subject_entity"].values
-    objs = df["object_entity"].values
-
-    for i in range(n):
-        sent = str(sents[i])
-        se = str(subs[i]).strip()
-        oe = str(objs[i]).strip()
-        ss, sesp = find_span(sent, se)
-        os_, oe_sp = find_span(sent, oe)
-        if ss < 0:
-            ss, sesp = 0, 0
-        if os_ < 0:
-            os_, oe_sp = 0, 0
-
-        st = entity_type_guess(se)
-        ot = entity_type_guess(oe)
-
-        # build marked sentence (handle overlap by ordering)
-        spans = sorted([(ss, sesp, S_MARK), (os_, oe_sp, O_MARK)])
-        out = []
-        prev = 0
-        ok = True
-        if spans[0][1] > spans[1][0]:
-            ok = False
-        if ok:
-            for a, b, m in spans:
-                out.append(sent[prev:a])
-                out.append(" " + m + " ")
-                prev = b
-            out.append(sent[prev:])
-            ms = "".join(out)
+def build(df):
+    out = {}
+    marked, between, left, right, near_s, near_o = [], [], [], [], [], []
+    subj, obj, subj_ctx, obj_ctx, pattern = [], [], [], [], []
+    num = []
+    for sent, s, o in zip(df.sentence.astype(str), df.subject_entity.astype(str),
+                          df.object_entity.astype(str)):
+        sa, ob = _find_pair(sent, s, o)
+        se, oe = sa + len(s), ob + len(o)
+        if sa <= ob:
+            first, fe, second, se2 = sa, se, ob, oe
+            order = 0
         else:
-            ms = sent.replace(se, " " + S_MARK + " ").replace(oe, " " + O_MARK + " ")
-        marked.append(ms)
-        tmarked.append(
-            ms.replace(S_MARK, S_MARK + st).replace(O_MARK, O_MARK + ot)
-        )
-
-        # between text (with direction marker)
-        if ss <= os_:
-            btw = S_MARK + st + " " + sent[sesp:os_] + " " + O_MARK + ot
-            lo, hi = ss, oe_sp
+            first, fe, second, se2 = ob, oe, sa, se
+            order = 1
+        st = _etype(s)
+        ot = _etype(o)
+        mid = sent[fe:second]
+        lft = sent[max(0, first - 40):first]
+        rgt = sent[se2:se2 + 40]
+        if order == 0:
+            m = f"{lft} @S#{st}# {mid} ^O@{ot}^ {rgt}"
         else:
-            btw = O_MARK + ot + " " + sent[oe_sp:ss] + " " + S_MARK + st
-            lo, hi = os_, sesp
-        btw = btw[:200]
-        between.append(btw)
-        # explicit entity-type x pattern cross features
-        tp = st + ot
-        xbtw.append(" ".join(tp + "|" + t for t in btw.split() if t)[:600])
-        sctx.append(_tok_window(sent, ss, sesp, " " + S_MARK + st + " "))
-        octx.append(_tok_window(sent, os_, oe_sp, " " + O_MARK + ot + " "))
-        left.append(sent[max(0, lo - 25):lo])
-        right.append(sent[hi:hi + 25])
-        subj.append(se)
-        obj.append(oe)
-
-        L = max(len(sent), 1)
-        dist = abs(os_ - ss)
-        f = [
-            len(sent) / 100.0,
-            len(se) / 10.0,
-            len(oe) / 10.0,
-            dist / 50.0,
-            min(dist, 100) / 100.0,
-            1.0 if ss < os_ else 0.0,
-            ss / L,
-            os_ / L,
-            1.0 if RE_YEAR.match(oe) else 0.0,
-            1.0 if RE_DATE.search(oe) else 0.0,
-            1.0 if RE_NUM.match(oe) else 0.0,
-            1.0 if RE_DATE.search(se) else 0.0,
-            1.0 if RE_HANJA.search(oe) else 0.0,
-            1.0 if RE_HANJA.search(se) else 0.0,
-            1.0 if RE_LATIN.search(oe) else 0.0,
-            1.0 if RE_LATIN.search(se) else 0.0,
-            _suffix_flags(oe, ORG_SUF),
-            _suffix_flags(se, ORG_SUF),
-            _suffix_flags(oe, LOC_SUF),
-            _suffix_flags(se, LOC_SUF),
-            _suffix_flags(oe, TITLE_SUF),
-            _suffix_flags(se, TITLE_SUF),
-            1.0 if oe in COUNTRY else 0.0,
-            1.0 if oe in RELIGION else 0.0,
-            1.0 if " " in oe else 0.0,
-            1.0 if " " in se else 0.0,
-            1.0 if se in oe or oe in se else 0.0,
-            1.0 if dist <= 2 else 0.0,
-            1.0 if dist <= 6 else 0.0,
-            1.0 if dist > 40 else 0.0,
-            sent.count(se) / 3.0,
-            sent.count(oe) / 3.0,
-            1.0 if "(" in sent[max(0, min(ss, os_) - 2):max(sesp, oe_sp) + 2] else 0.0,
-            1.0 if sent[hi:hi + 2].startswith("이다") else 0.0,
-        ]
-        num[i] = f
-
-    return pd.DataFrame({
-        "pair": [str(a).strip() + "\u2016" + str(b).strip() for a, b in zip(subs, objs)],
-        "marked": marked,
-        "tmarked": tmarked,
-        "between": between,
-        "xbtw": xbtw,
-        "sctx": sctx,
-        "octx": octx,
-        "left": left,
-        "right": right,
-        "subj": subj,
-        "obj": obj,
-        "stype": [entity_type_guess(str(x).strip()) for x in subs],
-        "otype": [entity_type_guess(str(x).strip()) for x in objs],
-        "sentence": sents,
-    }), num
+            m = f"{lft} ^O@{ot}^ {mid} @S#{st}# {rgt}"
+        marked.append(m)
+        between.append(f"[{st}|{ot}|{order}] {mid}")
+        left.append(lft)
+        right.append(rgt)
+        near_s.append(sent[max(0, sa - 15):sa] + " || " + sent[se:se + 15])
+        near_o.append(sent[max(0, ob - 15):ob] + " || " + sent[oe:oe + 15])
+        subj.append(s)
+        obj.append(o)
+        subj_ctx.append(f"{st} {s}")
+        obj_ctx.append(f"{ot} {o}")
+        pattern.append(f"{st}_{ot}_{order}")
+        dist = second - fe
+        ctx = mid + " " + rgt[:20]
+        num.append([
+            len(s), len(o), len(sent), dist, dist / (len(sent) + 1.0), order,
+            float(st == "PER"), float(st == "ORG"), float(st == "LOC"),
+            float(st == "DAT"), float(st == "NOH"), float(st == "MSC"),
+            float(ot == "PER"), float(ot == "ORG"), float(ot == "LOC"),
+            float(ot == "DAT"), float(ot == "NOH"), float(ot == "MSC"),
+            float(bool(HAS_DIGIT.search(o))), float(bool(HAS_DIGIT.search(s))),
+            float(bool(LATIN.search(o))), float(bool(HANJA.search(o))),
+            float(bool(HANJA.search(mid))),
+            float(s in o or o in s),
+            float(any(w in ctx for w in TITLE_WORDS)),
+            float(any(w in ctx for w in FAMILY_WORDS)),
+            float(any(w in mid for w in TITLE_WORDS)),
+            float(any(w in mid for w in FAMILY_WORDS)),
+            float("(" in mid and ")" in rgt[:5] or mid.strip() in ("(", "(,", ",")),
+            float(len(mid.strip()) == 0),
+            float(mid.strip() in (",", "(", ")", "·", "-", "~")),
+            float("출생" in ctx), float("사망" in ctx), float("졸업" in ctx),
+            float("설립" in ctx or "창립" in ctx or "창설" in ctx),
+            float("본사" in ctx or "위치" in ctx or "소재" in ctx),
+            float("취임" in ctx or "임명" in ctx), float("소속" in ctx),
+            float("출신" in ctx), float("태어" in ctx),
+            len(mid), len(mid.split()),
+        ])
+    out["marked"] = marked
+    out["between"] = between
+    out["left"] = left
+    out["right"] = right
+    out["near_s"] = near_s
+    out["near_o"] = near_o
+    out["subj"] = subj
+    out["obj"] = obj
+    out["subj_ctx"] = subj_ctx
+    out["obj_ctx"] = obj_ctx
+    out["pattern"] = pattern
+    X = pd.DataFrame(out)
+    return X, np.asarray(num, dtype=np.float32)

@@ -1,99 +1,148 @@
-"""KoBEST WiC — final reproducible pipeline.
+"""KoBEST WiC — full solution.
 
-Approach
---------
-No pretrained models / external data are available, so the solution combines
-(a) unsupervised text-similarity features between the two contexts (character
-    and word TF-IDF cosine, LSA cosine, PPMI-embedding cosine, all also
-    normalised *within* the target word), plus surface / collocation features;
-(b) per-word label-prior features that exploit the dataset construction: the
-    pairs sharing one target word are built to contain a *mix* of same-sense
-    and different-sense examples, so the labels of the other pairs of the same
-    word are informative (finite-population, negatively correlated).  These are
-    computed leave-one-out on train and fold-honestly inside CV.
+Two complementary, purely train.csv-derived models are combined:
 
-Models: blend of L2 logistic regressions (3 strengths) + gradient boosting.
+1. TEXT MODEL  — logistic regression on surface/structural features of the two
+   contexts plus TF-IDF / LSA similarity features (char and word n-grams, the
+   vector space is fit on all available contexts, no labels involved).
 
-Usage:  python run.py          (writes ../outputs/submission.csv)
+2. COUNT MODEL — a per-word exchangeable Bayesian model.  The benchmark is built
+   per target word: every word contributes a small set of pairs whose
+   positive/negative counts are close to balanced (clearly under-dispersed
+   w.r.t. a binomial).  The distribution of the number of positives per word is
+   estimated from words whose whole pair set lies inside train.csv, and is then
+   used, together with the labelled pairs of the same word, to form a posterior
+   over the labels of the remaining pairs of that word.
+
+The text model supplies the likelihood ratio that the count model conditions on,
+so the final prediction uses both the context evidence and the per-word design
+prior.  Everything is estimated from train.csv; test.csv contributes only its
+(unlabelled) texts and its word grouping.
 """
-import numpy as np, pandas as pd, os, time
+import os
+import sys
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from features import struct_frame, SimSpace, sim_frame          # noqa: E402
+from count_model import fit_prior_em, predict as count_predict   # noqa: E402
+
 from sklearn.model_selection import StratifiedKFold
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, roc_auc_score
-from content import build_content
-import prior as P
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import HistGradientBoostingClassifier
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-SEEDS = [42, 7, 2024]
+SEED = 42
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MODELS = {
-    'lr0.01': lambda: make_pipeline(StandardScaler(), LogisticRegression(C=0.01, max_iter=4000)),
-    'lr0.02': lambda: make_pipeline(StandardScaler(), LogisticRegression(C=0.02, max_iter=4000)),
-    'lr0.05': lambda: make_pipeline(StandardScaler(), LogisticRegression(C=0.05, max_iter=4000)),
-    'gb': lambda: GradientBoostingClassifier(n_estimators=300, learning_rate=0.025,
-                                             max_depth=3, subsample=0.8, random_state=0),
-}
+
+def text_model():
+    return make_pipeline(SimpleImputer(strategy='median'), StandardScaler(),
+                         LogisticRegression(C=0.3, max_iter=5000))
+
+
+def build_features(tr, te):
+    ctx = pd.concat([tr.context_1, tr.context_2, te.context_1, te.context_2]).tolist()
+    space = SimSpace(ctx, n_comp=180, seed=SEED)
+    Xtr = pd.concat([struct_frame(tr), sim_frame(tr, space)[0]], axis=1)
+    Xte = pd.concat([struct_frame(te), sim_frame(te, space)[0]], axis=1)
+    return Xtr, Xte
+
+
+def oof_text_probs(X, y, n_splits=5, seed=SEED):
+    oof = np.zeros(len(y))
+    skf = StratifiedKFold(n_splits, shuffle=True, random_state=seed)
+    for a, b in skf.split(X, y):
+        m = text_model()
+        m.fit(X.iloc[a], y[a])
+        oof[b] = m.predict_proba(X.iloc[b])[:, 1]
+    return oof
+
+
+def shrink(p, w):
+    """Shrink probabilities toward 0.5 (tempering of the likelihood ratio)."""
+    p = np.clip(p, 1e-6, 1 - 1e-6)
+    lo = np.log(p / (1 - p)) * w
+    return 1 / (1 + np.exp(-lo))
+
+
+def validate(tr, te, Xtr, y, oof):
+    """Faithful simulation: words absent from test.csv have their complete
+    original pair set inside train.csv, so splitting their rows reproduces the
+    real train/test situation (T known, prior fit on the retained part)."""
+    comp_mask = ~tr.word.isin(set(te.word)).values
+    comp = tr[comp_mask].reset_index(drop=True)
+    p_comp = oof[comp_mask]
+    Tc = comp.word.value_counts()
+    print(f"[validation] complete words={comp.word.nunique()} rows={len(comp)}")
+    best = None
+    for w in [0.0, 0.6, 1.0, 1.25, 1.5, 2.0]:
+        accs, accs_txt, accs_cnt = [], [], []
+        for seed in range(40):
+            rs = np.random.RandomState(seed)
+            idx = rs.permutation(len(comp))
+            cut = int(len(comp) * 0.8)
+            ia, ib = idx[:cut], idx[cut:]
+            A, B = comp.iloc[ia], comp.iloc[ib]
+            prior = fit_prior_em(A, Tc)
+            yb = B.label.values
+            pt = p_comp[ib]
+            pc = count_predict(A, B, Tc, prior, text_p=shrink(pt, w))
+            accs.append(((pc > 0.5).astype(int) == yb).mean())
+            accs_txt.append(((pt > 0.5).astype(int) == yb).mean())
+            if w == 0.0:
+                accs_cnt.append(accs[-1])
+        m, s = np.mean(accs), np.std(accs)
+        print(f"[validation] text_weight={w:<4}  combined={m:.4f} +-{s:.4f}"
+              f"   (text alone={np.mean(accs_txt):.4f})")
+        if w > 0 and (best is None or m > best[1] + 1e-4):
+            best = (w, m)
+    print(f"[validation] best text_weight={best[0]} acc={best[1]:.4f}")
+    return best[0]
 
 
 def main():
-    t0 = time.time()
-    tr, te, Ctr, Cte = build_content()
+    tr = pd.read_csv(os.path.join(ROOT, 'train.csv'))
+    te = pd.read_csv(os.path.join(ROOT, 'test.csv'))
     y = tr.label.values
-    w = tr.word.values
-    tot = pd.concat([tr.word, te.word]).value_counts().to_dict()
+    print(f"train={tr.shape} test={te.shape}")
 
-    simcols = [c for c in Ctr.columns if c[:2] in ('s_', 'z_', 'p_')]
-    CORE = simcols + ['jac_tok', 'ovl_tok', 'len_diff', 'len_max', 'ntk_diff', 'pos_diff',
-                      'nxt0_1same', 'nxt1_same', 'vmark_agree', 'w_count']
+    Xtr, Xte = build_features(tr, te)
+    print(f"features: {Xtr.shape[1]}")
 
-    def pri(lab_idx, q_words, q_self=None):
-        dist = P.fit_conditional(tot, w[lab_idx], y[lab_idx])
-        F = P.prior_features(tot, w[lab_idx], y[lab_idx], q_words, q_self, dist)
-        emp = P.empirical_table(tot, w[lab_idx], y[lab_idx])
-        F['pr_emp'] = P.empirical_apply(emp, F)
-        return F
+    oof = oof_text_probs(Xtr, y)
+    print(f"[text model] OOF accuracy = {((oof > 0.5).astype(int) == y).mean():.4f}")
 
-    # ---------------- cross-validation ----------------
-    oof = {k: np.zeros(len(y)) for k in MODELS}
-    for seed in SEEDS:
-        for trn, val in StratifiedKFold(5, shuffle=True, random_state=seed).split(Ctr, y):
-            Xa = pd.concat([Ctr.iloc[trn][CORE].reset_index(drop=True),
-                            pri(trn, w[trn], y[trn])], axis=1)
-            Xb = pd.concat([Ctr.iloc[val][CORE].reset_index(drop=True),
-                            pri(trn, w[val])], axis=1)
-            for k, f in MODELS.items():
-                m = f(); m.fit(Xa, y[trn])
-                oof[k][val] += m.predict_proba(Xb)[:, 1] / len(SEEDS)
-    for k, o in oof.items():
-        print('%-8s acc=%.4f auc=%.4f' % (k, accuracy_score(y, o > .5), roc_auc_score(y, o)))
-    ens = np.mean([oof[k] for k in MODELS], axis=0)
-    thr_q = float(np.quantile(ens, 1 - y.mean()))
-    print('ENSEMBLE acc@0.5=%.4f  acc@q=%.4f (thr=%.4f)  auc=%.4f'
-          % (accuracy_score(y, ens > .5), accuracy_score(y, ens > thr_q), thr_q,
-             roc_auc_score(y, ens)))
+    w = validate(tr, te, Xtr, y, oof)
 
-    # ---------------- full fit + prediction ----------------
-    allidx = np.arange(len(y))
-    Xa = pd.concat([Ctr[CORE].reset_index(drop=True), pri(allidx, w, y)], axis=1)
-    Xb = pd.concat([Cte[CORE].reset_index(drop=True), pri(allidx, te.word.values)], axis=1)
-    Xb = Xb[Xa.columns]
-    preds = []
-    for k, f in MODELS.items():
-        m = f(); m.fit(Xa, y)
-        preds.append(m.predict_proba(Xb)[:, 1])
-    pte = np.mean(preds, axis=0)
-    lab = (pte > 0.5).astype(int)
-    os.makedirs(os.path.join(ROOT, 'outputs'), exist_ok=True)
-    pd.DataFrame({'id': te.id.values, 'label': lab}).to_csv(
-        os.path.join(ROOT, 'outputs', 'submission.csv'), index=False)
-    np.save(os.path.join(HERE, 'test_proba.npy'), pte)
-    np.save(os.path.join(HERE, 'oof_ens.npy'), ens)
-    print('submission written: n=%d  pos_rate=%.3f  (%.0fs)'
-          % (len(lab), lab.mean(), time.time() - t0))
+    # ---- fit on everything and predict test ----
+    m = text_model()
+    m.fit(Xtr, y)
+    p_text = m.predict_proba(Xte)[:, 1]
+
+    total = tr.word.value_counts().add(te.word.value_counts(), fill_value=0)
+    prior = fit_prior_em(tr, total)
+    p_final = count_predict(tr, te, total, prior, text_p=shrink(p_text, w))
+    p_final = np.where(np.isnan(p_final), p_text, p_final)
+
+    pred = (p_final > 0.5).astype(int)
+    print(f"[submission] positive rate = {pred.mean():.3f}; "
+          f"agreement with text-only = {(pred == (p_text > 0.5)).mean():.3f}")
+
+    out = os.path.join(ROOT, 'outputs')
+    os.makedirs(out, exist_ok=True)
+    sub = pd.DataFrame({'id': te.id.values, 'label': pred})
+    sub.to_csv(os.path.join(out, 'submission.csv'), index=False)
+
+    ss = pd.read_csv(os.path.join(ROOT, 'sample_submission.csv'))
+    assert list(sub.columns) == list(ss.columns)
+    assert len(sub) == len(te) and sub.id.is_unique
+    assert set(sub.id) == set(te.id)
+    assert sub.label.isin([0, 1]).all()
+    print("[submission] written and validated:", os.path.join(out, 'submission.csv'))
 
 
 if __name__ == '__main__':

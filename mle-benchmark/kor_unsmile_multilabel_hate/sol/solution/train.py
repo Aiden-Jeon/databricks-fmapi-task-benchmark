@@ -1,150 +1,115 @@
-"""Train the final UnSmile classifier and create outputs/submission.csv."""
+"""Train the UnSmile multilabel model and create outputs/submission.csv."""
 
-import gc
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_recall_curve
 from sklearn.model_selection import StratifiedKFold
-from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import LinearSVC
 
 
-SEED = 20260801
-N_FOLDS = 5
-N_LABELS = 10
-MODEL_WEIGHT = 0.5
 ROOT = Path(__file__).resolve().parents[1]
-
-FEATURE_CONFIGS = (
-    {"analyzer": "char", "ngram_range": (1, 5)},
-    {"analyzer": "char_wb", "ngram_range": (2, 5)},
-)
+N_LABELS = 10
+N_FOLDS = 5
+SEED = 2026
 
 
-def labels_to_array(labels: pd.Series) -> np.ndarray:
-    if not labels.str.fullmatch(r"[01]{10}").all():
-        raise ValueError("Every training label must be a 10-bit binary string")
-    return np.array([[int(bit) for bit in value] for value in labels], dtype=np.int8)
+def parse_labels(values: pd.Series) -> np.ndarray:
+    if not values.str.fullmatch(r"[01]{10}").all():
+        raise ValueError("Every training label must be a 10-character binary string")
+    return np.asarray([[int(bit) for bit in value] for value in values], dtype=np.int8)
 
 
-def make_vectorizer(config: dict) -> TfidfVectorizer:
+def make_vectorizer() -> TfidfVectorizer:
     return TfidfVectorizer(
-        **config,
+        analyzer="char_wb",
+        ngram_range=(1, 5),
         min_df=2,
-        max_features=300_000,
+        max_df=0.995,
         sublinear_tf=True,
+        max_features=200_000,
         dtype=np.float32,
     )
 
 
-def make_model() -> OneVsRestClassifier:
-    return OneVsRestClassifier(
-        LinearSVC(
-            C=1.2,
-            class_weight="balanced",
-            dual="auto",
-            max_iter=10_000,
-            random_state=SEED,
-        ),
-        n_jobs=-1,
-    )
-
-
-def optimal_positive_count(y_true: np.ndarray, scores: np.ndarray) -> int:
-    """Return the top-k cutoff that maximizes F1 without a coarse threshold grid."""
-    order = np.argsort(-scores, kind="stable")
-    true_positives = np.cumsum(y_true[order])
-    predicted_counts = np.arange(1, len(y_true) + 1)
-    f1_values = 2 * true_positives / (predicted_counts + y_true.sum())
-    return int(np.argmax(f1_values)) + 1
-
-
-def oof_scores(text: pd.Series, y: np.ndarray, strata: pd.Series) -> np.ndarray:
-    scores = np.zeros((len(text), N_LABELS), dtype=np.float64)
-    splitter = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
-
-    for config_index, config in enumerate(FEATURE_CONFIGS, start=1):
-        print(f"Generating OOF scores for feature model {config_index}/2: {config}")
-        for fold, (train_index, valid_index) in enumerate(splitter.split(text, strata), start=1):
-            vectorizer = make_vectorizer(config)
-            x_train = vectorizer.fit_transform(text.iloc[train_index])
-            x_valid = vectorizer.transform(text.iloc[valid_index])
-            model = make_model()
-            model.fit(x_train, y[train_index])
-            scores[valid_index] += MODEL_WEIGHT * model.decision_function(x_valid)
-            print(f"  fold {fold}/{N_FOLDS}: {x_train.shape[1]:,} features")
-            del vectorizer, x_train, x_valid, model
-            gc.collect()
-
-    return scores
-
-
-def full_train_scores(train_text: pd.Series, y: np.ndarray, test_text: pd.Series) -> np.ndarray:
-    scores = np.zeros((len(test_text), N_LABELS), dtype=np.float64)
-    for config_index, config in enumerate(FEATURE_CONFIGS, start=1):
-        vectorizer = make_vectorizer(config)
-        x_train = vectorizer.fit_transform(train_text)
-        x_test = vectorizer.transform(test_text)
-        model = make_model()
-        model.fit(x_train, y)
-        scores += MODEL_WEIGHT * model.decision_function(x_test)
-        print(f"Full model {config_index}/2 trained with {x_train.shape[1]:,} features")
-        del vectorizer, x_train, x_test, model
-        gc.collect()
-    return scores
-
-
-def validate_submission(submission: pd.DataFrame, test: pd.DataFrame) -> None:
-    if list(submission.columns) != ["id", "labels"]:
-        raise ValueError("Submission columns must be exactly: id, labels")
-    if len(submission) != len(test) or submission["id"].duplicated().any():
-        raise ValueError("Submission must contain every test ID exactly once")
-    if set(submission["id"]) != set(test["id"]):
-        raise ValueError("Submission IDs do not match test IDs")
-    if not submission["labels"].str.fullmatch(r"[01]{10}").all():
-        raise ValueError("Every prediction must be a 10-bit binary string")
+def optimal_threshold(y_true: np.ndarray, scores: np.ndarray) -> float:
+    precision, recall, thresholds = precision_recall_curve(y_true, scores)
+    f1 = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-12)
+    return float(thresholds[int(np.argmax(f1))])
 
 
 def main() -> None:
     train = pd.read_csv(ROOT / "train.csv", dtype=str)
     test = pd.read_csv(ROOT / "test.csv", dtype=str)
-    y = labels_to_array(train["labels"])
+    sample = pd.read_csv(ROOT / "sample_submission.csv", dtype=str)
 
-    # Preserve common label combinations across folds; pool combinations too rare
-    # for five-way stratification into one fallback stratum.
-    combination_counts = train["labels"].value_counts()
-    strata = train["labels"].where(train["labels"].map(combination_counts) >= N_FOLDS, "rare")
-    train_oof_scores = oof_scores(train["sentence"], y, strata)
+    if list(train.columns) != ["id", "sentence", "labels"]:
+        raise ValueError("Unexpected train.csv columns")
+    if list(test.columns) != ["id", "sentence"]:
+        raise ValueError("Unexpected test.csv columns")
+    if list(sample.columns) != ["id", "labels"]:
+        raise ValueError("Unexpected sample_submission.csv columns")
+    if test["id"].duplicated().any() or set(test["id"]) != set(sample["id"]):
+        raise ValueError("Test IDs must be unique and match sample_submission.csv")
 
-    positive_counts = np.array(
-        [optimal_positive_count(y[:, label], train_oof_scores[:, label]) for label in range(N_LABELS)]
+    train_text = train["sentence"].fillna("").to_numpy()
+    test_text = test["sentence"].fillna("").to_numpy()
+    labels = parse_labels(train["labels"])
+
+    # Most examples have one label. The first positive label is a stable proxy for
+    # stratifying the small number of multilabel combinations.
+    stratification_label = labels.argmax(axis=1)
+    splitter = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    oof_scores = np.zeros(labels.shape, dtype=np.float32)
+    test_scores = np.zeros((len(test), N_LABELS), dtype=np.float32)
+
+    for fold, (fit_indices, valid_indices) in enumerate(
+        splitter.split(train_text, stratification_label), start=1
+    ):
+        vectorizer = make_vectorizer()
+        fit_features = vectorizer.fit_transform(train_text[fit_indices])
+        valid_features = vectorizer.transform(train_text[valid_indices])
+        fold_test_features = vectorizer.transform(test_text)
+
+        for column in range(N_LABELS):
+            classifier = LinearSVC(C=0.25, dual="auto", max_iter=5000, random_state=SEED)
+            classifier.fit(fit_features, labels[fit_indices, column])
+            oof_scores[valid_indices, column] = classifier.decision_function(valid_features)
+            test_scores[:, column] += (
+                classifier.decision_function(fold_test_features) / N_FOLDS
+            )
+        print(f"Finished fold {fold}/{N_FOLDS} with {fit_features.shape[1]} features")
+
+    thresholds = np.asarray(
+        [optimal_threshold(labels[:, column], oof_scores[:, column]) for column in range(N_LABELS)]
     )
-    oof_prediction = np.zeros_like(y)
-    for label, count in enumerate(positive_counts):
-        top_indices = np.argsort(-train_oof_scores[:, label], kind="stable")[:count]
-        oof_prediction[top_indices, label] = 1
-    print(f"OOF macro F1: {f1_score(y, oof_prediction, average='macro'):.6f}")
-    print("OOF selected positive counts:", positive_counts.tolist())
+    oof_predictions = oof_scores >= thresholds
+    test_predictions = test_scores >= thresholds
+    print(f"OOF macro F1: {f1_score(labels, oof_predictions, average='macro'):.6f}")
+    print("Thresholds:", np.round(thresholds, 4).tolist())
 
-    test_scores = full_train_scores(train["sentence"], y, test["sentence"])
-    test_prediction = np.zeros((len(test), N_LABELS), dtype=np.int8)
-    # Test is an IID 20% split, so transfer the OOF-optimal predicted prevalence.
-    test_positive_counts = np.rint(positive_counts / len(train) * len(test)).astype(int)
-    for label, count in enumerate(test_positive_counts):
-        top_indices = np.argsort(-test_scores[:, label], kind="stable")[:count]
-        test_prediction[top_indices, label] = 1
+    encoded_predictions = [
+        "".join(row.astype(np.uint8).astype(str).tolist()) for row in test_predictions
+    ]
+    submission = pd.DataFrame({"id": test["id"], "labels": encoded_predictions})
 
-    label_strings = ["".join(row.astype(str)) for row in test_prediction]
-    submission = pd.DataFrame({"id": test["id"], "labels": label_strings})
-    validate_submission(submission, test)
-    output_path = ROOT / "outputs" / "submission.csv"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_dir = ROOT / "outputs"
+    output_dir.mkdir(exist_ok=True)
+    output_path = output_dir / "submission.csv"
     submission.to_csv(output_path, index=False)
-    print("Test selected positive counts:", test_prediction.sum(axis=0).tolist())
-    print(f"Wrote {len(submission):,} predictions to {output_path}")
+
+    written = pd.read_csv(output_path, dtype=str)
+    if (
+        list(written.columns) != ["id", "labels"]
+        or len(written) != len(test)
+        or written["id"].duplicated().any()
+        or written["id"].tolist() != test["id"].tolist()
+        or not written["labels"].str.fullmatch(r"[01]{10}").all()
+    ):
+        raise RuntimeError("Generated submission failed format validation")
+    print(f"Wrote {len(written)} predictions to {output_path}")
 
 
 if __name__ == "__main__":

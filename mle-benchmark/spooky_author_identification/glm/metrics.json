@@ -5,12 +5,12 @@
   "quality": {
     "metric": "multiclass log loss",
     "direction": "lower",
-    "score": 0.371164,
+    "score": 0.355724,
     "valid_submission": true
   },
-  "time_seconds": 6288.0,
+  "time_seconds": 7209.9,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $3.10.",
   "run_arch": "aarch64",
-  "run_id": "M3_t2_spooky_full_20260730_143426"
+  "run_id": "M3_t2_spooky_full_20260804_033550"
 }

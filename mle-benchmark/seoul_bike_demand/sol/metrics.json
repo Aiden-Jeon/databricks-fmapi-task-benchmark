@@ -5,12 +5,12 @@
   "quality": {
     "metric": "RMSE",
     "direction": "lower",
-    "score": 219.556589,
+    "score": 246.543008,
     "valid_submission": true
   },
-  "time_seconds": 574.2,
+  "time_seconds": 324.6,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $5.17.",
   "run_arch": "aarch64",
-  "run_id": "M2_t5_bike_full_20260730_143421"
+  "run_id": "M2_t5_bike_full_20260804_033528"
 }

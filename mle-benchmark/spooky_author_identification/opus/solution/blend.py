@@ -1,91 +1,161 @@
-"""Greedy + optimized blending of cached OOF predictions in log space."""
-import sys, os, glob, numpy as np, pandas as pd
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import features as F
-from sklearn.metrics import log_loss
+"""Blend cached base-model OOF/test predictions.
+
+Two strategies, both scored by 5-fold CV on the OOF matrix:
+  1. weighted geometric mean (weights >= 0, sum 1) optimised with SLSQP
+  2. logistic-regression stacker on log-probabilities
+The better one (by CV) is written to outputs/submission.csv.
+"""
+import glob
+import os
+
+import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
-from scipy.special import softmax
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
+from sklearn.model_selection import StratifiedKFold
 
-CLASSES = F.CLASSES
-EPS = 1e-15
-
-
-def load_all(oofdir='work/oof'):
-    names, O, T = [], [], []
-    for p in sorted(glob.glob(f'{oofdir}/*_oof.npy')):
-        n = os.path.basename(p)[:-8]
-        t = f'{oofdir}/{n}_test.npy'
-        if not os.path.exists(t):
-            continue
-        o = np.load(p).astype(np.float32); tt = np.load(t).astype(np.float32)
-        if not np.isfinite(o).all() or not np.isfinite(tt).all():
-            continue
-        names.append(n); O.append(o); T.append(tt)
-    return names, np.array(O, dtype=np.float32), np.array(T, dtype=np.float32)
+CLASSES = ["EAP", "HPL", "MWS"]
+HERE = os.path.dirname(os.path.abspath(__file__))
+CACHE = os.path.join(HERE, "oof_cache")
+EPS = 1e-6
+SEED = 42
+N_FOLDS = 5
 
 
-def norm(p):
-    p = np.clip(p, 1e-9, 1)
-    return p / p.sum(1, keepdims=True)
+def load():
+    names, oofs, tests = [], [], []
+    for p in sorted(glob.glob(os.path.join(CACHE, "*.npz"))):
+        d = np.load(p)
+        names.append(os.path.basename(p)[:-4])
+        oofs.append(np.clip(d["oof"], EPS, 1))
+        tests.append(np.clip(d["test"], EPS, 1))
+    oofs = [o / o.sum(1, keepdims=True) for o in oofs]
+    tests = [t / t.sum(1, keepdims=True) for t in tests]
+    return names, np.stack(oofs), np.stack(tests)
 
 
-def geo_blend(Ps, w):
-    """weighted geometric mean (== weighted average in log space) + renormalize"""
-    L = np.zeros(Ps[0].shape, dtype=np.float64)
-    for wi, P in zip(w, Ps):
-        if wi != 0:
-            L += wi * np.log(np.clip(P, 1e-9, None))
-    return softmax(L, axis=1)
+def geo_blend(P, w):
+    """P: (m, n, 3) probabilities, w: (m,) weights -> normalised geometric mean."""
+    L = np.tensordot(w, np.log(P), axes=(0, 0))
+    L -= L.max(1, keepdims=True)
+    E = np.exp(L)
+    return E / E.sum(1, keepdims=True)
 
 
-def ari_blend(Ps, w):
-    return norm(np.tensordot(w, Ps, axes=1))
+def fit_weights(P, y):
+    m = P.shape[0]
+
+    def obj(w):
+        return log_loss(y, geo_blend(P, w), labels=CLASSES)
+
+    best = None
+    for start in (np.ones(m) / m, np.full(m, 1.0 / max(m, 1))):
+        r = minimize(obj, start, method="SLSQP",
+                     bounds=[(0, 5)] * m,
+                     constraints=[{"type": "eq", "fun": lambda w: w.sum() - 1}],
+                     options={"maxiter": 300, "ftol": 1e-9})
+        if best is None or r.fun < best.fun:
+            best = r
+    return np.clip(best.x, 0, None)
 
 
-def _ll_from_logits(Z, y):
-    """log-loss of softmax(Z) for integer labels y, vectorised."""
-    Z = Z - Z.max(1, keepdims=True)
-    lse = np.log(np.exp(Z).sum(1))
-    return float(np.mean(lse - Z[np.arange(len(y)), y]))
+def cv_eval_geo(P, y, folds):
+    oof = np.zeros((P.shape[1], 3))
+    for tr, va in folds:
+        w = fit_weights(P[:, tr], y[tr])
+        oof[va] = geo_blend(P[:, va], w)
+    return log_loss(y, oof, labels=CLASSES), oof
 
 
-def greedy(names, O, y, iters=120, verbose=True, patience=8):
-    """Caruana greedy forward selection with replacement, geometric (log-space) mean.
-    Vectorised: maintains cumulative sum of log-probs."""
-    LG = np.log(np.clip(O, 1e-9, None)).astype(np.float32)   # (M, N, 3)
-    M = len(O)
-    acc = np.zeros(LG[0].shape, dtype=np.float32)
-    counts = np.zeros(M)
-    hist = []
-    buf = np.empty(LG[0].shape, dtype=np.float32)
-    for it in range(iters):
-        tot = counts.sum() + 1.0
-        scores = np.empty(M)
-        for i in range(M):
-            np.add(acc, LG[i], out=buf)
-            buf /= tot
-            scores[i] = _ll_from_logits(buf, y)
-        bi = int(scores.argmin()); bs = scores[bi]
-        counts[bi] += 1
-        acc += LG[bi]
-        hist.append(bs)
-        if verbose and (it < 10 or it % 10 == 0):
-            print(f'  it{it:3d} +{names[bi]:26s} -> {bs:.5f}', flush=True)
-        if it >= patience and hist[-1] > min(hist[:-patience]) - 1e-5:
-            break
-    w = counts / counts.sum()
-    return w, hist[-1]
+def stack_features(P):
+    return np.log(P).transpose(1, 0, 2).reshape(P.shape[1], -1)
 
 
-def refine(O, y, w0, blend=geo_blend, l2=0.0):
-    """Continuous refinement over softmax-parameterised weights (restricted to support)."""
-    sup = np.where(w0 > 0)[0]
-    Os = O[sup]
-    z0 = np.log(np.clip(w0[sup], 1e-6, None))
+def cv_eval_stack(P, y, folds, C=1.0):
+    X = stack_features(P)
+    oof = np.zeros((len(y), 3))
+    for tr, va in folds:
+        clf = LogisticRegression(C=C, max_iter=4000)
+        clf.fit(X[tr], y[tr])
+        cls = list(clf.classes_)
+        oof[va] = clf.predict_proba(X[va])[:, [cls.index(c) for c in CLASSES]]
+    return log_loss(y, oof, labels=CLASSES), oof
 
-    def f(z):
-        w = softmax(z)
-        return log_loss(y, blend(Os, w)) + l2 * np.sum(w ** 2)
-    r = minimize(f, z0, method='Powell', options={'maxiter': 20000, 'xtol': 1e-4, 'ftol': 1e-6})
-    w = np.zeros(len(O)); w[sup] = softmax(r.x)
-    return w, log_loss(y, blend(O, w))
+
+def greedy_select(names, P, y, folds):
+    """Forward selection of models maximising CV of the geometric blend."""
+    singles = [(log_loss(y, P[i], labels=CLASSES), i) for i in range(len(names))]
+    singles.sort()
+    chosen = [singles[0][1]]
+    best, _ = cv_eval_geo(P[chosen], y, folds)
+    print(f"  start {names[chosen[0]]}: {best:.5f}")
+    improved = True
+    while improved:
+        improved = False
+        cand_best, cand_i = best, None
+        for i in range(len(names)):
+            if i in chosen:
+                continue
+            sc, _ = cv_eval_geo(P[chosen + [i]], y, folds)
+            if sc < cand_best - 1e-5:
+                cand_best, cand_i = sc, i
+        if cand_i is not None:
+            chosen.append(cand_i)
+            best = cand_best
+            improved = True
+            print(f"  + {names[cand_i]:14s} -> {best:.5f}")
+    return chosen, best
+
+
+def main():
+    train = pd.read_csv("train.csv")
+    test = pd.read_csv("test.csv")
+    y = train["author"].values
+    names, P, T = load()
+    print(f"{len(names)} base models")
+    for i, n in enumerate(names):
+        print(f"  {n:14s} {log_loss(y, P[i], labels=CLASSES):.5f}")
+
+    folds = list(StratifiedKFold(N_FOLDS, shuffle=True, random_state=7).split(y, y))
+
+    print("greedy geometric blend:")
+    chosen, geo_cv = greedy_select(names, P, y, folds)
+    print("  chosen:", [names[i] for i in chosen])
+
+    results = [("geo", geo_cv, chosen, None)]
+    for C in (0.1, 0.3, 1.0, 3.0):
+        sc, _ = cv_eval_stack(P, y, folds, C=C)
+        print(f"stack all  C={C}: {sc:.5f}")
+        results.append((f"stack_all_C{C}", sc, list(range(len(names))), C))
+    for C in (0.3, 1.0, 3.0):
+        sc, _ = cv_eval_stack(P[chosen], y, folds, C=C)
+        print(f"stack sel  C={C}: {sc:.5f}")
+        results.append((f"stack_sel_C{C}", sc, chosen, C))
+
+    results.sort(key=lambda r: r[1])
+    kind, score, idx, C = results[0]
+    print(f"\nBEST: {kind}  CV={score:.5f}  models={[names[i] for i in idx]}")
+
+    if kind == "geo":
+        w = fit_weights(P[idx], y)
+        print("weights:", {names[i]: round(float(x), 4) for i, x in zip(idx, w)})
+        pred = geo_blend(T[idx], w)
+    else:
+        Xtr = stack_features(P[idx])
+        Xte = stack_features(T[idx])
+        clf = LogisticRegression(C=C, max_iter=4000).fit(Xtr, y)
+        cls = list(clf.classes_)
+        pred = clf.predict_proba(Xte)[:, [cls.index(c) for c in CLASSES]]
+
+    pred = np.clip(pred, 1e-7, 1)
+    pred /= pred.sum(1, keepdims=True)
+    sub = pd.DataFrame(pred, columns=CLASSES)
+    sub.insert(0, "id", test["id"].values)
+    os.makedirs("outputs", exist_ok=True)
+    sub.to_csv("outputs/submission.csv", index=False)
+    print("wrote outputs/submission.csv", sub.shape)
+
+
+if __name__ == "__main__":
+    main()

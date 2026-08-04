@@ -8,9 +8,9 @@ Korean ML-engineering task. Metric: **LAS** (higher is better). Full spec in [`T
 
 | Model | 결과물 퀄리티 (LAS) | 소요시간 | LLM 비용 |
 |---|---|---|---|
-| Opus 5 | 0.5731 | 16 min | $23.22 |
-| GPT-5.6-sol | **0.799** | 19 min | $5.17 |
-| GLM 5.2 | 0.7213 | 74 min | $3.10 |
+| Opus 5 | **0.7656** | 49 min | $23.22 |
+| GPT-5.6-sol | 0.7639 | 30 min | $5.17 |
+| GLM 5.2 | 0.6243 | 120 min | $3.10 |
 
 Each model folder (`opus/` · `sol/` · `glm/`) holds that model's `submission.csv`, the agent-written `solution/` code, and `metrics.json`.
 

@@ -8,9 +8,9 @@ Korean ML-engineering task. Metric: **Pearson** (higher is better). Full spec in
 
 | Model | 결과물 퀄리티 (Pearson) | 소요시간 | LLM 비용 |
 |---|---|---|---|
-| Opus 5 | **0.8024** | 37 min | $23.22 |
-| GPT-5.6-sol | 0.7502 | 8 min | $5.17 |
-| GLM 5.2 | 0.7495 | 23 min | $3.10 |
+| Opus 5 | **0.7821** | 51 min | $23.22 |
+| GPT-5.6-sol | 0.7505 | 14 min | $5.17 |
+| GLM 5.2 | 0.7573 | 118 min | $3.10 |
 
 Each model folder (`opus/` · `sol/` · `glm/`) holds that model's `submission.csv`, the agent-written `solution/` code, and `metrics.json`.
 

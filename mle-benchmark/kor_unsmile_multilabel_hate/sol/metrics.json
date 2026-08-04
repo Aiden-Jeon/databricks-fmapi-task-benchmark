@@ -5,12 +5,12 @@
   "quality": {
     "metric": "macro-F1 (multi-label)",
     "direction": "higher",
-    "score": 0.706833,
+    "score": 0.715478,
     "valid_submission": true
   },
-  "time_seconds": 375.9,
+  "time_seconds": 227.5,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $5.17.",
   "run_arch": "aarch64",
-  "run_id": "M2_t24_kor_unsmile_full_20260801_093440"
+  "run_id": "M2_t24_kor_unsmile_full_20260804_033546"
 }

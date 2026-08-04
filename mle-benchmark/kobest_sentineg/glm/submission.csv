@@ -27,7 +27,7 @@ sentineg_00031,0
 sentineg_02475,1
 sentineg_01846,0
 sentineg_00463,0
-sentineg_02911,1
+sentineg_02911,0
 sentineg_02063,0
 sentineg_00772,1
 sentineg_01854,0
@@ -69,7 +69,7 @@ sentineg_03484,0
 sentineg_01821,1
 sentineg_03378,0
 sentineg_01969,0
-sentineg_02836,1
+sentineg_02836,0
 sentineg_02158,0
 sentineg_02918,1
 sentineg_02398,1
@@ -104,9 +104,9 @@ sentineg_01554,0
 sentineg_00805,1
 sentineg_02526,1
 sentineg_03554,0
-sentineg_00649,0
+sentineg_00649,1
 sentineg_03368,0
-sentineg_00875,0
+sentineg_00875,1
 sentineg_02723,0
 sentineg_03258,1
 sentineg_01527,1
@@ -147,7 +147,7 @@ sentineg_02546,1
 sentineg_02296,1
 sentineg_00897,1
 sentineg_00919,1
-sentineg_02057,0
+sentineg_02057,1
 sentineg_02995,0
 sentineg_00426,0
 sentineg_00269,1
@@ -190,7 +190,7 @@ sentineg_00960,1
 sentineg_01717,1
 sentineg_00196,0
 sentineg_01793,1
-sentineg_01449,0
+sentineg_01449,1
 sentineg_01001,1
 sentineg_00708,0
 sentineg_02097,1
@@ -507,7 +507,7 @@ sentineg_02190,1
 sentineg_03212,0
 sentineg_02150,0
 sentineg_00166,1
-sentineg_00931,0
+sentineg_00931,1
 sentineg_00223,1
 sentineg_01341,0
 sentineg_01131,0
@@ -557,7 +557,7 @@ sentineg_01520,0
 sentineg_01231,1
 sentineg_01723,1
 sentineg_01149,1
-sentineg_00451,0
+sentineg_00451,1
 sentineg_00940,1
 sentineg_00206,0
 sentineg_00846,0
@@ -605,7 +605,7 @@ sentineg_02271,1
 sentineg_01998,0
 sentineg_02444,0
 sentineg_02624,1
-sentineg_00181,1
+sentineg_00181,0
 sentineg_01961,0
 sentineg_03461,0
 sentineg_03408,0
@@ -649,7 +649,7 @@ sentineg_03237,1
 sentineg_03454,1
 sentineg_01347,1
 sentineg_01307,0
-sentineg_03250,1
+sentineg_03250,0
 sentineg_03481,0
 sentineg_02657,1
 sentineg_02748,1
@@ -661,7 +661,7 @@ sentineg_01029,0
 sentineg_02389,0
 sentineg_01045,0
 sentineg_00574,0
-sentineg_01729,1
+sentineg_01729,0
 sentineg_01007,1
 sentineg_00561,1
 sentineg_01771,1
@@ -692,7 +692,7 @@ sentineg_02485,1
 sentineg_02501,1
 sentineg_01004,0
 sentineg_00591,1
-sentineg_02677,1
+sentineg_02677,0
 sentineg_02531,1
 sentineg_01388,1
 sentineg_02322,0
@@ -705,7 +705,7 @@ sentineg_02104,0
 sentineg_01700,1
 sentineg_01730,1
 sentineg_00752,1
-sentineg_00669,1
+sentineg_00669,0
 sentineg_02745,1
 sentineg_03360,1
 sentineg_03181,1

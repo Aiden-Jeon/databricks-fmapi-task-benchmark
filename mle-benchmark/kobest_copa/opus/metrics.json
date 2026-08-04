@@ -5,12 +5,12 @@
   "quality": {
     "metric": "accuracy",
     "direction": "higher",
-    "score": 0.625,
+    "score": 0.660714,
     "valid_submission": true
   },
-  "time_seconds": 4075.3,
+  "time_seconds": 2763.3,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $23.22.",
   "run_arch": "aarch64",
-  "run_id": "M1_t13_kobest_copa_full_20260731_043719"
+  "run_id": "M1_t13_kobest_copa_full_20260804_033510"
 }

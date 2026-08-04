@@ -1,0 +1,46 @@
+[03:49:19] data (24000, 4) (6000, 3)
+[03:49:19] A. dense features
+[03:49:19] B. alignment features
+  align 5000/24000
+  align 10000/24000
+  align 15000/24000
+  align 20000/24000
+  align 5000/24000
+  align 10000/24000
+  align 15000/24000
+  align 20000/24000
+  align 5000/6000
+  align 5000/6000
+[03:49:37] C. graph features
+[03:49:37]    graph evidence rate train/test: 0.246 / 0.253
+[03:49:37] D. sparse stacking
+[03:49:46]    sparse[diff_word] oof acc=0.5722
+[03:49:58]    sparse[diff_char] oof acc=0.5837
+[03:50:00]    sparse[inter_word] oof acc=0.5430
+[03:51:07]    sparse[pair_char] oof acc=0.6210
+[03:51:24]    sparse[pair_word] oof acc=0.5983
+[03:51:24] design matrix (24000, 279)
+[03:52:16]    gbm1 fold0 iters=1500 acc=0.8510
+[03:53:07]    gbm1 fold1 iters=1500 acc=0.8381
+[03:53:59]    gbm1 fold2 iters=1500 acc=0.8427
+[03:54:50]    gbm1 fold3 iters=1500 acc=0.8421
+[03:55:41]    gbm1 fold4 iters=1500 acc=0.8258
+[03:55:41]   gbm1 oof acc=0.8400
+[03:57:02]    gbm2 fold0 iters=1500 acc=0.8567
+[03:58:21]    gbm2 fold1 iters=1500 acc=0.8385
+[03:59:41]    gbm2 fold2 iters=1500 acc=0.8479
+[04:01:03]    gbm2 fold3 iters=1500 acc=0.8419
+[04:02:24]    gbm2 fold4 iters=1500 acc=0.8335
+[04:02:24]   gbm2 oof acc=0.8437
+[04:03:15]    gbm3 fold0 iters=2000 acc=0.8448
+[04:04:06]    gbm3 fold1 iters=2000 acc=0.8417
+[04:04:57]    gbm3 fold2 iters=2000 acc=0.8444
+[04:05:46]    gbm3 fold3 iters=2000 acc=0.8390
+[04:06:37]    gbm3 fold4 iters=2000 acc=0.8277
+[04:06:37]   gbm3 oof acc=0.8395
+[04:09:44]   et oof acc=0.8199
+[04:09:45]   blend[mean] oof acc=0.8429
+[04:09:45]   blend[meta] oof acc=0.8425
+[04:09:45]   best threshold 0.470 oof acc=0.8437 (0.5 -> 0.8429)
+[04:09:45]   -> keeping threshold 0.5 (gain not meaningful)
+[04:09:45] wrote outputs/submission.csv (6000, 2) pos_rate=0.414 total 1226s

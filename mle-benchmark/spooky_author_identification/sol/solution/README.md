@@ -1,4 +1,12 @@
-# Solution
+# Spooky Author Classifier
+
+The solution trains two independent TF-IDF logistic regression models:
+
+- word unigrams and bigrams for author-specific vocabulary and phrases
+- character 3-5 grams for spelling, punctuation, morphology, and style
+
+Their probabilities are combined with a normalized geometric mean. All
+features and model parameters are learned only from `train.csv`.
 
 Run from the workspace root:
 
@@ -6,15 +14,13 @@ Run from the workspace root:
 python solution/train.py
 ```
 
-The script trains word and character TF-IDF logistic-regression models on all
-of `train.csv`, blends their probabilities, validates the submission schema,
-and writes `outputs/submission.csv`.
-
-Model parameters and the blend were selected with two fixed stratified
-holdouts. The corresponding experiment is reproducible with:
+This writes `outputs/submission.csv`. Paths and fitted hyperparameters can be
+overridden with command-line options; run `python solution/train.py --help`
+for details. The deterministic holdout parameter search can be reproduced with:
 
 ```bash
-python solution/experiment.py
+python solution/train.py --validate
 ```
 
-Required packages: Python 3, NumPy, pandas, and scikit-learn.
+The selected holdout log loss was 0.395347. The final `C=27` accounts for the
+increase from 75% of the rows in holdout fitting to all available training rows.

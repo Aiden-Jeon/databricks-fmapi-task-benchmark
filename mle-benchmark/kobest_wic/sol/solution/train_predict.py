@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train a local-only KoBEST WiC model and create outputs/submission.csv."""
+"""Train a lexical-similarity WiC model and create the submission."""
 
 from __future__ import annotations
 
@@ -9,216 +9,203 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 
-SEED = 42
-TARGET_RE = re.compile(r"\[[^]]+\]")
+TARGET_RE = re.compile(r"\[.*?\]")
+TOKEN_RE = re.compile(r"[가-힣A-Za-z0-9]+")
 
 
-def clean_context(text: str) -> str:
+def replace_target(text: str) -> str:
     return TARGET_RE.sub(" TARGET ", text)
 
 
-def basic_features(frame: pd.DataFrame, representations: list[tuple]) -> np.ndarray:
-    features: list[list[float]] = []
-    similarities = [
-        np.asarray(left.multiply(right).sum(axis=1)).ravel()
-        for left, right in representations
-    ]
+def local_context(text: str, radius: int) -> str:
+    match = TARGET_RE.search(text)
+    if match is None:
+        return text
+    left = text[max(0, match.start() - radius) : match.start()]
+    right = text[match.end() : match.end() + radius]
+    return f"{left} TARGET {right}"
 
-    for row_number, row in enumerate(frame.itertuples(index=False)):
-        left = TARGET_RE.sub("", row.context_1)
-        right = TARGET_RE.sub("", row.context_2)
-        left_chars, right_chars = set(left), set(right)
-        left_words, right_words = set(left.split()), set(right.split())
-        features.append(
+
+def row_cosine(left, right) -> np.ndarray:
+    # TfidfVectorizer L2-normalizes rows, so the dot product is cosine similarity.
+    return np.asarray(left.multiply(right).sum(axis=1)).ravel()
+
+
+def tfidf_pair_features(
+    train_text: pd.Series,
+    predict_text: pd.Series,
+    n_train: int,
+    n_predict: int,
+    analyzer: str,
+    ngram_range: tuple[int, int],
+    max_features: int,
+) -> tuple[np.ndarray, np.ndarray, object, object]:
+    kwargs = {
+        "analyzer": analyzer,
+        "ngram_range": ngram_range,
+        "min_df": 2,
+        "max_features": max_features,
+        "sublinear_tf": True,
+    }
+    if analyzer == "word":
+        kwargs["token_pattern"] = r"(?u)\b\w+\b"
+
+    vectorizer = TfidfVectorizer(**kwargs)
+    train_matrix = vectorizer.fit_transform(train_text)
+    predict_matrix = vectorizer.transform(predict_text)
+    train_left, train_right = train_matrix[:n_train], train_matrix[n_train:]
+    pred_left, pred_right = predict_matrix[:n_predict], predict_matrix[n_predict:]
+    return (
+        row_cosine(train_left, train_right),
+        row_cosine(pred_left, pred_right),
+        train_matrix,
+        predict_matrix,
+    )
+
+
+def basic_features(frame: pd.DataFrame) -> np.ndarray:
+    rows = []
+    for first, second in zip(frame["context_1"], frame["context_2"]):
+        first_without = replace_target(first).replace("TARGET", " ")
+        second_without = replace_target(second).replace("TARGET", " ")
+        first_chars = set(re.sub(r"[^가-힣A-Za-z0-9]", "", first_without))
+        second_chars = set(re.sub(r"[^가-힣A-Za-z0-9]", "", second_without))
+        first_tokens = set(TOKEN_RE.findall(first_without))
+        second_tokens = set(TOKEN_RE.findall(second_without))
+        first_pos, second_pos = max(first.find("["), 0), max(second.find("["), 0)
+        rows.append(
             [
-                *(similarity[row_number] for similarity in similarities),
-                len(left),
-                len(right),
-                abs(len(left) - len(right)),
-                len(left_chars & right_chars) / max(1, len(left_chars | right_chars)),
-                len(left_words & right_words) / max(1, len(left_words | right_words)),
+                len(first),
+                len(second),
+                abs(len(first) - len(second)),
+                len(first_chars & second_chars) / max(1, len(first_chars | second_chars)),
+                len(first_tokens & second_tokens) / max(1, len(first_tokens | second_tokens)),
+                len(first_tokens & second_tokens),
+                first_pos / max(1, len(first)),
+                second_pos / max(1, len(second)),
+                abs(first_pos / max(1, len(first)) - second_pos / max(1, len(second))),
             ]
         )
-    return np.asarray(features, dtype=np.float32)
+    return np.asarray(rows, dtype=np.float64)
 
 
-def reference_features(
-    query: pd.DataFrame,
-    reference: pd.DataFrame,
-    query_representations: list[tuple],
-    reference_representations: list[tuple],
-    reference_labels: np.ndarray,
-) -> np.ndarray:
-    """Compare each pair with labeled pairs having the same target word."""
-    reference_by_word = {
-        word: np.flatnonzero(reference["word"].to_numpy() == word)
-        for word in reference["word"].unique()
-    }
-    output = np.zeros((len(query), 16 * len(query_representations)), dtype=np.float32)
+def build_features(train: pd.DataFrame, predict: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    n_train, n_predict = len(train), len(predict)
+    train_pairs = pd.concat([train["context_1"], train["context_2"]], ignore_index=True)
+    pred_pairs = pd.concat([predict["context_1"], predict["context_2"]], ignore_index=True)
+    train_columns: list[np.ndarray] = []
+    pred_columns: list[np.ndarray] = []
 
-    for query_number, word in enumerate(query["word"]):
-        candidates = reference_by_word.get(word)
-        if candidates is None or not len(candidates):
-            continue
+    # Retaining the marked word and replacing it provide complementary signals:
+    # the former captures word-dependent overlap, while the latter measures context only.
+    for transform, analyzer, ngrams, limit in [
+        (lambda x: x.str.replace(r"[\[\]]", "", regex=True), "char", (2, 5), 80_000),
+        (lambda x: x.str.replace(r"[\[\]]", "", regex=True), "word", (1, 2), 50_000),
+        (lambda x: x.str.replace(r"[\[\]]", "", regex=True), "char_wb", (2, 5), 60_000),
+        (lambda x: x.map(replace_target), "char", (1, 5), 80_000),
+        (lambda x: x.map(replace_target), "word", (1, 2), 50_000),
+    ]:
+        train_feature, pred_feature, train_matrix, pred_matrix = tfidf_pair_features(
+            transform(train_pairs),
+            transform(pred_pairs),
+            n_train,
+            n_predict,
+            analyzer,
+            ngrams,
+            limit,
+        )
+        train_columns.append(train_feature)
+        pred_columns.append(pred_feature)
 
-        row_features: list[float] = []
-        candidate_labels = reference_labels[candidates]
-        for (query_left, query_right), (ref_left, ref_right) in zip(
-            query_representations, reference_representations
-        ):
-            s11 = (query_left[query_number] @ ref_left[candidates].T).toarray().ravel()
-            s12 = (query_left[query_number] @ ref_right[candidates].T).toarray().ravel()
-            s21 = (query_right[query_number] @ ref_left[candidates].T).toarray().ravel()
-            s22 = (query_right[query_number] @ ref_right[candidates].T).toarray().ravel()
+        if analyzer == "word" and ngrams == (1, 2) and transform(train_pairs).str.contains("TARGET").any():
+            dimensions = min(200, train_matrix.shape[1] - 1)
+            svd = TruncatedSVD(n_components=dimensions, random_state=42)
+            train_latent = svd.fit_transform(train_matrix)
+            pred_latent = svd.transform(pred_matrix)
+            for width in (50, 100, 200):
+                width = min(width, dimensions)
+                train_part = train_latent[:, :width].copy()
+                pred_part = pred_latent[:, :width].copy()
+                train_part /= np.maximum(np.linalg.norm(train_part, axis=1, keepdims=True), 1e-12)
+                pred_part /= np.maximum(np.linalg.norm(pred_part, axis=1, keepdims=True), 1e-12)
+                train_columns.append(np.sum(train_part[:n_train] * train_part[n_train:], axis=1))
+                pred_columns.append(np.sum(pred_part[:n_predict] * pred_part[n_predict:], axis=1))
 
-            aligned = np.maximum(s11 + s22, s12 + s21) / 2
-            any_context = np.maximum.reduce([s11, s12, s21, s22])
-            both_contexts = np.maximum(np.minimum(s11, s22), np.minimum(s12, s21))
-
-            for scores in (aligned, any_context, both_contexts):
-                positive = scores[candidate_labels == 1]
-                negative = scores[candidate_labels == 0]
-                nearest = int(np.argmax(scores))
-                weights = np.exp(np.minimum(10 * scores, 20))
-                row_features.extend(
-                    [
-                        float(positive.max()) if len(positive) else 0.0,
-                        float(negative.max()) if len(negative) else 0.0,
-                        float(candidate_labels[nearest]),
-                        float(np.average(candidate_labels, weights=weights)),
-                    ]
-                )
-            row_features.extend(
-                [
-                    float(aligned.max()),
-                    float(any_context.max()),
-                    float(len(candidates)),
-                    float(candidate_labels.mean()),
-                ]
+    for radius in (5, 10, 15):
+        transformed_train = train_pairs.map(lambda text: local_context(text, radius))
+        transformed_pred = pred_pairs.map(lambda text: local_context(text, radius))
+        for analyzer, ngrams, limit in (("char", (1, 5), 60_000), ("word", (1, 2), 40_000)):
+            train_feature, pred_feature, _, _ = tfidf_pair_features(
+                transformed_train,
+                transformed_pred,
+                n_train,
+                n_predict,
+                analyzer,
+                ngrams,
+                limit,
             )
-        output[query_number] = row_features
-    return output
+            train_columns.append(train_feature)
+            pred_columns.append(pred_feature)
+
+    train_features = np.column_stack(train_columns + [basic_features(train)])
+    pred_features = np.column_stack(pred_columns + [basic_features(predict)])
+    return train_features, pred_features
 
 
-def subset_representations(representations: list[tuple], rows: np.ndarray) -> list[tuple]:
-    return [(left[rows], right[rows]) for left, right in representations]
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-dir", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--output", type=Path, default=None)
+    args = parser.parse_args()
 
+    train = pd.read_csv(args.data_dir / "train.csv")
+    test = pd.read_csv(args.data_dir / "test.csv")
+    sample = pd.read_csv(args.data_dir / "sample_submission.csv")
+    labels = train["label"].astype(int).to_numpy()
+    train_features, test_features = build_features(train, test)
 
-def run(data_dir: Path, output_path: Path) -> None:
-    train = pd.read_csv(data_dir / "train.csv")
-    test = pd.read_csv(data_dir / "test.csv")
-    sample = pd.read_csv(data_dir / "sample_submission.csv")
-    labels = train["label"].to_numpy(dtype=np.int8)
-
-    train_texts = [clean_context(text) for text in train["context_1"]] + [
-        clean_context(text) for text in train["context_2"]
-    ]
-    test_texts = [clean_context(text) for text in test["context_1"]] + [
-        clean_context(text) for text in test["context_2"]
-    ]
-
-    vectorizers = [
-        TfidfVectorizer(
-            analyzer="char",
-            ngram_range=(2, 5),
-            min_df=2,
-            max_features=80_000,
-            sublinear_tf=True,
-        ),
-        TfidfVectorizer(
-            analyzer="word", ngram_range=(1, 2), min_df=1, sublinear_tf=True
-        ),
-    ]
-    train_representations, test_representations = [], []
-    train_size, test_size = len(train), len(test)
-    for vectorizer in vectorizers:
-        train_matrix = vectorizer.fit_transform(train_texts)
-        test_matrix = vectorizer.transform(test_texts)
-        train_representations.append(
-            (train_matrix[:train_size], train_matrix[train_size:])
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    candidates = (0.03, 0.1, 0.3, 1.0, 3.0)
+    best_accuracy, best_c = -1.0, candidates[0]
+    for c_value in candidates:
+        model = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=c_value, max_iter=2_000, random_state=42),
         )
-        test_representations.append((test_matrix[:test_size], test_matrix[test_size:]))
+        probabilities = cross_val_predict(
+            model, train_features, labels, cv=cv, method="predict_proba", n_jobs=-1
+        )[:, 1]
+        accuracy = accuracy_score(labels, probabilities >= 0.5)
+        print(f"C={c_value:g} CV accuracy={accuracy:.5f}")
+        if accuracy > best_accuracy:
+            best_accuracy, best_c = accuracy, c_value
 
-    train_basic = basic_features(train, train_representations)
-    test_basic = basic_features(test, test_representations)
-    splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
-    train_reference = np.zeros((train_size, 16 * len(vectorizers)), dtype=np.float32)
-
-    for fit_rows, valid_rows in splitter.split(train, labels):
-        train_reference[valid_rows] = reference_features(
-            train.iloc[valid_rows].reset_index(drop=True),
-            train.iloc[fit_rows].reset_index(drop=True),
-            subset_representations(train_representations, valid_rows),
-            subset_representations(train_representations, fit_rows),
-            labels[fit_rows],
-        )
-
-    test_reference = reference_features(
-        test,
-        train,
-        test_representations,
-        train_representations,
-        labels,
+    final_model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=best_c, max_iter=2_000, random_state=42),
     )
-    train_features = np.hstack([train_basic, train_reference])
-    test_features = np.hstack([test_basic, test_reference])
+    final_model.fit(train_features, labels)
+    predictions = final_model.predict(test_features).astype(int)
 
-    tree_model = ExtraTreesClassifier(
-        n_estimators=1_000,
-        min_samples_leaf=5,
-        max_features=0.8,
-        class_weight="balanced",
-        random_state=SEED,
-        n_jobs=-1,
-    )
-    cv_probability = cross_val_predict(
-        tree_model,
-        train_features,
-        labels,
-        cv=splitter,
-        method="predict_proba",
-        n_jobs=-1,
-    )[:, 1]
-    print(f"OOF accuracy: {accuracy_score(labels, cv_probability >= 0.5):.4f}")
-    tree_model.fit(train_features, labels)
-    tree_probability = tree_model.predict_proba(test_features)[:, 1]
-
-    # A low-variance global similarity model stabilizes sparse-word predictions.
-    global_model = LogisticRegression(C=1.0, max_iter=2_000, random_state=SEED)
-    global_model.fit(train_basic, labels)
-    global_probability = global_model.predict_proba(test_basic)[:, 1]
-    probability = 0.8 * tree_probability + 0.2 * global_probability
-
-    submission = pd.DataFrame(
-        {"id": test["id"].to_numpy(), "label": (probability >= 0.5).astype(int)}
-    )
-    if list(submission.columns) != list(sample.columns):
-        raise ValueError("Submission columns do not match sample_submission.csv")
-    if len(submission) != len(test) or submission["id"].nunique() != len(test):
-        raise ValueError("Submission must contain every test id exactly once")
+    submission = sample[["id"]].copy()
     if set(submission["id"]) != set(test["id"]):
-        raise ValueError("Submission ids do not match test.csv")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    submission.to_csv(output_path, index=False)
-    print(f"Wrote {len(submission)} predictions to {output_path}")
+        raise ValueError("sample_submission.csv ids do not match test.csv ids")
+    prediction_by_id = dict(zip(test["id"], predictions))
+    submission["label"] = submission["id"].map(prediction_by_id).astype(int)
+    output = args.output or args.data_dir / "outputs" / "submission.csv"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    submission.to_csv(output, index=False)
+    print(f"Selected C={best_c:g}; wrote {len(submission)} rows to {output}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--data-dir", type=Path, default=Path(__file__).resolve().parents[1]
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path(__file__).resolve().parents[1] / "outputs" / "submission.csv",
-    )
-    arguments = parser.parse_args()
-    run(arguments.data_dir, arguments.output)
+    main()

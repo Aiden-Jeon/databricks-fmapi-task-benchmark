@@ -5,12 +5,12 @@
   "quality": {
     "metric": "accuracy",
     "direction": "higher",
-    "score": 0.581281,
+    "score": 0.608374,
     "valid_submission": true
   },
-  "time_seconds": 1004.2,
+  "time_seconds": 7210.0,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $3.10.",
   "run_arch": "aarch64",
-  "run_id": "M3_t15_kobest_hellaswag_full_20260731_043738"
+  "run_id": "M3_t15_kobest_hellaswag_full_20260804_033605"
 }

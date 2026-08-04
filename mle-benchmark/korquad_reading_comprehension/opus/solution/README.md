@@ -1,69 +1,66 @@
-# t9_korquad — 기계 독해 (KorQuAD 1.0) 해법
+# t9_korquad — extractive QA as candidate-span ranking (CPU only)
 
-환경 제약: GPU 없음, 인터넷/사전학습 가중치 사용 불가, `torch`/`transformers` 미설치.
-따라서 **후보 스팬 생성 + 특징기반 그래디언트 부스팅 랭커 + MBR 디코딩**으로
-추출형(extractive) QA를 구현했다.
+## Environment constraint
+No GPU, no `torch`/`transformers`, no internet, no pretrained weights.
+Only `numpy / pandas / scikit-learn` are available, so the solution is a
+**classical feature-based extractive reader**: enumerate answer-span
+candidates from the context and rank them with gradient boosted trees
+trained on `train.csv` only.
 
-## 파이프라인
+## Pipeline
+1. **Candidate generation** (`features.py`)
+   - context is split into sentences and eojeols (whitespace tokens);
+   - a candidate is 1–4 consecutive eojeols, where
+     - the *start* may skip leading opening punctuation (`《 ' " 〈 ( …`),
+     - the *end* may drop trailing punctuation and Korean particles/endings
+       (`의 에 을 를 는 이 가 에서 으로 이다. …`, list induced from the train
+       answers' trailing context).
+   - ≈840 candidates/context. Oracle quality measured on train:
+     **exact recall 86.4 %, oracle char-F1 0.959**.
+2. **Features** (58 per candidate)
+   - *static / context only* (24): span char & eojeol length, position in
+     context/sentence, boundary alignment, number of stripped chars +
+     stripped-suffix id, digit/latin/hangul shape flags, year flag, quoted
+     flag, neighbouring char classes, "verb-ending" flag, span frequency in
+     the context, min/mean word-IDF of covered eojeols, sentence length.
+   - *question dependent* (34): question content tokens are stemmed
+     (particles stripped, interrogatives dropped) and IDF-weighted (IDF from
+     the train contexts). All occurrences are marked on a char array, then via
+     cumulative sums we get IDF mass inside the span (answers rarely reuse
+     question words), IDF mass in ±20/±50/±120 char windows, number of
+     *distinct* question tokens in those windows, char distance to the nearest
+     match on the left/right, distance to the rarest / first / last question
+     token, sentence-level match score + rank + normalised score, char overlap
+     with the question, question type (누구/언제/어디/몇 년/몇/이름/왜/…), and
+     **listwise-normalised versions** (value / group max, z-score, rank
+     percentile) of the proximity features, which let the tree model compare
+     candidates within one context.
+3. **Target & training** — regression on the *evaluation metric itself*:
+   `y = char-F1(candidate, gold)`. Per question we keep the gold-overlapping
+   candidates with F1 ≥ 0.35 (≤8) plus 36–40 sampled negatives
+   (≈2.2 M rows × 58). Model: `HistGradientBoostingRegressor`
+   (400–500 iters, 63 leaves, lr 0.1).
+4. **Inference** — every candidate of the context is scored, `argmax` wins.
+5. **Round 2 / ensemble** — hard negatives (top-12 wrongly ranked candidates)
+   were mined with the round-1 model and a second model was trained on
+   random + hard negatives. The blend `0.6·v1 + 0.4·v2` is used for the
+   submission.
 
-1. **후보 스팬 생성** (`pipeline.gen_features`)
-   - 문단을 문장으로 분리하고, 질문과의 어휘 중복(IDF 가중 매칭 + 문자 bigram F1)으로
-     문장을 정렬해 상위 4개 문장만 사용한다 (정답 포함률 ≈ 90%).
-   - 후보 = 공백 토큰 1~4개의 연속 구간. 각 구간에 대해
-     (a) 앞뒤 따옴표/괄호/문장부호 제거, (b) 한국어 조사·어미 후행 제거(`JOSA`)
-     두 가지 변형을 후보로 추가한다. KorQuAD 정답은 80%가 어절 내부에서 끝나므로
-     이 조사 제거가 필수적이다. 후보 집합의 oracle 문자 F1 ≈ 0.95.
+## Validation (held-out by document id, 6 % of train docs)
+| model | char-F1 | EM |
+|---|---|---|
+| v1 (random negatives) | 0.5499 | 0.3525 |
+| v2 (+hard negatives)  | 0.5380 | 0.2825 |
+| **0.6·v1 + 0.4·v2**   | **0.5684** | **0.3617** |
 
-2. **특징 (87차원)**
-   - 후보 자체: 문자 길이, 토큰 수, 숫자/연도/수량단위/한자/로마자 포함,
-     지명·기관명·인명 접미사, 인용부호 안쪽 여부, 문단 내 빈도 등.
-   - 문맥/질문 정합: 후보를 포함한 문장의 질문 매칭 점수·순위, 질문 매칭 토큰까지의
-     좌/우 문자 거리, 창(15/40자) 내 매칭 IDF 질량, 직전/직후 토큰의 매칭 여부,
-     직전 토큰이 `~의`로 끝나는지, 직후 토큰이 계사(`이다/였다/라고`…)인지,
-     후보가 질문에 그대로 등장하는지(감점 신호), 질문과의 bigram F1.
-   - 질문 유형: 누구/언제/어디/몇/무엇/왜/어떻게 플래그, 질문 길이/토큰 수,
-     질문 핵심명사(head noun)와 후보 주변 토큰의 유사도·거리.
-   - **정답 유형 사전확률(target encoding)** (`AnswerTypeStats`): 학습 데이터에서
-     질문의 head noun(및 1~2글자 접미사, 전역 백오프)별로 정답의 표면형 통계
-     (평균 길이, 숫자/연도/한자/지명접미사/단일토큰 비율 등)를 집계하고,
-     후보의 표면형과의 일치도를 특징으로 준다. (예: head=`연도` → 숫자 100%).
-     검증 공정성을 위해 이 통계는 검증 문서를 제외한 학습 슬라이스에서만 만든다.
+(1200 validation questions; the val set is document-disjoint from training,
+matching the train/test split of the task.)
 
-3. **랭커**: `HistGradientBoostingRegressor`가 각 후보의 **정답 문자 F1을 회귀**한다.
-   학습 표본은 질문당 (휴리스틱 상위 55개 + 무작위 25개 + 정답 근접 후보 4개).
-   총 약 400만 행 × 87특징.
-
-4. **MBR 디코딩**: 상위 K=16 후보에 softmax(온도 T)로 가중치를 주고
-   `score*(1-a) + a*E[charF1(cand_i, cand_j)]` 를 최대화하는 후보를 고른다.
-   문자 다중집합 F1 지표에서 argmax보다 +0.017 향상.
-
-## 검증 결과 (train을 문서 단위 80/20 분할)
-
-| 방법 | 검증 문자 F1 |
-|---|---|
-| 휴리스틱 점수(비학습) | 0.255 |
-| GBM 랭커 + argmax | 0.450 |
-| GBM 랭커 + MBR (K=16, T=0.5, a=0.35) | **0.467** |
-
-후보 집합 oracle 상한은 0.95이므로 성능 한계는 랭커의 판별력에 있다.
-
-## 재현 방법
-
+## Reproduce
 ```bash
-cd solution
-VER=v2 python run.py feats_test        # 테스트 후보/특징 (병렬 4프로세스)
-VER=v2 python run.py feats_val         # 검증 슬라이스 특징
-VER=v2 python run.py feats_fulltrain   # 학습 특징 + 타깃
-VER=v2 ITER=250 LR=0.12 python run.py fit_val   # 검증 점수 확인
-K=16 python sweep_decode.py                      # 디코딩 파라미터 탐색
-VER=v2 ITER=250 LR=0.12 AGG=0.35 TEMP=0.5 MBRK=16 python run.py final  # 최종 제출
+bash solution/run_all.sh          # build features, train v1, mine, train v2
+python solution/predict_ensemble.py   # -> outputs/submission.csv
 ```
-
-중간 산출물은 `../work/`(청크별 `.npy`)에 캐시되며, 최종 결과는
-`../outputs/submission.csv`에 기록된다.
-
-## 파일
-- `qa_core.py` — 문자 F1 지표, 토큰화, 조사/문장부호 제거, 문장 분리, bigram 유사도
-- `pipeline.py` — IDF, 질문 분석, 후보 생성 및 특징 추출, 정답유형 사전확률
-- `run.py` — 병렬 특징 추출/학습/검증/예측 스테이지, MBR 디코딩
-- `sweep_decode.py` — 검증셋에서 MBR 파라미터 탐색
+Individual stages: `python solution/run.py {build,merge,train,val,mine,build2,predict}`
+(env: `SHARD`/`NSHARD` for parallel feature building, `ITERS`, `NNEG`, `NVAL`).
+Total runtime ≈45 min on 4 CPU cores.

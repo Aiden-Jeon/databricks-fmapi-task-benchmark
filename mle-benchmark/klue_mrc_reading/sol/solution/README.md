@@ -1,18 +1,15 @@
-# KLUE-MRC offline solution
+# Lightweight extractive QA solution
+
+The solution uses only `train.csv` and locally installed Python packages. It ranks
+sentences by question overlap, learns to rank exact text spans, and separately
+learns whether a question is answerable. All predicted non-empty answers are
+copied verbatim from the corresponding context.
 
 Run from the task root:
 
 ```bash
-python solution/train_predict.py --data-dir . --output outputs/submission.csv
+python solution/train_predict.py --validate
 ```
 
-The script uses only `train.csv` and locally installed `pandas`, `numpy`, and
-`scikit-learn`. It trains a character-overlap sentence retriever, a supervised
-candidate-span ranker, and an answerability classifier. Randomized components
-use a fixed seed.
-
-Optional grouped holdout validation:
-
-```bash
-python solution/train_predict.py --data-dir . --validate
-```
+This writes `outputs/submission.csv`. The fixed random seed and document-grouped
+validation make the run reproducible.

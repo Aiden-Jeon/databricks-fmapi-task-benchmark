@@ -1,11 +1,18 @@
 # PAWS-X Korean solution
 
-Run from the task root:
+The model uses reproducible, training-only signals:
+
+- character and token n-gram overlap;
+- sequence similarity and shared-token order changes;
+- number and Latin-name consistency;
+- an Extra Trees and Random Forest probability ensemble;
+- exact-pair and positive-link graph rules learned from `train.csv`.
+
+Run from any directory with:
 
 ```bash
 python solution/train.py
 ```
 
-The script uses deterministic lexical and word-order features with an ensemble of
-scikit-learn tree models. It writes `outputs/submission.csv` without requiring
-network access, external data, or pretrained weights.
+This writes `outputs/submission.csv`. The fixed random seed is 2026. The required
+packages are Python 3, NumPy, pandas, and scikit-learn.

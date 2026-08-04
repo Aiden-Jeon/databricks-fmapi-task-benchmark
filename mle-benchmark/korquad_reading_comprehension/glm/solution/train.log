@@ -1,0 +1,10 @@
+Vocab size: 4536
+Model params: 596,482
+Building examples...
+Examples: 48552 (skipped 0)
+  e0 s50 loss=11.7084 3200/48552 27 ex/s eta1655s
+  e0 s100 loss=10.2654 6400/48552 28 ex/s eta1532s
+  e0 s150 loss=8.4853 9600/48552 28 ex/s eta1410s
+  e0 s200 loss=7.4660 12800/48552 28 ex/s eta1297s
+  e0 s250 loss=7.1822 16000/48552 27 ex/s eta1185s
+  e0 s300 loss=7.4648 19200/48552 27 ex/s eta1071s

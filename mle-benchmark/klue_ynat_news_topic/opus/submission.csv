@@ -5,11 +5,11 @@ ynat-v1_train_24395,생활문화
 ynat-v1_train_02150,스포츠
 ynat-v1_train_37684,세계
 ynat-v1_train_23823,사회
-ynat-v1_train_18572,정치
+ynat-v1_train_18572,사회
 ynat-v1_train_38825,정치
 ynat-v1_train_06979,정치
 ynat-v1_train_03428,정치
-ynat-v1_train_08457,생활문화
+ynat-v1_train_08457,사회
 ynat-v1_train_29509,사회
 ynat-v1_train_26018,스포츠
 ynat-v1_train_11369,정치
@@ -39,12 +39,12 @@ ynat-v1_train_39764,스포츠
 ynat-v1_train_42547,IT과학
 ynat-v1_train_05094,세계
 ynat-v1_train_45240,생활문화
-ynat-v1_train_35628,스포츠
+ynat-v1_train_35628,사회
 ynat-v1_train_29626,스포츠
 ynat-v1_train_38902,경제
 ynat-v1_train_20120,경제
 ynat-v1_train_35935,경제
-ynat-v1_train_27752,사회
+ynat-v1_train_27752,세계
 ynat-v1_train_23218,세계
 ynat-v1_train_06489,경제
 ynat-v1_train_07566,정치
@@ -62,7 +62,7 @@ ynat-v1_train_01565,사회
 ynat-v1_train_13600,IT과학
 ynat-v1_train_22191,세계
 ynat-v1_train_34176,생활문화
-ynat-v1_train_31793,IT과학
+ynat-v1_train_31793,경제
 ynat-v1_train_13450,생활문화
 ynat-v1_train_10477,스포츠
 ynat-v1_train_08300,사회
@@ -97,7 +97,7 @@ ynat-v1_train_42392,생활문화
 ynat-v1_train_41176,세계
 ynat-v1_train_32957,스포츠
 ynat-v1_train_06326,세계
-ynat-v1_train_26369,사회
+ynat-v1_train_26369,IT과학
 ynat-v1_train_10765,경제
 ynat-v1_train_22198,정치
 ynat-v1_train_16961,정치
@@ -139,7 +139,7 @@ ynat-v1_train_16546,스포츠
 ynat-v1_train_07234,스포츠
 ynat-v1_train_00787,사회
 ynat-v1_train_19569,세계
-ynat-v1_train_17447,경제
+ynat-v1_train_17447,사회
 ynat-v1_train_34433,세계
 ynat-v1_train_38101,경제
 ynat-v1_train_42604,생활문화
@@ -186,13 +186,13 @@ ynat-v1_train_29173,정치
 ynat-v1_train_22467,스포츠
 ynat-v1_train_01799,스포츠
 ynat-v1_train_08821,사회
-ynat-v1_train_24214,경제
+ynat-v1_train_24214,세계
 ynat-v1_train_24334,스포츠
 ynat-v1_train_21685,정치
 ynat-v1_train_28263,IT과학
 ynat-v1_train_17812,정치
 ynat-v1_train_23827,세계
-ynat-v1_train_25555,스포츠
+ynat-v1_train_25555,정치
 ynat-v1_train_01612,IT과학
 ynat-v1_train_19884,정치
 ynat-v1_train_41737,IT과학
@@ -202,7 +202,7 @@ ynat-v1_train_14891,경제
 ynat-v1_train_24328,스포츠
 ynat-v1_train_24554,스포츠
 ynat-v1_train_44874,생활문화
-ynat-v1_train_40616,스포츠
+ynat-v1_train_40616,사회
 ynat-v1_train_30416,사회
 ynat-v1_train_19951,IT과학
 ynat-v1_train_09286,정치
@@ -210,7 +210,7 @@ ynat-v1_train_32513,사회
 ynat-v1_train_29222,정치
 ynat-v1_train_30459,경제
 ynat-v1_train_01876,세계
-ynat-v1_train_11930,경제
+ynat-v1_train_11930,생활문화
 ynat-v1_train_16289,세계
 ynat-v1_train_40695,정치
 ynat-v1_train_00152,경제
@@ -223,11 +223,11 @@ ynat-v1_train_09921,정치
 ynat-v1_train_03967,세계
 ynat-v1_train_30713,세계
 ynat-v1_train_05548,경제
-ynat-v1_train_10365,경제
+ynat-v1_train_10365,IT과학
 ynat-v1_train_41895,IT과학
 ynat-v1_train_45108,세계
 ynat-v1_train_31271,생활문화
-ynat-v1_train_31738,경제
+ynat-v1_train_31738,IT과학
 ynat-v1_train_03129,세계
 ynat-v1_train_41063,경제
 ynat-v1_train_36025,세계
@@ -235,7 +235,7 @@ ynat-v1_train_01092,사회
 ynat-v1_train_36037,정치
 ynat-v1_train_41871,경제
 ynat-v1_train_23271,세계
-ynat-v1_train_38043,IT과학
+ynat-v1_train_38043,경제
 ynat-v1_train_35597,정치
 ynat-v1_train_34821,생활문화
 ynat-v1_train_17760,스포츠
@@ -259,7 +259,7 @@ ynat-v1_train_44895,생활문화
 ynat-v1_train_04580,사회
 ynat-v1_train_35481,세계
 ynat-v1_train_11328,사회
-ynat-v1_train_09232,사회
+ynat-v1_train_09232,생활문화
 ynat-v1_train_42040,세계
 ynat-v1_train_31406,스포츠
 ynat-v1_train_08397,정치
@@ -280,7 +280,7 @@ ynat-v1_train_12953,경제
 ynat-v1_train_07998,경제
 ynat-v1_train_16397,사회
 ynat-v1_train_06291,사회
-ynat-v1_train_41728,생활문화
+ynat-v1_train_41728,사회
 ynat-v1_train_23591,정치
 ynat-v1_train_11385,스포츠
 ynat-v1_train_10944,경제
@@ -291,11 +291,11 @@ ynat-v1_train_35858,정치
 ynat-v1_train_05821,생활문화
 ynat-v1_train_23399,IT과학
 ynat-v1_train_10014,스포츠
-ynat-v1_train_41853,경제
+ynat-v1_train_41853,사회
 ynat-v1_train_28614,경제
 ynat-v1_train_34733,생활문화
 ynat-v1_train_24029,IT과학
-ynat-v1_train_12755,정치
+ynat-v1_train_12755,사회
 ynat-v1_train_33058,정치
 ynat-v1_train_33815,세계
 ynat-v1_train_27870,IT과학
@@ -305,7 +305,7 @@ ynat-v1_train_30019,스포츠
 ynat-v1_train_42444,정치
 ynat-v1_train_43814,스포츠
 ynat-v1_train_06806,생활문화
-ynat-v1_train_21382,사회
+ynat-v1_train_21382,세계
 ynat-v1_train_35878,생활문화
 ynat-v1_train_41099,스포츠
 ynat-v1_train_15151,경제
@@ -325,10 +325,10 @@ ynat-v1_train_00086,세계
 ynat-v1_train_06134,정치
 ynat-v1_train_13088,사회
 ynat-v1_train_29353,사회
-ynat-v1_train_27365,IT과학
+ynat-v1_train_27365,사회
 ynat-v1_train_12818,생활문화
 ynat-v1_train_16211,IT과학
-ynat-v1_train_39291,생활문화
+ynat-v1_train_39291,세계
 ynat-v1_train_38467,세계
 ynat-v1_train_09979,정치
 ynat-v1_train_40781,생활문화
@@ -338,7 +338,7 @@ ynat-v1_train_40252,정치
 ynat-v1_train_35776,스포츠
 ynat-v1_train_02711,생활문화
 ynat-v1_train_11997,스포츠
-ynat-v1_train_14419,세계
+ynat-v1_train_14419,정치
 ynat-v1_train_37248,스포츠
 ynat-v1_train_37189,스포츠
 ynat-v1_train_44953,세계
@@ -384,8 +384,8 @@ ynat-v1_train_14628,스포츠
 ynat-v1_train_30881,IT과학
 ynat-v1_train_10509,정치
 ynat-v1_train_39158,세계
-ynat-v1_train_32511,생활문화
-ynat-v1_train_16990,생활문화
+ynat-v1_train_32511,사회
+ynat-v1_train_16990,스포츠
 ynat-v1_train_08221,IT과학
 ynat-v1_train_25773,스포츠
 ynat-v1_train_07237,스포츠
@@ -446,7 +446,7 @@ ynat-v1_train_21299,사회
 ynat-v1_train_06629,세계
 ynat-v1_train_09377,IT과학
 ynat-v1_train_10978,경제
-ynat-v1_train_24303,생활문화
+ynat-v1_train_24303,사회
 ynat-v1_train_38743,생활문화
 ynat-v1_train_32552,IT과학
 ynat-v1_train_01276,세계
@@ -491,7 +491,7 @@ ynat-v1_train_02495,스포츠
 ynat-v1_train_43790,생활문화
 ynat-v1_train_04231,생활문화
 ynat-v1_train_13299,세계
-ynat-v1_train_27159,IT과학
+ynat-v1_train_27159,경제
 ynat-v1_train_45589,IT과학
 ynat-v1_train_24229,세계
 ynat-v1_train_32846,IT과학
@@ -570,7 +570,7 @@ ynat-v1_train_26625,세계
 ynat-v1_train_09375,스포츠
 ynat-v1_train_14939,경제
 ynat-v1_train_10746,스포츠
-ynat-v1_train_31802,사회
+ynat-v1_train_31802,경제
 ynat-v1_train_38918,IT과학
 ynat-v1_train_19921,세계
 ynat-v1_train_29460,세계
@@ -582,7 +582,7 @@ ynat-v1_train_38486,정치
 ynat-v1_train_04931,경제
 ynat-v1_train_24884,스포츠
 ynat-v1_train_29311,스포츠
-ynat-v1_train_25630,생활문화
+ynat-v1_train_25630,사회
 ynat-v1_train_10274,생활문화
 ynat-v1_train_21857,스포츠
 ynat-v1_train_09006,스포츠
@@ -605,7 +605,7 @@ ynat-v1_train_32974,세계
 ynat-v1_train_16293,정치
 ynat-v1_train_32005,스포츠
 ynat-v1_train_02127,사회
-ynat-v1_train_19895,세계
+ynat-v1_train_19895,사회
 ynat-v1_train_37958,스포츠
 ynat-v1_train_00874,세계
 ynat-v1_train_08540,사회
@@ -648,7 +648,7 @@ ynat-v1_train_16276,경제
 ynat-v1_train_07736,세계
 ynat-v1_train_22100,IT과학
 ynat-v1_train_09027,정치
-ynat-v1_train_13868,IT과학
+ynat-v1_train_13868,생활문화
 ynat-v1_train_06748,정치
 ynat-v1_train_12928,사회
 ynat-v1_train_23746,스포츠
@@ -667,7 +667,7 @@ ynat-v1_train_41809,스포츠
 ynat-v1_train_25290,경제
 ynat-v1_train_42151,경제
 ynat-v1_train_15084,세계
-ynat-v1_train_38829,IT과학
+ynat-v1_train_38829,사회
 ynat-v1_train_25583,사회
 ynat-v1_train_11863,IT과학
 ynat-v1_train_16499,스포츠
@@ -698,7 +698,7 @@ ynat-v1_train_44023,정치
 ynat-v1_train_00150,정치
 ynat-v1_train_42191,경제
 ynat-v1_train_10316,생활문화
-ynat-v1_train_21053,스포츠
+ynat-v1_train_21053,사회
 ynat-v1_train_28444,경제
 ynat-v1_train_04733,생활문화
 ynat-v1_train_17152,사회
@@ -738,7 +738,7 @@ ynat-v1_train_40864,경제
 ynat-v1_train_17592,경제
 ynat-v1_train_25532,정치
 ynat-v1_train_36416,정치
-ynat-v1_train_07518,경제
+ynat-v1_train_07518,IT과학
 ynat-v1_train_43786,IT과학
 ynat-v1_train_07232,스포츠
 ynat-v1_train_02903,정치
@@ -746,7 +746,7 @@ ynat-v1_train_21468,생활문화
 ynat-v1_train_18774,스포츠
 ynat-v1_train_04172,세계
 ynat-v1_train_32581,사회
-ynat-v1_train_26512,IT과학
+ynat-v1_train_26512,사회
 ynat-v1_train_02729,세계
 ynat-v1_train_44898,정치
 ynat-v1_train_29724,생활문화
@@ -754,7 +754,7 @@ ynat-v1_train_13489,생활문화
 ynat-v1_train_37642,스포츠
 ynat-v1_train_01423,경제
 ynat-v1_train_37250,생활문화
-ynat-v1_train_28528,사회
+ynat-v1_train_28528,IT과학
 ynat-v1_train_39056,세계
 ynat-v1_train_13323,경제
 ynat-v1_train_19865,IT과학
@@ -768,7 +768,7 @@ ynat-v1_train_15216,스포츠
 ynat-v1_train_03210,생활문화
 ynat-v1_train_00959,IT과학
 ynat-v1_train_02370,경제
-ynat-v1_train_39892,정치
+ynat-v1_train_39892,경제
 ynat-v1_train_25177,사회
 ynat-v1_train_43989,스포츠
 ynat-v1_train_39294,IT과학
@@ -810,8 +810,8 @@ ynat-v1_train_19854,IT과학
 ynat-v1_train_11289,IT과학
 ynat-v1_train_42903,스포츠
 ynat-v1_train_07059,세계
-ynat-v1_train_44765,사회
-ynat-v1_train_24420,사회
+ynat-v1_train_44765,생활문화
+ynat-v1_train_24420,경제
 ynat-v1_train_26142,세계
 ynat-v1_train_26809,생활문화
 ynat-v1_train_31743,경제
@@ -851,14 +851,14 @@ ynat-v1_train_34109,세계
 ynat-v1_train_41632,스포츠
 ynat-v1_train_18964,정치
 ynat-v1_train_14681,사회
-ynat-v1_train_36066,생활문화
+ynat-v1_train_36066,사회
 ynat-v1_train_16775,스포츠
 ynat-v1_train_33608,IT과학
 ynat-v1_train_20944,세계
 ynat-v1_train_40445,IT과학
 ynat-v1_train_25815,스포츠
 ynat-v1_train_44760,정치
-ynat-v1_train_07752,IT과학
+ynat-v1_train_07752,경제
 ynat-v1_train_18859,정치
 ynat-v1_train_22018,생활문화
 ynat-v1_train_17898,정치
@@ -907,7 +907,7 @@ ynat-v1_train_40929,생활문화
 ynat-v1_train_21728,스포츠
 ynat-v1_train_44853,IT과학
 ynat-v1_train_44834,스포츠
-ynat-v1_train_03936,사회
+ynat-v1_train_03936,생활문화
 ynat-v1_train_40861,정치
 ynat-v1_train_11712,정치
 ynat-v1_train_25463,생활문화
@@ -925,7 +925,7 @@ ynat-v1_train_14640,세계
 ynat-v1_train_41031,IT과학
 ynat-v1_train_38347,생활문화
 ynat-v1_train_08613,정치
-ynat-v1_train_10877,세계
+ynat-v1_train_10877,정치
 ynat-v1_train_05041,정치
 ynat-v1_train_20762,정치
 ynat-v1_train_00230,정치
@@ -944,7 +944,7 @@ ynat-v1_train_25944,IT과학
 ynat-v1_train_32822,정치
 ynat-v1_train_43159,경제
 ynat-v1_train_12018,IT과학
-ynat-v1_train_14199,정치
+ynat-v1_train_14199,사회
 ynat-v1_train_40269,생활문화
 ynat-v1_train_43535,경제
 ynat-v1_train_14432,경제
@@ -954,12 +954,12 @@ ynat-v1_train_31482,스포츠
 ynat-v1_train_08387,IT과학
 ynat-v1_train_29078,경제
 ynat-v1_train_21950,경제
-ynat-v1_train_12429,생활문화
+ynat-v1_train_12429,정치
 ynat-v1_train_00718,스포츠
 ynat-v1_train_25533,IT과학
 ynat-v1_train_03294,IT과학
 ynat-v1_train_22160,IT과학
-ynat-v1_train_43894,IT과학
+ynat-v1_train_43894,경제
 ynat-v1_train_08135,세계
 ynat-v1_train_24385,세계
 ynat-v1_train_37154,IT과학
@@ -974,7 +974,7 @@ ynat-v1_train_17394,세계
 ynat-v1_train_12807,스포츠
 ynat-v1_train_34568,사회
 ynat-v1_train_31421,IT과학
-ynat-v1_train_43333,정치
+ynat-v1_train_43333,사회
 ynat-v1_train_31410,세계
 ynat-v1_train_32807,스포츠
 ynat-v1_train_12693,IT과학
@@ -1004,7 +1004,7 @@ ynat-v1_train_14906,IT과학
 ynat-v1_train_22252,경제
 ynat-v1_train_38574,세계
 ynat-v1_train_32410,경제
-ynat-v1_train_26517,스포츠
+ynat-v1_train_26517,정치
 ynat-v1_train_06914,스포츠
 ynat-v1_train_42562,스포츠
 ynat-v1_train_36538,경제
@@ -1016,7 +1016,7 @@ ynat-v1_train_08026,스포츠
 ynat-v1_train_06980,IT과학
 ynat-v1_train_31884,사회
 ynat-v1_train_00555,정치
-ynat-v1_train_08834,사회
+ynat-v1_train_08834,정치
 ynat-v1_train_16141,정치
 ynat-v1_train_43387,경제
 ynat-v1_train_17255,정치
@@ -1037,7 +1037,7 @@ ynat-v1_train_29278,IT과학
 ynat-v1_train_42476,정치
 ynat-v1_train_15712,스포츠
 ynat-v1_train_22041,정치
-ynat-v1_train_39720,생활문화
+ynat-v1_train_39720,세계
 ynat-v1_train_16603,세계
 ynat-v1_train_43798,사회
 ynat-v1_train_27887,세계
@@ -1101,7 +1101,7 @@ ynat-v1_train_13414,스포츠
 ynat-v1_train_36560,경제
 ynat-v1_train_26265,IT과학
 ynat-v1_train_34491,IT과학
-ynat-v1_train_05181,세계
+ynat-v1_train_05181,경제
 ynat-v1_train_45271,스포츠
 ynat-v1_train_01322,사회
 ynat-v1_train_27399,스포츠
@@ -1121,8 +1121,8 @@ ynat-v1_train_33580,스포츠
 ynat-v1_train_00844,스포츠
 ynat-v1_train_40729,IT과학
 ynat-v1_train_21974,경제
-ynat-v1_train_42264,세계
-ynat-v1_train_14373,경제
+ynat-v1_train_42264,IT과학
+ynat-v1_train_14373,사회
 ynat-v1_train_42940,IT과학
 ynat-v1_train_15492,경제
 ynat-v1_train_44459,스포츠
@@ -1134,7 +1134,7 @@ ynat-v1_train_08934,스포츠
 ynat-v1_train_42619,스포츠
 ynat-v1_train_43936,IT과학
 ynat-v1_train_37662,IT과학
-ynat-v1_train_00578,세계
+ynat-v1_train_00578,정치
 ynat-v1_train_15372,경제
 ynat-v1_train_18033,세계
 ynat-v1_train_22060,생활문화
@@ -1176,7 +1176,7 @@ ynat-v1_train_15577,정치
 ynat-v1_train_21378,경제
 ynat-v1_train_14671,세계
 ynat-v1_train_36383,정치
-ynat-v1_train_34696,세계
+ynat-v1_train_34696,사회
 ynat-v1_train_18961,IT과학
 ynat-v1_train_34496,IT과학
 ynat-v1_train_11224,IT과학
@@ -1197,9 +1197,9 @@ ynat-v1_train_03681,세계
 ynat-v1_train_14509,사회
 ynat-v1_train_28401,생활문화
 ynat-v1_train_17781,경제
-ynat-v1_train_02545,생활문화
+ynat-v1_train_02545,사회
 ynat-v1_train_33611,정치
-ynat-v1_train_23091,정치
+ynat-v1_train_23091,사회
 ynat-v1_train_04996,사회
 ynat-v1_train_22762,스포츠
 ynat-v1_train_24072,정치
@@ -1222,7 +1222,7 @@ ynat-v1_train_15222,IT과학
 ynat-v1_train_12506,경제
 ynat-v1_train_00345,경제
 ynat-v1_train_12599,경제
-ynat-v1_train_21000,사회
+ynat-v1_train_21000,생활문화
 ynat-v1_train_03760,IT과학
 ynat-v1_train_11132,경제
 ynat-v1_train_24236,스포츠
@@ -1261,7 +1261,7 @@ ynat-v1_train_05143,세계
 ynat-v1_train_30401,정치
 ynat-v1_train_34103,세계
 ynat-v1_train_05124,세계
-ynat-v1_train_34000,생활문화
+ynat-v1_train_34000,사회
 ynat-v1_train_13635,정치
 ynat-v1_train_37030,사회
 ynat-v1_train_43227,세계
@@ -1299,7 +1299,7 @@ ynat-v1_train_17488,생활문화
 ynat-v1_train_00572,정치
 ynat-v1_train_34792,스포츠
 ynat-v1_train_23693,IT과학
-ynat-v1_train_14310,세계
+ynat-v1_train_14310,사회
 ynat-v1_train_41576,정치
 ynat-v1_train_04198,스포츠
 ynat-v1_train_29478,스포츠
@@ -1336,8 +1336,8 @@ ynat-v1_train_39772,세계
 ynat-v1_train_27069,정치
 ynat-v1_train_38580,경제
 ynat-v1_train_15185,세계
-ynat-v1_train_33499,정치
-ynat-v1_train_28272,세계
+ynat-v1_train_33499,경제
+ynat-v1_train_28272,정치
 ynat-v1_train_14768,IT과학
 ynat-v1_train_02013,세계
 ynat-v1_train_00669,사회
@@ -1351,7 +1351,7 @@ ynat-v1_train_02350,사회
 ynat-v1_train_00744,스포츠
 ynat-v1_train_22463,세계
 ynat-v1_train_42177,세계
-ynat-v1_train_16313,IT과학
+ynat-v1_train_16313,사회
 ynat-v1_train_35812,IT과학
 ynat-v1_train_19216,IT과학
 ynat-v1_train_36798,생활문화
@@ -1419,7 +1419,7 @@ ynat-v1_train_44651,생활문화
 ynat-v1_train_09938,IT과학
 ynat-v1_train_04002,정치
 ynat-v1_train_36495,세계
-ynat-v1_train_27239,경제
+ynat-v1_train_27239,사회
 ynat-v1_train_07672,스포츠
 ynat-v1_train_17820,IT과학
 ynat-v1_train_37236,스포츠
@@ -1433,7 +1433,7 @@ ynat-v1_train_29723,IT과학
 ynat-v1_train_28379,스포츠
 ynat-v1_train_01601,스포츠
 ynat-v1_train_25174,경제
-ynat-v1_train_03700,IT과학
+ynat-v1_train_03700,사회
 ynat-v1_train_42113,스포츠
 ynat-v1_train_19959,경제
 ynat-v1_train_01005,정치
@@ -1564,7 +1564,7 @@ ynat-v1_train_30960,세계
 ynat-v1_train_30656,스포츠
 ynat-v1_train_21391,세계
 ynat-v1_train_13456,경제
-ynat-v1_train_14047,경제
+ynat-v1_train_14047,사회
 ynat-v1_train_26655,경제
 ynat-v1_train_26145,세계
 ynat-v1_train_38032,IT과학
@@ -1579,7 +1579,7 @@ ynat-v1_train_34934,경제
 ynat-v1_train_20882,스포츠
 ynat-v1_train_28619,생활문화
 ynat-v1_train_29771,생활문화
-ynat-v1_train_04630,생활문화
+ynat-v1_train_04630,사회
 ynat-v1_train_32241,경제
 ynat-v1_train_29528,세계
 ynat-v1_train_11354,경제
@@ -1605,7 +1605,7 @@ ynat-v1_train_18087,IT과학
 ynat-v1_train_27783,IT과학
 ynat-v1_train_17752,생활문화
 ynat-v1_train_39642,정치
-ynat-v1_train_35806,경제
+ynat-v1_train_35806,세계
 ynat-v1_train_44537,생활문화
 ynat-v1_train_18174,생활문화
 ynat-v1_train_02031,경제
@@ -1616,7 +1616,7 @@ ynat-v1_train_37294,정치
 ynat-v1_train_31371,IT과학
 ynat-v1_train_35971,정치
 ynat-v1_train_32539,스포츠
-ynat-v1_train_13047,생활문화
+ynat-v1_train_13047,사회
 ynat-v1_train_24116,스포츠
 ynat-v1_train_18006,경제
 ynat-v1_train_43060,IT과학
@@ -1625,7 +1625,7 @@ ynat-v1_train_18851,스포츠
 ynat-v1_train_19691,세계
 ynat-v1_train_10302,IT과학
 ynat-v1_train_22851,스포츠
-ynat-v1_train_13409,생활문화
+ynat-v1_train_13409,IT과학
 ynat-v1_train_05013,IT과학
 ynat-v1_train_32673,세계
 ynat-v1_train_29365,스포츠
@@ -1669,7 +1669,7 @@ ynat-v1_train_25465,정치
 ynat-v1_train_00620,정치
 ynat-v1_train_12753,정치
 ynat-v1_train_28722,정치
-ynat-v1_train_35405,경제
+ynat-v1_train_35405,사회
 ynat-v1_train_10687,생활문화
 ynat-v1_train_34376,사회
 ynat-v1_train_05490,경제
@@ -1770,7 +1770,7 @@ ynat-v1_train_33534,스포츠
 ynat-v1_train_02714,IT과학
 ynat-v1_train_43519,세계
 ynat-v1_train_33160,정치
-ynat-v1_train_08359,사회
+ynat-v1_train_08359,생활문화
 ynat-v1_train_40018,정치
 ynat-v1_train_18927,스포츠
 ynat-v1_train_07767,IT과학
@@ -1832,7 +1832,7 @@ ynat-v1_train_24658,경제
 ynat-v1_train_32040,세계
 ynat-v1_train_23181,경제
 ynat-v1_train_42380,경제
-ynat-v1_train_36764,IT과학
+ynat-v1_train_36764,생활문화
 ynat-v1_train_17077,생활문화
 ynat-v1_train_00538,정치
 ynat-v1_train_10605,정치
@@ -1876,7 +1876,7 @@ ynat-v1_train_36621,정치
 ynat-v1_train_10666,정치
 ynat-v1_train_15962,IT과학
 ynat-v1_train_36735,IT과학
-ynat-v1_train_17847,세계
+ynat-v1_train_17847,정치
 ynat-v1_train_38052,경제
 ynat-v1_train_24475,정치
 ynat-v1_train_05971,사회
@@ -2035,10 +2035,10 @@ ynat-v1_train_40369,스포츠
 ynat-v1_train_05976,사회
 ynat-v1_train_00163,스포츠
 ynat-v1_train_23610,생활문화
-ynat-v1_train_20867,경제
+ynat-v1_train_20867,IT과학
 ynat-v1_train_18183,스포츠
 ynat-v1_train_21080,세계
-ynat-v1_train_34624,정치
+ynat-v1_train_34624,사회
 ynat-v1_train_15619,스포츠
 ynat-v1_train_43797,생활문화
 ynat-v1_train_35720,정치
@@ -2071,7 +2071,7 @@ ynat-v1_train_14155,경제
 ynat-v1_train_13555,스포츠
 ynat-v1_train_16888,세계
 ynat-v1_train_41601,스포츠
-ynat-v1_train_36142,생활문화
+ynat-v1_train_36142,사회
 ynat-v1_train_41722,정치
 ynat-v1_train_00269,스포츠
 ynat-v1_train_07452,경제
@@ -2081,7 +2081,7 @@ ynat-v1_train_29308,스포츠
 ynat-v1_train_30170,스포츠
 ynat-v1_train_21465,생활문화
 ynat-v1_train_21212,정치
-ynat-v1_train_41186,IT과학
+ynat-v1_train_41186,사회
 ynat-v1_train_10103,경제
 ynat-v1_train_19537,세계
 ynat-v1_train_38399,사회
@@ -2110,14 +2110,14 @@ ynat-v1_train_33246,IT과학
 ynat-v1_train_25826,세계
 ynat-v1_train_20689,정치
 ynat-v1_train_14073,세계
-ynat-v1_train_14502,사회
+ynat-v1_train_14502,경제
 ynat-v1_train_14567,스포츠
 ynat-v1_train_41833,생활문화
 ynat-v1_train_34654,정치
 ynat-v1_train_20371,경제
 ynat-v1_train_14351,세계
 ynat-v1_train_37390,IT과학
-ynat-v1_train_38811,스포츠
+ynat-v1_train_38811,생활문화
 ynat-v1_train_38642,IT과학
 ynat-v1_train_33748,IT과학
 ynat-v1_train_04672,사회
@@ -2130,7 +2130,7 @@ ynat-v1_train_34477,스포츠
 ynat-v1_train_31393,정치
 ynat-v1_train_41139,생활문화
 ynat-v1_train_41335,정치
-ynat-v1_train_36195,생활문화
+ynat-v1_train_36195,사회
 ynat-v1_train_26733,세계
 ynat-v1_train_21604,세계
 ynat-v1_train_35527,경제
@@ -2156,7 +2156,7 @@ ynat-v1_train_36074,스포츠
 ynat-v1_train_05463,정치
 ynat-v1_train_37106,세계
 ynat-v1_train_08486,세계
-ynat-v1_train_43747,사회
+ynat-v1_train_43747,정치
 ynat-v1_train_21228,정치
 ynat-v1_train_43772,정치
 ynat-v1_train_29479,세계
@@ -2171,7 +2171,7 @@ ynat-v1_train_23847,세계
 ynat-v1_train_45265,세계
 ynat-v1_train_09136,세계
 ynat-v1_train_20595,사회
-ynat-v1_train_21874,IT과학
+ynat-v1_train_21874,사회
 ynat-v1_train_33579,사회
 ynat-v1_train_44481,스포츠
 ynat-v1_train_29830,정치
@@ -2213,7 +2213,7 @@ ynat-v1_train_27236,경제
 ynat-v1_train_04332,사회
 ynat-v1_train_39216,경제
 ynat-v1_train_24681,정치
-ynat-v1_train_21218,사회
+ynat-v1_train_21218,경제
 ynat-v1_train_01750,경제
 ynat-v1_train_25367,IT과학
 ynat-v1_train_32386,스포츠
@@ -2248,7 +2248,7 @@ ynat-v1_train_29590,생활문화
 ynat-v1_train_03318,사회
 ynat-v1_train_12923,세계
 ynat-v1_train_32551,세계
-ynat-v1_train_30118,세계
+ynat-v1_train_30118,사회
 ynat-v1_train_25276,세계
 ynat-v1_train_04784,경제
 ynat-v1_train_34335,경제
@@ -2308,7 +2308,7 @@ ynat-v1_train_44067,IT과학
 ynat-v1_train_19787,사회
 ynat-v1_train_34238,스포츠
 ynat-v1_train_20583,사회
-ynat-v1_train_16098,생활문화
+ynat-v1_train_16098,사회
 ynat-v1_train_22680,IT과학
 ynat-v1_train_04379,생활문화
 ynat-v1_train_25498,스포츠
@@ -2333,7 +2333,7 @@ ynat-v1_train_32287,IT과학
 ynat-v1_train_10018,정치
 ynat-v1_train_45072,IT과학
 ynat-v1_train_34239,정치
-ynat-v1_train_25629,IT과학
+ynat-v1_train_25629,경제
 ynat-v1_train_21564,생활문화
 ynat-v1_train_05661,생활문화
 ynat-v1_train_27825,세계
@@ -2347,7 +2347,7 @@ ynat-v1_train_08838,생활문화
 ynat-v1_train_09180,경제
 ynat-v1_train_09931,세계
 ynat-v1_train_12400,경제
-ynat-v1_train_30914,경제
+ynat-v1_train_30914,정치
 ynat-v1_train_16722,사회
 ynat-v1_train_23057,사회
 ynat-v1_train_26868,정치
@@ -2369,8 +2369,8 @@ ynat-v1_train_45500,생활문화
 ynat-v1_train_42262,사회
 ynat-v1_train_07560,정치
 ynat-v1_train_43194,경제
-ynat-v1_train_01933,세계
-ynat-v1_train_02462,IT과학
+ynat-v1_train_01933,스포츠
+ynat-v1_train_02462,사회
 ynat-v1_train_43146,IT과학
 ynat-v1_train_25557,세계
 ynat-v1_train_34940,정치
@@ -2380,11 +2380,11 @@ ynat-v1_train_35899,스포츠
 ynat-v1_train_24299,생활문화
 ynat-v1_train_38927,경제
 ynat-v1_train_16315,생활문화
-ynat-v1_train_22958,정치
+ynat-v1_train_22958,세계
 ynat-v1_train_22923,정치
-ynat-v1_train_28767,경제
+ynat-v1_train_28767,IT과학
 ynat-v1_train_44979,정치
-ynat-v1_train_29054,세계
+ynat-v1_train_29054,사회
 ynat-v1_train_09459,IT과학
 ynat-v1_train_42970,스포츠
 ynat-v1_train_21911,스포츠
@@ -2402,7 +2402,7 @@ ynat-v1_train_07686,스포츠
 ynat-v1_train_42281,스포츠
 ynat-v1_train_00707,사회
 ynat-v1_train_39965,경제
-ynat-v1_train_00909,경제
+ynat-v1_train_00909,사회
 ynat-v1_train_00586,정치
 ynat-v1_train_40257,생활문화
 ynat-v1_train_10055,세계
@@ -2430,11 +2430,11 @@ ynat-v1_train_19394,사회
 ynat-v1_train_27844,세계
 ynat-v1_train_26550,사회
 ynat-v1_train_14185,IT과학
-ynat-v1_train_01564,세계
+ynat-v1_train_01564,사회
 ynat-v1_train_39205,세계
 ynat-v1_train_35754,정치
 ynat-v1_train_37759,세계
-ynat-v1_train_18204,생활문화
+ynat-v1_train_18204,사회
 ynat-v1_train_40845,세계
 ynat-v1_train_11750,스포츠
 ynat-v1_train_19779,정치
@@ -2442,7 +2442,7 @@ ynat-v1_train_00626,세계
 ynat-v1_train_13576,생활문화
 ynat-v1_train_45361,생활문화
 ynat-v1_train_24331,세계
-ynat-v1_train_12281,스포츠
+ynat-v1_train_12281,세계
 ynat-v1_train_23156,정치
 ynat-v1_train_30557,IT과학
 ynat-v1_train_14050,생활문화
@@ -2490,7 +2490,7 @@ ynat-v1_train_23370,IT과학
 ynat-v1_train_27593,생활문화
 ynat-v1_train_10397,IT과학
 ynat-v1_train_45203,IT과학
-ynat-v1_train_22083,생활문화
+ynat-v1_train_22083,스포츠
 ynat-v1_train_19197,경제
 ynat-v1_train_05428,정치
 ynat-v1_train_17274,IT과학
@@ -2571,7 +2571,7 @@ ynat-v1_train_24405,사회
 ynat-v1_train_07412,생활문화
 ynat-v1_train_44222,사회
 ynat-v1_train_40688,정치
-ynat-v1_train_25796,IT과학
+ynat-v1_train_25796,사회
 ynat-v1_train_11573,사회
 ynat-v1_train_18917,생활문화
 ynat-v1_train_37465,세계
@@ -2607,7 +2607,7 @@ ynat-v1_train_21042,경제
 ynat-v1_train_13104,IT과학
 ynat-v1_train_37935,스포츠
 ynat-v1_train_24480,IT과학
-ynat-v1_train_22754,생활문화
+ynat-v1_train_22754,사회
 ynat-v1_train_30528,세계
 ynat-v1_train_07150,정치
 ynat-v1_train_04597,사회
@@ -2624,7 +2624,7 @@ ynat-v1_train_00390,생활문화
 ynat-v1_train_27546,정치
 ynat-v1_train_00714,생활문화
 ynat-v1_train_09776,생활문화
-ynat-v1_train_45657,IT과학
+ynat-v1_train_45657,세계
 ynat-v1_train_43761,사회
 ynat-v1_train_40138,생활문화
 ynat-v1_train_27322,세계
@@ -2637,7 +2637,7 @@ ynat-v1_train_18727,경제
 ynat-v1_train_38817,스포츠
 ynat-v1_train_04410,경제
 ynat-v1_train_39329,정치
-ynat-v1_train_07174,스포츠
+ynat-v1_train_07174,사회
 ynat-v1_train_36628,세계
 ynat-v1_train_04559,스포츠
 ynat-v1_train_20471,생활문화
@@ -2648,7 +2648,7 @@ ynat-v1_train_18799,세계
 ynat-v1_train_30047,정치
 ynat-v1_train_08085,정치
 ynat-v1_train_22954,생활문화
-ynat-v1_train_44648,세계
+ynat-v1_train_44648,사회
 ynat-v1_train_28973,정치
 ynat-v1_train_24671,사회
 ynat-v1_train_38853,정치
@@ -2675,7 +2675,7 @@ ynat-v1_train_17823,스포츠
 ynat-v1_train_34331,스포츠
 ynat-v1_train_35698,경제
 ynat-v1_train_36582,세계
-ynat-v1_train_12317,세계
+ynat-v1_train_12317,사회
 ynat-v1_train_30948,스포츠
 ynat-v1_train_14482,생활문화
 ynat-v1_train_35272,스포츠
@@ -2687,7 +2687,7 @@ ynat-v1_train_01805,세계
 ynat-v1_train_26104,생활문화
 ynat-v1_train_01646,정치
 ynat-v1_train_38073,스포츠
-ynat-v1_train_22103,경제
+ynat-v1_train_22103,사회
 ynat-v1_train_07873,사회
 ynat-v1_train_19030,경제
 ynat-v1_train_14755,정치
@@ -2754,7 +2754,7 @@ ynat-v1_train_42014,스포츠
 ynat-v1_train_32474,정치
 ynat-v1_train_36215,사회
 ynat-v1_train_28985,세계
-ynat-v1_train_22089,사회
+ynat-v1_train_22089,정치
 ynat-v1_train_32060,세계
 ynat-v1_train_26412,스포츠
 ynat-v1_train_16559,세계
@@ -2765,14 +2765,14 @@ ynat-v1_train_03708,세계
 ynat-v1_train_14926,세계
 ynat-v1_train_45125,세계
 ynat-v1_train_11579,생활문화
-ynat-v1_train_11858,세계
+ynat-v1_train_11858,정치
 ynat-v1_train_28757,사회
 ynat-v1_train_37827,세계
 ynat-v1_train_26359,정치
 ynat-v1_train_32320,세계
 ynat-v1_train_03008,IT과학
 ynat-v1_train_16006,스포츠
-ynat-v1_train_16545,IT과학
+ynat-v1_train_16545,경제
 ynat-v1_train_02293,사회
 ynat-v1_train_16631,경제
 ynat-v1_train_06691,경제
@@ -2788,7 +2788,7 @@ ynat-v1_train_38620,생활문화
 ynat-v1_train_04368,생활문화
 ynat-v1_train_21460,세계
 ynat-v1_train_41103,사회
-ynat-v1_train_01599,스포츠
+ynat-v1_train_01599,사회
 ynat-v1_train_22454,경제
 ynat-v1_train_08484,IT과학
 ynat-v1_train_25043,경제
@@ -2842,7 +2842,7 @@ ynat-v1_train_14221,정치
 ynat-v1_train_16320,생활문화
 ynat-v1_train_05251,세계
 ynat-v1_train_24678,스포츠
-ynat-v1_train_44890,사회
+ynat-v1_train_44890,정치
 ynat-v1_train_01028,정치
 ynat-v1_train_09809,생활문화
 ynat-v1_train_30177,정치
@@ -2850,7 +2850,7 @@ ynat-v1_train_14802,스포츠
 ynat-v1_train_23981,스포츠
 ynat-v1_train_09012,사회
 ynat-v1_train_02248,정치
-ynat-v1_train_38987,생활문화
+ynat-v1_train_38987,사회
 ynat-v1_train_17251,세계
 ynat-v1_train_18241,정치
 ynat-v1_train_16146,스포츠
@@ -2887,7 +2887,7 @@ ynat-v1_train_21670,스포츠
 ynat-v1_train_44736,생활문화
 ynat-v1_train_09407,정치
 ynat-v1_train_37304,세계
-ynat-v1_train_34732,사회
+ynat-v1_train_34732,경제
 ynat-v1_train_16239,경제
 ynat-v1_train_32447,세계
 ynat-v1_train_05875,스포츠
@@ -2915,7 +2915,7 @@ ynat-v1_train_21556,세계
 ynat-v1_train_08190,세계
 ynat-v1_train_26650,스포츠
 ynat-v1_train_16336,생활문화
-ynat-v1_train_32885,세계
+ynat-v1_train_32885,사회
 ynat-v1_train_22421,정치
 ynat-v1_train_04239,생활문화
 ynat-v1_train_32260,생활문화
@@ -2943,7 +2943,7 @@ ynat-v1_train_22203,세계
 ynat-v1_train_06673,IT과학
 ynat-v1_train_21770,세계
 ynat-v1_train_23504,스포츠
-ynat-v1_train_00561,정치
+ynat-v1_train_00561,사회
 ynat-v1_train_32839,스포츠
 ynat-v1_train_35856,사회
 ynat-v1_train_27153,생활문화
@@ -2953,14 +2953,14 @@ ynat-v1_train_05073,사회
 ynat-v1_train_19615,스포츠
 ynat-v1_train_32472,세계
 ynat-v1_train_45594,IT과학
-ynat-v1_train_06496,세계
+ynat-v1_train_06496,정치
 ynat-v1_train_24186,정치
 ynat-v1_train_31640,세계
 ynat-v1_train_20848,사회
 ynat-v1_train_06006,IT과학
 ynat-v1_train_11752,정치
 ynat-v1_train_36850,세계
-ynat-v1_train_25868,IT과학
+ynat-v1_train_25868,사회
 ynat-v1_train_00647,정치
 ynat-v1_train_04686,경제
 ynat-v1_train_35655,생활문화
@@ -2968,7 +2968,7 @@ ynat-v1_train_15970,생활문화
 ynat-v1_train_20055,스포츠
 ynat-v1_train_18070,사회
 ynat-v1_train_42741,사회
-ynat-v1_train_33096,사회
+ynat-v1_train_33096,정치
 ynat-v1_train_39152,스포츠
 ynat-v1_train_34212,정치
 ynat-v1_train_09574,세계
@@ -2990,7 +2990,7 @@ ynat-v1_train_00201,스포츠
 ynat-v1_train_44545,IT과학
 ynat-v1_train_18940,세계
 ynat-v1_train_00378,스포츠
-ynat-v1_train_35704,세계
+ynat-v1_train_35704,사회
 ynat-v1_train_24045,스포츠
 ynat-v1_train_03312,경제
 ynat-v1_train_41085,경제
@@ -3008,7 +3008,7 @@ ynat-v1_train_38905,경제
 ynat-v1_train_45379,정치
 ynat-v1_train_42413,스포츠
 ynat-v1_train_17755,경제
-ynat-v1_train_29171,경제
+ynat-v1_train_29171,IT과학
 ynat-v1_train_44624,IT과학
 ynat-v1_train_06782,생활문화
 ynat-v1_train_16248,세계
@@ -3061,7 +3061,7 @@ ynat-v1_train_41807,정치
 ynat-v1_train_04851,IT과학
 ynat-v1_train_36953,스포츠
 ynat-v1_train_05075,세계
-ynat-v1_train_41024,스포츠
+ynat-v1_train_41024,세계
 ynat-v1_train_36270,생활문화
 ynat-v1_train_16095,스포츠
 ynat-v1_train_33377,경제
@@ -3073,7 +3073,7 @@ ynat-v1_train_13777,세계
 ynat-v1_train_10496,생활문화
 ynat-v1_train_24011,생활문화
 ynat-v1_train_32973,세계
-ynat-v1_train_09356,경제
+ynat-v1_train_09356,사회
 ynat-v1_train_37369,스포츠
 ynat-v1_train_14238,정치
 ynat-v1_train_21104,세계
@@ -3089,7 +3089,7 @@ ynat-v1_train_13250,생활문화
 ynat-v1_train_35809,경제
 ynat-v1_train_42733,스포츠
 ynat-v1_train_16245,정치
-ynat-v1_train_23792,사회
+ynat-v1_train_23792,정치
 ynat-v1_train_27212,사회
 ynat-v1_train_03102,경제
 ynat-v1_train_22042,생활문화
@@ -3162,11 +3162,11 @@ ynat-v1_train_21071,사회
 ynat-v1_train_14658,생활문화
 ynat-v1_train_23689,정치
 ynat-v1_train_04304,생활문화
-ynat-v1_train_04237,생활문화
+ynat-v1_train_04237,세계
 ynat-v1_train_12261,정치
 ynat-v1_train_13551,정치
 ynat-v1_train_16602,경제
-ynat-v1_train_33798,세계
+ynat-v1_train_33798,생활문화
 ynat-v1_train_39181,스포츠
 ynat-v1_train_16811,경제
 ynat-v1_train_27459,생활문화
@@ -3209,7 +3209,7 @@ ynat-v1_train_34802,정치
 ynat-v1_train_42425,경제
 ynat-v1_train_43893,생활문화
 ynat-v1_train_35263,스포츠
-ynat-v1_train_29668,생활문화
+ynat-v1_train_29668,IT과학
 ynat-v1_train_33645,생활문화
 ynat-v1_train_37174,정치
 ynat-v1_train_19516,스포츠
@@ -3235,7 +3235,7 @@ ynat-v1_train_11652,경제
 ynat-v1_train_12857,정치
 ynat-v1_train_20812,사회
 ynat-v1_train_18287,사회
-ynat-v1_train_23734,경제
+ynat-v1_train_23734,사회
 ynat-v1_train_23522,정치
 ynat-v1_train_18092,스포츠
 ynat-v1_train_27901,정치
@@ -3281,7 +3281,7 @@ ynat-v1_train_13653,정치
 ynat-v1_train_05180,생활문화
 ynat-v1_train_28055,스포츠
 ynat-v1_train_39047,경제
-ynat-v1_train_29179,스포츠
+ynat-v1_train_29179,세계
 ynat-v1_train_21302,IT과학
 ynat-v1_train_36221,경제
 ynat-v1_train_39717,스포츠
@@ -3321,7 +3321,7 @@ ynat-v1_train_05700,경제
 ynat-v1_train_09624,IT과학
 ynat-v1_train_09429,스포츠
 ynat-v1_train_00989,스포츠
-ynat-v1_train_05211,생활문화
+ynat-v1_train_05211,사회
 ynat-v1_train_33693,세계
 ynat-v1_train_36125,IT과학
 ynat-v1_train_25680,스포츠
@@ -3336,7 +3336,7 @@ ynat-v1_train_25282,스포츠
 ynat-v1_train_34033,사회
 ynat-v1_train_37847,IT과학
 ynat-v1_train_01075,경제
-ynat-v1_train_17897,경제
+ynat-v1_train_17897,사회
 ynat-v1_train_15230,IT과학
 ynat-v1_train_26555,정치
 ynat-v1_train_19171,세계
@@ -3354,7 +3354,7 @@ ynat-v1_train_03066,생활문화
 ynat-v1_train_10223,사회
 ynat-v1_train_01538,정치
 ynat-v1_train_02108,생활문화
-ynat-v1_train_01385,경제
+ynat-v1_train_01385,사회
 ynat-v1_train_27341,정치
 ynat-v1_train_12708,생활문화
 ynat-v1_train_22756,생활문화
@@ -3399,7 +3399,7 @@ ynat-v1_train_04371,스포츠
 ynat-v1_train_11161,스포츠
 ynat-v1_train_25411,스포츠
 ynat-v1_train_05185,경제
-ynat-v1_train_33667,IT과학
+ynat-v1_train_33667,경제
 ynat-v1_train_10126,정치
 ynat-v1_train_12924,사회
 ynat-v1_train_35595,생활문화
@@ -3468,7 +3468,7 @@ ynat-v1_train_44471,세계
 ynat-v1_train_23166,정치
 ynat-v1_train_23626,세계
 ynat-v1_train_21106,IT과학
-ynat-v1_train_02906,경제
+ynat-v1_train_02906,사회
 ynat-v1_train_44484,생활문화
 ynat-v1_train_15332,세계
 ynat-v1_train_25400,IT과학
@@ -3536,7 +3536,7 @@ ynat-v1_train_10307,생활문화
 ynat-v1_train_21559,세계
 ynat-v1_train_43904,스포츠
 ynat-v1_train_36162,정치
-ynat-v1_train_21708,경제
+ynat-v1_train_21708,사회
 ynat-v1_train_18119,스포츠
 ynat-v1_train_15353,사회
 ynat-v1_train_04883,IT과학
@@ -3585,7 +3585,7 @@ ynat-v1_train_00357,생활문화
 ynat-v1_train_24651,정치
 ynat-v1_train_39555,생활문화
 ynat-v1_train_01404,세계
-ynat-v1_train_21063,사회
+ynat-v1_train_21063,IT과학
 ynat-v1_train_39376,생활문화
 ynat-v1_train_26120,IT과학
 ynat-v1_train_16045,사회
@@ -3614,7 +3614,7 @@ ynat-v1_train_16186,정치
 ynat-v1_train_12021,세계
 ynat-v1_train_24465,정치
 ynat-v1_train_32949,IT과학
-ynat-v1_train_36551,정치
+ynat-v1_train_36551,세계
 ynat-v1_train_25706,사회
 ynat-v1_train_18509,세계
 ynat-v1_train_31517,경제
@@ -3633,7 +3633,7 @@ ynat-v1_train_43205,생활문화
 ynat-v1_train_25529,정치
 ynat-v1_train_07103,경제
 ynat-v1_train_40612,경제
-ynat-v1_train_19225,IT과학
+ynat-v1_train_19225,경제
 ynat-v1_train_36955,IT과학
 ynat-v1_train_42039,생활문화
 ynat-v1_train_14496,세계
@@ -3694,7 +3694,7 @@ ynat-v1_train_28605,세계
 ynat-v1_train_39489,경제
 ynat-v1_train_34220,정치
 ynat-v1_train_07247,경제
-ynat-v1_train_27276,생활문화
+ynat-v1_train_27276,사회
 ynat-v1_train_09127,생활문화
 ynat-v1_train_36920,세계
 ynat-v1_train_41786,스포츠
@@ -3710,7 +3710,7 @@ ynat-v1_train_10606,세계
 ynat-v1_train_43273,생활문화
 ynat-v1_train_17580,IT과학
 ynat-v1_train_17499,생활문화
-ynat-v1_train_31579,IT과학
+ynat-v1_train_31579,경제
 ynat-v1_train_15292,생활문화
 ynat-v1_train_00100,스포츠
 ynat-v1_train_02454,정치
@@ -3718,7 +3718,7 @@ ynat-v1_train_28820,세계
 ynat-v1_train_14566,사회
 ynat-v1_train_25253,경제
 ynat-v1_train_19322,경제
-ynat-v1_train_35929,세계
+ynat-v1_train_35929,정치
 ynat-v1_train_11994,정치
 ynat-v1_train_30974,생활문화
 ynat-v1_train_43898,스포츠
@@ -3818,7 +3818,7 @@ ynat-v1_train_16538,IT과학
 ynat-v1_train_40334,사회
 ynat-v1_train_28145,IT과학
 ynat-v1_train_27532,IT과학
-ynat-v1_train_19228,IT과학
+ynat-v1_train_19228,경제
 ynat-v1_train_08419,사회
 ynat-v1_train_32428,스포츠
 ynat-v1_train_37039,세계
@@ -3845,10 +3845,10 @@ ynat-v1_train_11566,정치
 ynat-v1_train_11896,정치
 ynat-v1_train_23409,정치
 ynat-v1_train_22984,생활문화
-ynat-v1_train_06199,사회
+ynat-v1_train_06199,생활문화
 ynat-v1_train_10637,경제
 ynat-v1_train_07085,세계
-ynat-v1_train_09454,경제
+ynat-v1_train_09454,생활문화
 ynat-v1_train_15947,생활문화
 ynat-v1_train_36075,경제
 ynat-v1_train_01717,생활문화
@@ -3908,7 +3908,7 @@ ynat-v1_train_29737,스포츠
 ynat-v1_train_44701,스포츠
 ynat-v1_train_08819,세계
 ynat-v1_train_08277,세계
-ynat-v1_train_28844,경제
+ynat-v1_train_28844,IT과학
 ynat-v1_train_38189,세계
 ynat-v1_train_19309,사회
 ynat-v1_train_11637,스포츠
@@ -3934,7 +3934,7 @@ ynat-v1_train_05789,스포츠
 ynat-v1_train_22824,스포츠
 ynat-v1_train_19236,정치
 ynat-v1_train_18347,정치
-ynat-v1_train_20673,생활문화
+ynat-v1_train_20673,스포츠
 ynat-v1_train_38015,정치
 ynat-v1_train_11690,스포츠
 ynat-v1_train_26612,IT과학
@@ -3956,13 +3956,13 @@ ynat-v1_train_39951,스포츠
 ynat-v1_train_39975,정치
 ynat-v1_train_32107,스포츠
 ynat-v1_train_30359,정치
-ynat-v1_train_08732,사회
+ynat-v1_train_08732,경제
 ynat-v1_train_10255,경제
 ynat-v1_train_43297,스포츠
 ynat-v1_train_45185,정치
 ynat-v1_train_08321,스포츠
 ynat-v1_train_41687,IT과학
-ynat-v1_train_32165,사회
+ynat-v1_train_32165,IT과학
 ynat-v1_train_44128,경제
 ynat-v1_train_20386,사회
 ynat-v1_train_19164,정치
@@ -3992,7 +3992,7 @@ ynat-v1_train_00393,세계
 ynat-v1_train_08547,경제
 ynat-v1_train_11098,세계
 ynat-v1_train_24811,정치
-ynat-v1_train_20868,생활문화
+ynat-v1_train_20868,세계
 ynat-v1_train_19981,스포츠
 ynat-v1_train_15257,세계
 ynat-v1_train_05919,생활문화
@@ -4033,7 +4033,7 @@ ynat-v1_train_39211,IT과학
 ynat-v1_train_09560,스포츠
 ynat-v1_train_05838,IT과학
 ynat-v1_train_38729,세계
-ynat-v1_train_07242,스포츠
+ynat-v1_train_07242,사회
 ynat-v1_train_26267,스포츠
 ynat-v1_train_01422,스포츠
 ynat-v1_train_08027,생활문화
@@ -4042,12 +4042,12 @@ ynat-v1_train_28297,세계
 ynat-v1_train_00723,세계
 ynat-v1_train_03494,정치
 ynat-v1_train_39392,사회
-ynat-v1_train_05890,정치
+ynat-v1_train_05890,사회
 ynat-v1_train_20684,정치
 ynat-v1_train_08466,세계
 ynat-v1_train_13383,경제
 ynat-v1_train_02427,생활문화
-ynat-v1_train_29580,경제
+ynat-v1_train_29580,사회
 ynat-v1_train_24407,생활문화
 ynat-v1_train_44443,정치
 ynat-v1_train_17517,스포츠
@@ -4106,12 +4106,12 @@ ynat-v1_train_09452,IT과학
 ynat-v1_train_03027,스포츠
 ynat-v1_train_19525,스포츠
 ynat-v1_train_17798,스포츠
-ynat-v1_train_38973,사회
+ynat-v1_train_38973,생활문화
 ynat-v1_train_31143,스포츠
 ynat-v1_train_04980,경제
 ynat-v1_train_37956,IT과학
 ynat-v1_train_42198,스포츠
-ynat-v1_train_42141,IT과학
+ynat-v1_train_42141,세계
 ynat-v1_train_28798,정치
 ynat-v1_train_41596,IT과학
 ynat-v1_train_26761,경제
@@ -4133,7 +4133,7 @@ ynat-v1_train_19388,스포츠
 ynat-v1_train_08240,정치
 ynat-v1_train_16416,IT과학
 ynat-v1_train_37011,스포츠
-ynat-v1_train_03524,경제
+ynat-v1_train_03524,세계
 ynat-v1_train_39309,생활문화
 ynat-v1_train_40499,IT과학
 ynat-v1_train_28953,IT과학
@@ -4176,7 +4176,7 @@ ynat-v1_train_15551,스포츠
 ynat-v1_train_04875,스포츠
 ynat-v1_train_40978,IT과학
 ynat-v1_train_32440,정치
-ynat-v1_train_04540,IT과학
+ynat-v1_train_04540,경제
 ynat-v1_train_41689,IT과학
 ynat-v1_train_30655,세계
 ynat-v1_train_11532,경제
@@ -4278,10 +4278,10 @@ ynat-v1_train_36454,정치
 ynat-v1_train_02178,스포츠
 ynat-v1_train_39878,세계
 ynat-v1_train_36842,스포츠
-ynat-v1_train_12184,세계
+ynat-v1_train_12184,스포츠
 ynat-v1_train_23514,생활문화
 ynat-v1_train_25219,정치
-ynat-v1_train_41010,세계
+ynat-v1_train_41010,사회
 ynat-v1_train_30326,정치
 ynat-v1_train_34514,정치
 ynat-v1_train_15664,생활문화
@@ -4337,7 +4337,7 @@ ynat-v1_train_30663,생활문화
 ynat-v1_train_21012,경제
 ynat-v1_train_25787,스포츠
 ynat-v1_train_14202,사회
-ynat-v1_train_20858,스포츠
+ynat-v1_train_20858,정치
 ynat-v1_train_30822,세계
 ynat-v1_train_11150,생활문화
 ynat-v1_train_45626,경제
@@ -4368,7 +4368,7 @@ ynat-v1_train_38444,생활문화
 ynat-v1_train_23573,스포츠
 ynat-v1_train_33710,사회
 ynat-v1_train_19764,스포츠
-ynat-v1_train_26651,IT과학
+ynat-v1_train_26651,경제
 ynat-v1_train_30181,경제
 ynat-v1_train_32555,세계
 ynat-v1_train_29974,경제
@@ -4401,7 +4401,7 @@ ynat-v1_train_11052,생활문화
 ynat-v1_train_00621,스포츠
 ynat-v1_train_34637,스포츠
 ynat-v1_train_16327,생활문화
-ynat-v1_train_07462,IT과학
+ynat-v1_train_07462,사회
 ynat-v1_train_18669,사회
 ynat-v1_train_40265,정치
 ynat-v1_train_43342,스포츠
@@ -4417,7 +4417,7 @@ ynat-v1_train_10628,생활문화
 ynat-v1_train_08909,IT과학
 ynat-v1_train_38228,스포츠
 ynat-v1_train_01952,IT과학
-ynat-v1_train_41554,세계
+ynat-v1_train_41554,사회
 ynat-v1_train_41233,세계
 ynat-v1_train_20380,세계
 ynat-v1_train_35740,생활문화
@@ -4429,7 +4429,7 @@ ynat-v1_train_33780,IT과학
 ynat-v1_train_07585,정치
 ynat-v1_train_07062,스포츠
 ynat-v1_train_03173,세계
-ynat-v1_train_27922,정치
+ynat-v1_train_27922,사회
 ynat-v1_train_37217,IT과학
 ynat-v1_train_06086,정치
 ynat-v1_train_11648,사회
@@ -4446,7 +4446,7 @@ ynat-v1_train_34896,경제
 ynat-v1_train_27560,경제
 ynat-v1_train_20998,스포츠
 ynat-v1_train_40189,생활문화
-ynat-v1_train_42758,IT과학
+ynat-v1_train_42758,경제
 ynat-v1_train_24073,정치
 ynat-v1_train_22806,생활문화
 ynat-v1_train_13370,생활문화
@@ -4456,7 +4456,7 @@ ynat-v1_train_27695,스포츠
 ynat-v1_train_15196,스포츠
 ynat-v1_train_17298,사회
 ynat-v1_train_16134,세계
-ynat-v1_train_09839,생활문화
+ynat-v1_train_09839,세계
 ynat-v1_train_17402,스포츠
 ynat-v1_train_14431,생활문화
 ynat-v1_train_18226,생활문화
@@ -4486,7 +4486,7 @@ ynat-v1_train_30435,정치
 ynat-v1_train_39995,경제
 ynat-v1_train_32116,사회
 ynat-v1_train_33240,생활문화
-ynat-v1_train_42750,IT과학
+ynat-v1_train_42750,세계
 ynat-v1_train_00766,세계
 ynat-v1_train_00543,IT과학
 ynat-v1_train_42787,정치
@@ -4564,7 +4564,7 @@ ynat-v1_train_12527,스포츠
 ynat-v1_train_27955,사회
 ynat-v1_train_39533,경제
 ynat-v1_train_34409,사회
-ynat-v1_train_06005,IT과학
+ynat-v1_train_06005,경제
 ynat-v1_train_03665,정치
 ynat-v1_train_24845,스포츠
 ynat-v1_train_30913,세계
@@ -4589,7 +4589,7 @@ ynat-v1_train_31179,정치
 ynat-v1_train_17104,사회
 ynat-v1_train_38809,스포츠
 ynat-v1_train_21983,세계
-ynat-v1_train_04144,경제
+ynat-v1_train_04144,사회
 ynat-v1_train_26564,스포츠
 ynat-v1_train_18281,세계
 ynat-v1_train_18600,정치
@@ -4607,7 +4607,7 @@ ynat-v1_train_07769,정치
 ynat-v1_train_42269,정치
 ynat-v1_train_25218,세계
 ynat-v1_train_27490,생활문화
-ynat-v1_train_29225,생활문화
+ynat-v1_train_29225,사회
 ynat-v1_train_07783,정치
 ynat-v1_train_38243,정치
 ynat-v1_train_18053,세계
@@ -4630,7 +4630,7 @@ ynat-v1_train_15409,세계
 ynat-v1_train_21622,세계
 ynat-v1_train_43718,생활문화
 ynat-v1_train_36150,세계
-ynat-v1_train_32672,사회
+ynat-v1_train_32672,정치
 ynat-v1_train_22106,스포츠
 ynat-v1_train_31696,경제
 ynat-v1_train_02102,세계
@@ -4663,7 +4663,7 @@ ynat-v1_train_24368,경제
 ynat-v1_train_38915,세계
 ynat-v1_train_40548,스포츠
 ynat-v1_train_11805,경제
-ynat-v1_train_22277,스포츠
+ynat-v1_train_22277,세계
 ynat-v1_train_17539,생활문화
 ynat-v1_train_01901,스포츠
 ynat-v1_train_18154,생활문화
@@ -4756,7 +4756,7 @@ ynat-v1_train_24526,정치
 ynat-v1_train_39096,경제
 ynat-v1_train_34348,생활문화
 ynat-v1_train_28281,IT과학
-ynat-v1_train_07260,IT과학
+ynat-v1_train_07260,사회
 ynat-v1_train_10248,스포츠
 ynat-v1_train_19290,경제
 ynat-v1_train_18164,세계
@@ -4765,7 +4765,7 @@ ynat-v1_train_40517,스포츠
 ynat-v1_train_06577,생활문화
 ynat-v1_train_43096,스포츠
 ynat-v1_train_09883,경제
-ynat-v1_train_19016,세계
+ynat-v1_train_19016,IT과학
 ynat-v1_train_00970,세계
 ynat-v1_train_27512,사회
 ynat-v1_train_41724,IT과학
@@ -4796,7 +4796,7 @@ ynat-v1_train_03349,생활문화
 ynat-v1_train_14387,IT과학
 ynat-v1_train_43647,IT과학
 ynat-v1_train_03614,경제
-ynat-v1_train_25203,스포츠
+ynat-v1_train_25203,사회
 ynat-v1_train_39746,경제
 ynat-v1_train_35714,IT과학
 ynat-v1_train_39259,경제
@@ -4836,7 +4836,7 @@ ynat-v1_train_08539,생활문화
 ynat-v1_train_32793,스포츠
 ynat-v1_train_22061,정치
 ynat-v1_train_34151,스포츠
-ynat-v1_train_39027,IT과학
+ynat-v1_train_39027,경제
 ynat-v1_train_12734,생활문화
 ynat-v1_train_26519,스포츠
 ynat-v1_train_18874,IT과학
@@ -4860,7 +4860,7 @@ ynat-v1_train_43173,경제
 ynat-v1_train_04991,생활문화
 ynat-v1_train_28400,스포츠
 ynat-v1_train_04901,IT과학
-ynat-v1_train_18044,IT과학
+ynat-v1_train_18044,경제
 ynat-v1_train_42616,정치
 ynat-v1_train_17771,경제
 ynat-v1_train_15992,스포츠
@@ -4879,7 +4879,7 @@ ynat-v1_train_17308,스포츠
 ynat-v1_train_42898,경제
 ynat-v1_train_16459,스포츠
 ynat-v1_train_07487,IT과학
-ynat-v1_train_19372,정치
+ynat-v1_train_19372,세계
 ynat-v1_train_45323,IT과학
 ynat-v1_train_06466,세계
 ynat-v1_train_28212,스포츠
@@ -4888,7 +4888,7 @@ ynat-v1_train_23551,스포츠
 ynat-v1_train_18848,정치
 ynat-v1_train_42943,사회
 ynat-v1_train_24227,세계
-ynat-v1_train_01418,사회
+ynat-v1_train_01418,정치
 ynat-v1_train_27108,생활문화
 ynat-v1_train_35588,생활문화
 ynat-v1_train_23282,정치
@@ -4901,7 +4901,7 @@ ynat-v1_train_41580,스포츠
 ynat-v1_train_34094,세계
 ynat-v1_train_09490,세계
 ynat-v1_train_27102,정치
-ynat-v1_train_23398,생활문화
+ynat-v1_train_23398,사회
 ynat-v1_train_37895,생활문화
 ynat-v1_train_03271,생활문화
 ynat-v1_train_44036,정치
@@ -4943,7 +4943,7 @@ ynat-v1_train_31894,IT과학
 ynat-v1_train_20722,사회
 ynat-v1_train_16409,정치
 ynat-v1_train_06039,정치
-ynat-v1_train_18399,경제
+ynat-v1_train_18399,IT과학
 ynat-v1_train_00569,사회
 ynat-v1_train_19069,세계
 ynat-v1_train_23759,사회
@@ -4961,7 +4961,7 @@ ynat-v1_train_28142,사회
 ynat-v1_train_21440,경제
 ynat-v1_train_19933,사회
 ynat-v1_train_20640,IT과학
-ynat-v1_train_29747,경제
+ynat-v1_train_29747,사회
 ynat-v1_train_38407,스포츠
 ynat-v1_train_24358,경제
 ynat-v1_train_22171,경제
@@ -4980,7 +4980,7 @@ ynat-v1_train_07240,경제
 ynat-v1_train_10863,세계
 ynat-v1_train_03006,스포츠
 ynat-v1_train_23808,사회
-ynat-v1_train_09432,IT과학
+ynat-v1_train_09432,사회
 ynat-v1_train_40290,스포츠
 ynat-v1_train_22485,세계
 ynat-v1_train_30694,정치
@@ -5012,7 +5012,7 @@ ynat-v1_train_08718,IT과학
 ynat-v1_train_20440,정치
 ynat-v1_train_32208,정치
 ynat-v1_train_41206,IT과학
-ynat-v1_train_38282,IT과학
+ynat-v1_train_38282,경제
 ynat-v1_train_13648,스포츠
 ynat-v1_train_20981,세계
 ynat-v1_train_40164,세계
@@ -5023,13 +5023,13 @@ ynat-v1_train_14293,세계
 ynat-v1_train_31385,생활문화
 ynat-v1_train_19974,IT과학
 ynat-v1_train_20188,사회
-ynat-v1_train_11005,경제
+ynat-v1_train_11005,사회
 ynat-v1_train_17668,사회
 ynat-v1_train_18341,생활문화
 ynat-v1_train_41228,IT과학
 ynat-v1_train_14304,생활문화
-ynat-v1_train_06070,IT과학
-ynat-v1_train_07760,스포츠
+ynat-v1_train_06070,경제
+ynat-v1_train_07760,세계
 ynat-v1_train_11193,생활문화
 ynat-v1_train_45422,세계
 ynat-v1_train_22598,정치
@@ -5039,7 +5039,7 @@ ynat-v1_train_44326,세계
 ynat-v1_train_43705,생활문화
 ynat-v1_train_00689,스포츠
 ynat-v1_train_08229,IT과학
-ynat-v1_train_32634,IT과학
+ynat-v1_train_32634,사회
 ynat-v1_train_40752,정치
 ynat-v1_train_37331,정치
 ynat-v1_train_31968,정치
@@ -5111,7 +5111,7 @@ ynat-v1_train_15537,생활문화
 ynat-v1_train_42459,IT과학
 ynat-v1_train_27727,IT과학
 ynat-v1_train_38241,세계
-ynat-v1_train_34766,정치
+ynat-v1_train_34766,사회
 ynat-v1_train_06347,스포츠
 ynat-v1_train_44053,스포츠
 ynat-v1_train_37596,스포츠
@@ -5183,7 +5183,7 @@ ynat-v1_train_23401,생활문화
 ynat-v1_train_35142,세계
 ynat-v1_train_13814,경제
 ynat-v1_train_19881,스포츠
-ynat-v1_train_34812,스포츠
+ynat-v1_train_34812,사회
 ynat-v1_train_19827,사회
 ynat-v1_train_15304,세계
 ynat-v1_train_44940,스포츠
@@ -5224,7 +5224,7 @@ ynat-v1_train_11692,스포츠
 ynat-v1_train_17667,경제
 ynat-v1_train_41787,경제
 ynat-v1_train_42390,사회
-ynat-v1_train_00800,사회
+ynat-v1_train_00800,경제
 ynat-v1_train_05633,정치
 ynat-v1_train_21637,정치
 ynat-v1_train_35376,생활문화
@@ -5250,7 +5250,7 @@ ynat-v1_train_40980,경제
 ynat-v1_train_06859,사회
 ynat-v1_train_05207,스포츠
 ynat-v1_train_29149,IT과학
-ynat-v1_train_11345,세계
+ynat-v1_train_11345,사회
 ynat-v1_train_25916,경제
 ynat-v1_train_16189,생활문화
 ynat-v1_train_11443,세계
@@ -5281,14 +5281,14 @@ ynat-v1_train_04211,생활문화
 ynat-v1_train_28828,세계
 ynat-v1_train_37075,IT과학
 ynat-v1_train_18762,세계
-ynat-v1_train_42144,세계
+ynat-v1_train_42144,경제
 ynat-v1_train_27749,스포츠
 ynat-v1_train_27885,생활문화
 ynat-v1_train_31398,사회
 ynat-v1_train_30179,세계
 ynat-v1_train_23288,스포츠
 ynat-v1_train_37960,생활문화
-ynat-v1_train_20997,사회
+ynat-v1_train_20997,IT과학
 ynat-v1_train_18402,생활문화
 ynat-v1_train_10616,경제
 ynat-v1_train_10850,IT과학
@@ -5300,14 +5300,14 @@ ynat-v1_train_24219,경제
 ynat-v1_train_42032,스포츠
 ynat-v1_train_12153,스포츠
 ynat-v1_train_02776,세계
-ynat-v1_train_22687,경제
+ynat-v1_train_22687,사회
 ynat-v1_train_33117,IT과학
 ynat-v1_train_36364,세계
 ynat-v1_train_30744,세계
 ynat-v1_train_00040,스포츠
 ynat-v1_train_37909,정치
 ynat-v1_train_22186,경제
-ynat-v1_train_38652,IT과학
+ynat-v1_train_38652,사회
 ynat-v1_train_11696,스포츠
 ynat-v1_train_04735,정치
 ynat-v1_train_38626,스포츠
@@ -5323,7 +5323,7 @@ ynat-v1_train_38560,정치
 ynat-v1_train_20183,스포츠
 ynat-v1_train_07071,사회
 ynat-v1_train_34532,생활문화
-ynat-v1_train_33568,생활문화
+ynat-v1_train_33568,사회
 ynat-v1_train_37625,세계
 ynat-v1_train_39605,IT과학
 ynat-v1_train_18101,정치
@@ -5342,7 +5342,7 @@ ynat-v1_train_16448,경제
 ynat-v1_train_24292,스포츠
 ynat-v1_train_14922,스포츠
 ynat-v1_train_41907,세계
-ynat-v1_train_41564,경제
+ynat-v1_train_41564,세계
 ynat-v1_train_34565,스포츠
 ynat-v1_train_08358,경제
 ynat-v1_train_39536,경제
@@ -5380,7 +5380,7 @@ ynat-v1_train_20091,IT과학
 ynat-v1_train_03920,경제
 ynat-v1_train_36455,정치
 ynat-v1_train_31932,IT과학
-ynat-v1_train_00658,스포츠
+ynat-v1_train_00658,세계
 ynat-v1_train_40938,경제
 ynat-v1_train_03025,생활문화
 ynat-v1_train_25775,세계
@@ -5391,7 +5391,7 @@ ynat-v1_train_28835,세계
 ynat-v1_train_45273,세계
 ynat-v1_train_20079,정치
 ynat-v1_train_14949,생활문화
-ynat-v1_train_28861,정치
+ynat-v1_train_28861,사회
 ynat-v1_train_45507,스포츠
 ynat-v1_train_37915,세계
 ynat-v1_train_45676,세계
@@ -5401,7 +5401,7 @@ ynat-v1_train_10257,생활문화
 ynat-v1_train_45386,경제
 ynat-v1_train_28493,사회
 ynat-v1_train_22110,IT과학
-ynat-v1_train_02601,IT과학
+ynat-v1_train_02601,경제
 ynat-v1_train_21169,IT과학
 ynat-v1_train_41204,IT과학
 ynat-v1_train_38755,정치
@@ -5463,7 +5463,7 @@ ynat-v1_train_17459,생활문화
 ynat-v1_train_14366,경제
 ynat-v1_train_24167,사회
 ynat-v1_train_32653,생활문화
-ynat-v1_train_26915,정치
+ynat-v1_train_26915,사회
 ynat-v1_train_03016,생활문화
 ynat-v1_train_45423,정치
 ynat-v1_train_28530,세계
@@ -5478,7 +5478,7 @@ ynat-v1_train_12730,스포츠
 ynat-v1_train_45443,세계
 ynat-v1_train_00691,세계
 ynat-v1_train_14192,IT과학
-ynat-v1_train_32217,경제
+ynat-v1_train_32217,사회
 ynat-v1_train_12075,사회
 ynat-v1_train_05495,사회
 ynat-v1_train_15564,경제
@@ -5509,7 +5509,7 @@ ynat-v1_train_19032,스포츠
 ynat-v1_train_16426,스포츠
 ynat-v1_train_32800,IT과학
 ynat-v1_train_29034,생활문화
-ynat-v1_train_07797,스포츠
+ynat-v1_train_07797,세계
 ynat-v1_train_05702,사회
 ynat-v1_train_12704,스포츠
 ynat-v1_train_38772,정치
@@ -5610,13 +5610,13 @@ ynat-v1_train_24020,정치
 ynat-v1_train_11081,정치
 ynat-v1_train_16841,스포츠
 ynat-v1_train_04110,IT과학
-ynat-v1_train_12220,생활문화
+ynat-v1_train_12220,사회
 ynat-v1_train_04407,정치
 ynat-v1_train_17082,스포츠
 ynat-v1_train_43421,IT과학
 ynat-v1_train_43215,생활문화
 ynat-v1_train_31617,생활문화
-ynat-v1_train_03946,IT과학
+ynat-v1_train_03946,사회
 ynat-v1_train_42872,IT과학
 ynat-v1_train_30785,세계
 ynat-v1_train_23365,정치
@@ -5643,7 +5643,7 @@ ynat-v1_train_01699,스포츠
 ynat-v1_train_09903,사회
 ynat-v1_train_29138,세계
 ynat-v1_train_13749,스포츠
-ynat-v1_train_10090,생활문화
+ynat-v1_train_10090,사회
 ynat-v1_train_33917,정치
 ynat-v1_train_31276,정치
 ynat-v1_train_45524,경제
@@ -5695,7 +5695,7 @@ ynat-v1_train_18901,정치
 ynat-v1_train_11736,스포츠
 ynat-v1_train_29401,경제
 ynat-v1_train_12996,사회
-ynat-v1_train_43251,생활문화
+ynat-v1_train_43251,세계
 ynat-v1_train_31018,생활문화
 ynat-v1_train_17604,세계
 ynat-v1_train_05864,세계
@@ -5703,7 +5703,7 @@ ynat-v1_train_35620,정치
 ynat-v1_train_23051,세계
 ynat-v1_train_07572,경제
 ynat-v1_train_36061,세계
-ynat-v1_train_40409,세계
+ynat-v1_train_40409,IT과학
 ynat-v1_train_00148,생활문화
 ynat-v1_train_34016,사회
 ynat-v1_train_18481,스포츠
@@ -5717,7 +5717,7 @@ ynat-v1_train_24360,IT과학
 ynat-v1_train_37957,정치
 ynat-v1_train_06323,정치
 ynat-v1_train_09472,사회
-ynat-v1_train_06310,경제
+ynat-v1_train_06310,세계
 ynat-v1_train_06370,스포츠
 ynat-v1_train_19334,세계
 ynat-v1_train_30691,생활문화
@@ -5756,7 +5756,7 @@ ynat-v1_train_44378,스포츠
 ynat-v1_train_01039,경제
 ynat-v1_train_27128,생활문화
 ynat-v1_train_20681,생활문화
-ynat-v1_train_43147,세계
+ynat-v1_train_43147,사회
 ynat-v1_train_42718,세계
 ynat-v1_train_28484,정치
 ynat-v1_train_14178,세계
@@ -5791,7 +5791,7 @@ ynat-v1_train_36823,경제
 ynat-v1_train_23261,IT과학
 ynat-v1_train_28890,IT과학
 ynat-v1_train_33488,사회
-ynat-v1_train_40858,스포츠
+ynat-v1_train_40858,세계
 ynat-v1_train_31145,생활문화
 ynat-v1_train_11366,정치
 ynat-v1_train_16792,생활문화
@@ -5852,7 +5852,7 @@ ynat-v1_train_21050,IT과학
 ynat-v1_train_06586,생활문화
 ynat-v1_train_13891,세계
 ynat-v1_train_43518,경제
-ynat-v1_train_11709,스포츠
+ynat-v1_train_11709,사회
 ynat-v1_train_07200,경제
 ynat-v1_train_23972,정치
 ynat-v1_train_33528,스포츠
@@ -5866,10 +5866,10 @@ ynat-v1_train_14786,생활문화
 ynat-v1_train_20886,세계
 ynat-v1_train_15592,경제
 ynat-v1_train_00490,세계
-ynat-v1_train_07224,IT과학
+ynat-v1_train_07224,사회
 ynat-v1_train_06925,IT과학
 ynat-v1_train_11006,스포츠
-ynat-v1_train_06194,스포츠
+ynat-v1_train_06194,사회
 ynat-v1_train_30367,IT과학
 ynat-v1_train_17963,스포츠
 ynat-v1_train_12162,사회
@@ -5921,7 +5921,7 @@ ynat-v1_train_17505,정치
 ynat-v1_train_41562,IT과학
 ynat-v1_train_21267,세계
 ynat-v1_train_08114,스포츠
-ynat-v1_train_03281,IT과학
+ynat-v1_train_03281,경제
 ynat-v1_train_02518,사회
 ynat-v1_train_29989,정치
 ynat-v1_train_40778,생활문화
@@ -5936,7 +5936,7 @@ ynat-v1_train_14061,IT과학
 ynat-v1_train_02111,생활문화
 ynat-v1_train_26567,IT과학
 ynat-v1_train_36879,스포츠
-ynat-v1_train_03852,IT과학
+ynat-v1_train_03852,경제
 ynat-v1_train_01293,경제
 ynat-v1_train_33551,세계
 ynat-v1_train_29761,생활문화
@@ -5948,7 +5948,7 @@ ynat-v1_train_28019,경제
 ynat-v1_train_35521,세계
 ynat-v1_train_02474,경제
 ynat-v1_train_18588,생활문화
-ynat-v1_train_24459,사회
+ynat-v1_train_24459,정치
 ynat-v1_train_15524,정치
 ynat-v1_train_29083,경제
 ynat-v1_train_39452,경제
@@ -6022,7 +6022,7 @@ ynat-v1_train_00149,정치
 ynat-v1_train_41511,사회
 ynat-v1_train_44355,경제
 ynat-v1_train_12478,생활문화
-ynat-v1_train_21850,정치
+ynat-v1_train_21850,사회
 ynat-v1_train_05316,세계
 ynat-v1_train_13452,세계
 ynat-v1_train_13516,경제
@@ -6054,7 +6054,7 @@ ynat-v1_train_29991,경제
 ynat-v1_train_05430,세계
 ynat-v1_train_17618,IT과학
 ynat-v1_train_35903,스포츠
-ynat-v1_train_18146,경제
+ynat-v1_train_18146,사회
 ynat-v1_train_06974,스포츠
 ynat-v1_train_17462,스포츠
 ynat-v1_train_09084,정치
@@ -6100,7 +6100,7 @@ ynat-v1_train_21489,스포츠
 ynat-v1_train_34479,사회
 ynat-v1_train_10335,세계
 ynat-v1_train_21697,정치
-ynat-v1_train_19889,사회
+ynat-v1_train_19889,세계
 ynat-v1_train_04877,정치
 ynat-v1_train_17885,생활문화
 ynat-v1_train_28408,IT과학
@@ -6147,7 +6147,7 @@ ynat-v1_train_14056,정치
 ynat-v1_train_16024,생활문화
 ynat-v1_train_12847,스포츠
 ynat-v1_train_11287,경제
-ynat-v1_train_38313,경제
+ynat-v1_train_38313,세계
 ynat-v1_train_30994,세계
 ynat-v1_train_08066,스포츠
 ynat-v1_train_22390,경제
@@ -6159,7 +6159,7 @@ ynat-v1_train_13487,세계
 ynat-v1_train_37504,경제
 ynat-v1_train_33472,생활문화
 ynat-v1_train_36188,스포츠
-ynat-v1_train_00539,경제
+ynat-v1_train_00539,생활문화
 ynat-v1_train_43500,사회
 ynat-v1_train_35002,스포츠
 ynat-v1_train_44269,스포츠
@@ -6188,14 +6188,14 @@ ynat-v1_train_42134,IT과학
 ynat-v1_train_08521,세계
 ynat-v1_train_43795,경제
 ynat-v1_train_16617,IT과학
-ynat-v1_train_22870,정치
+ynat-v1_train_22870,사회
 ynat-v1_train_37542,IT과학
 ynat-v1_train_06475,세계
 ynat-v1_train_10387,스포츠
 ynat-v1_train_38086,IT과학
 ynat-v1_train_33554,경제
 ynat-v1_train_42036,사회
-ynat-v1_train_24263,정치
+ynat-v1_train_24263,사회
 ynat-v1_train_17130,생활문화
 ynat-v1_train_14324,사회
 ynat-v1_train_32543,세계
@@ -6261,7 +6261,7 @@ ynat-v1_train_45133,생활문화
 ynat-v1_train_17631,생활문화
 ynat-v1_train_42329,세계
 ynat-v1_train_39697,IT과학
-ynat-v1_train_04730,생활문화
+ynat-v1_train_04730,사회
 ynat-v1_train_26999,세계
 ynat-v1_train_32751,스포츠
 ynat-v1_train_04756,생활문화
@@ -6310,7 +6310,7 @@ ynat-v1_train_20489,경제
 ynat-v1_train_33220,세계
 ynat-v1_train_42445,생활문화
 ynat-v1_train_40463,생활문화
-ynat-v1_train_08396,IT과학
+ynat-v1_train_08396,사회
 ynat-v1_train_33270,IT과학
 ynat-v1_train_21621,스포츠
 ynat-v1_train_33500,경제
@@ -6323,7 +6323,7 @@ ynat-v1_train_33990,경제
 ynat-v1_train_08372,생활문화
 ynat-v1_train_42061,IT과학
 ynat-v1_train_36893,생활문화
-ynat-v1_train_28945,세계
+ynat-v1_train_28945,사회
 ynat-v1_train_23491,스포츠
 ynat-v1_train_05936,세계
 ynat-v1_train_29958,IT과학
@@ -6334,7 +6334,7 @@ ynat-v1_train_26308,IT과학
 ynat-v1_train_26472,IT과학
 ynat-v1_train_27494,세계
 ynat-v1_train_38733,세계
-ynat-v1_train_21988,사회
+ynat-v1_train_21988,IT과학
 ynat-v1_train_32309,스포츠
 ynat-v1_train_27176,경제
 ynat-v1_train_21942,세계
@@ -6345,7 +6345,7 @@ ynat-v1_train_07621,정치
 ynat-v1_train_32055,세계
 ynat-v1_train_33564,경제
 ynat-v1_train_03421,IT과학
-ynat-v1_train_06648,세계
+ynat-v1_train_06648,정치
 ynat-v1_train_34313,IT과학
 ynat-v1_train_06354,사회
 ynat-v1_train_42108,세계
@@ -6383,7 +6383,7 @@ ynat-v1_train_18219,스포츠
 ynat-v1_train_26647,사회
 ynat-v1_train_19930,스포츠
 ynat-v1_train_35641,정치
-ynat-v1_train_29945,IT과학
+ynat-v1_train_29945,경제
 ynat-v1_train_03122,정치
 ynat-v1_train_42994,IT과학
 ynat-v1_train_41430,사회
@@ -6437,7 +6437,7 @@ ynat-v1_train_38163,정치
 ynat-v1_train_23604,스포츠
 ynat-v1_train_23910,정치
 ynat-v1_train_10854,스포츠
-ynat-v1_train_27982,경제
+ynat-v1_train_27982,사회
 ynat-v1_train_17238,경제
 ynat-v1_train_22871,스포츠
 ynat-v1_train_28657,스포츠
@@ -6450,13 +6450,13 @@ ynat-v1_train_15308,IT과학
 ynat-v1_train_04513,세계
 ynat-v1_train_02442,정치
 ynat-v1_train_33903,경제
-ynat-v1_train_04101,사회
+ynat-v1_train_04101,생활문화
 ynat-v1_train_00062,세계
 ynat-v1_train_25423,사회
 ynat-v1_train_29916,경제
 ynat-v1_train_12945,생활문화
 ynat-v1_train_39987,IT과학
-ynat-v1_train_17942,경제
+ynat-v1_train_17942,사회
 ynat-v1_train_04453,생활문화
 ynat-v1_train_12462,사회
 ynat-v1_train_04408,스포츠
@@ -6496,7 +6496,7 @@ ynat-v1_train_34834,스포츠
 ynat-v1_train_25697,세계
 ynat-v1_train_19323,경제
 ynat-v1_train_12775,세계
-ynat-v1_train_02681,스포츠
+ynat-v1_train_02681,정치
 ynat-v1_train_04775,IT과학
 ynat-v1_train_19608,사회
 ynat-v1_train_16956,IT과학
@@ -6547,7 +6547,7 @@ ynat-v1_train_22261,스포츠
 ynat-v1_train_40767,정치
 ynat-v1_train_27371,사회
 ynat-v1_train_32073,스포츠
-ynat-v1_train_06223,경제
+ynat-v1_train_06223,사회
 ynat-v1_train_09202,IT과학
 ynat-v1_train_23376,정치
 ynat-v1_train_08200,정치
@@ -6589,7 +6589,7 @@ ynat-v1_train_41160,경제
 ynat-v1_train_34422,세계
 ynat-v1_train_11144,정치
 ynat-v1_train_12759,경제
-ynat-v1_train_16476,세계
+ynat-v1_train_16476,정치
 ynat-v1_train_17851,스포츠
 ynat-v1_train_15557,IT과학
 ynat-v1_train_33864,경제
@@ -6648,7 +6648,7 @@ ynat-v1_train_04933,스포츠
 ynat-v1_train_14240,정치
 ynat-v1_train_35287,사회
 ynat-v1_train_16030,정치
-ynat-v1_train_11240,정치
+ynat-v1_train_11240,사회
 ynat-v1_train_13101,IT과학
 ynat-v1_train_24287,IT과학
 ynat-v1_train_36049,경제
@@ -6668,7 +6668,7 @@ ynat-v1_train_06371,스포츠
 ynat-v1_train_10202,스포츠
 ynat-v1_train_42722,경제
 ynat-v1_train_03019,세계
-ynat-v1_train_19435,세계
+ynat-v1_train_19435,정치
 ynat-v1_train_45408,생활문화
 ynat-v1_train_18368,IT과학
 ynat-v1_train_39554,정치
@@ -6695,7 +6695,7 @@ ynat-v1_train_38862,생활문화
 ynat-v1_train_24744,정치
 ynat-v1_train_29838,IT과학
 ynat-v1_train_06655,정치
-ynat-v1_train_34173,사회
+ynat-v1_train_34173,경제
 ynat-v1_train_23397,스포츠
 ynat-v1_train_41403,정치
 ynat-v1_train_04532,경제
@@ -6706,7 +6706,7 @@ ynat-v1_train_43052,스포츠
 ynat-v1_train_15434,정치
 ynat-v1_train_38929,경제
 ynat-v1_train_31382,사회
-ynat-v1_train_06832,경제
+ynat-v1_train_06832,사회
 ynat-v1_train_19096,IT과학
 ynat-v1_train_24221,사회
 ynat-v1_train_41071,스포츠
@@ -6730,7 +6730,7 @@ ynat-v1_train_07274,정치
 ynat-v1_train_22934,정치
 ynat-v1_train_18063,세계
 ynat-v1_train_35399,생활문화
-ynat-v1_train_03877,생활문화
+ynat-v1_train_03877,사회
 ynat-v1_train_00210,경제
 ynat-v1_train_39334,사회
 ynat-v1_train_00867,경제
@@ -6758,7 +6758,7 @@ ynat-v1_train_20356,생활문화
 ynat-v1_train_10037,경제
 ynat-v1_train_07454,IT과학
 ynat-v1_train_25733,생활문화
-ynat-v1_train_35324,IT과학
+ynat-v1_train_35324,경제
 ynat-v1_train_36623,경제
 ynat-v1_train_23497,생활문화
 ynat-v1_train_41640,IT과학
@@ -6779,7 +6779,7 @@ ynat-v1_train_00417,경제
 ynat-v1_train_29522,생활문화
 ynat-v1_train_27597,스포츠
 ynat-v1_train_44850,정치
-ynat-v1_train_05029,세계
+ynat-v1_train_05029,사회
 ynat-v1_train_28472,스포츠
 ynat-v1_train_00255,세계
 ynat-v1_train_10208,스포츠
@@ -6835,7 +6835,7 @@ ynat-v1_train_12706,스포츠
 ynat-v1_train_05690,정치
 ynat-v1_train_14203,스포츠
 ynat-v1_train_02119,사회
-ynat-v1_train_05534,세계
+ynat-v1_train_05534,IT과학
 ynat-v1_train_03719,사회
 ynat-v1_train_33204,정치
 ynat-v1_train_03711,사회
@@ -6847,7 +6847,7 @@ ynat-v1_train_07778,스포츠
 ynat-v1_train_15192,스포츠
 ynat-v1_train_26454,세계
 ynat-v1_train_18239,경제
-ynat-v1_train_26019,사회
+ynat-v1_train_26019,생활문화
 ynat-v1_train_23326,사회
 ynat-v1_train_41757,IT과학
 ynat-v1_train_31963,정치
@@ -6911,9 +6911,9 @@ ynat-v1_train_14684,스포츠
 ynat-v1_train_40076,생활문화
 ynat-v1_train_02864,사회
 ynat-v1_train_16515,IT과학
-ynat-v1_train_13354,정치
+ynat-v1_train_13354,사회
 ynat-v1_train_31261,경제
-ynat-v1_train_35232,생활문화
+ynat-v1_train_35232,정치
 ynat-v1_train_03164,사회
 ynat-v1_train_35563,사회
 ynat-v1_train_34764,생활문화
@@ -6944,11 +6944,11 @@ ynat-v1_train_41465,스포츠
 ynat-v1_train_03674,스포츠
 ynat-v1_train_04502,경제
 ynat-v1_train_10999,IT과학
-ynat-v1_train_12617,사회
+ynat-v1_train_12617,정치
 ynat-v1_train_18604,IT과학
 ynat-v1_train_10490,경제
-ynat-v1_train_14691,IT과학
-ynat-v1_train_41067,사회
+ynat-v1_train_14691,사회
+ynat-v1_train_41067,정치
 ynat-v1_train_44379,경제
 ynat-v1_train_43524,IT과학
 ynat-v1_train_13143,사회
@@ -6956,7 +6956,7 @@ ynat-v1_train_30529,사회
 ynat-v1_train_06453,정치
 ynat-v1_train_17457,사회
 ynat-v1_train_12055,스포츠
-ynat-v1_train_26168,IT과학
+ynat-v1_train_26168,사회
 ynat-v1_train_20392,세계
 ynat-v1_train_07382,정치
 ynat-v1_train_15546,IT과학
@@ -6984,7 +6984,7 @@ ynat-v1_train_11660,사회
 ynat-v1_train_41950,생활문화
 ynat-v1_train_04799,경제
 ynat-v1_train_25793,사회
-ynat-v1_train_02749,정치
+ynat-v1_train_02749,사회
 ynat-v1_train_08713,스포츠
 ynat-v1_train_16885,사회
 ynat-v1_train_24825,사회
@@ -7001,12 +7001,12 @@ ynat-v1_train_39169,생활문화
 ynat-v1_train_17803,정치
 ynat-v1_train_45081,경제
 ynat-v1_train_45352,정치
-ynat-v1_train_41546,경제
+ynat-v1_train_41546,세계
 ynat-v1_train_09834,정치
 ynat-v1_train_07603,정치
 ynat-v1_train_11770,사회
 ynat-v1_train_03889,스포츠
-ynat-v1_train_33816,경제
+ynat-v1_train_33816,사회
 ynat-v1_train_13049,생활문화
 ynat-v1_train_42815,정치
 ynat-v1_train_34232,사회
@@ -7045,7 +7045,7 @@ ynat-v1_train_25196,스포츠
 ynat-v1_train_28390,정치
 ynat-v1_train_34745,사회
 ynat-v1_train_10793,생활문화
-ynat-v1_train_38742,정치
+ynat-v1_train_38742,사회
 ynat-v1_train_14337,세계
 ynat-v1_train_07644,사회
 ynat-v1_train_00316,생활문화
@@ -7061,7 +7061,7 @@ ynat-v1_train_00398,정치
 ynat-v1_train_10331,경제
 ynat-v1_train_09966,스포츠
 ynat-v1_train_08908,IT과학
-ynat-v1_train_09518,정치
+ynat-v1_train_09518,사회
 ynat-v1_train_44446,세계
 ynat-v1_train_38725,세계
 ynat-v1_train_35526,정치
@@ -7085,7 +7085,7 @@ ynat-v1_train_38330,스포츠
 ynat-v1_train_43525,생활문화
 ynat-v1_train_34721,세계
 ynat-v1_train_34960,스포츠
-ynat-v1_train_18432,생활문화
+ynat-v1_train_18432,사회
 ynat-v1_train_43680,경제
 ynat-v1_train_35229,경제
 ynat-v1_train_26736,세계
@@ -7224,7 +7224,7 @@ ynat-v1_train_39470,경제
 ynat-v1_train_33128,정치
 ynat-v1_train_06434,정치
 ynat-v1_train_01211,스포츠
-ynat-v1_train_14474,IT과학
+ynat-v1_train_14474,경제
 ynat-v1_train_29899,사회
 ynat-v1_train_28063,IT과학
 ynat-v1_train_25881,정치
@@ -7241,10 +7241,10 @@ ynat-v1_train_07996,사회
 ynat-v1_train_37888,정치
 ynat-v1_train_06583,세계
 ynat-v1_train_15611,세계
-ynat-v1_train_06007,경제
+ynat-v1_train_06007,사회
 ynat-v1_train_01740,세계
 ynat-v1_train_40222,정치
-ynat-v1_train_12638,경제
+ynat-v1_train_12638,사회
 ynat-v1_train_04725,스포츠
 ynat-v1_train_18677,사회
 ynat-v1_train_40987,사회
@@ -7274,7 +7274,7 @@ ynat-v1_train_19406,경제
 ynat-v1_train_07649,스포츠
 ynat-v1_train_01054,스포츠
 ynat-v1_train_40438,사회
-ynat-v1_train_18756,세계
+ynat-v1_train_18756,사회
 ynat-v1_train_33970,세계
 ynat-v1_train_08430,정치
 ynat-v1_train_17378,스포츠
@@ -7298,7 +7298,7 @@ ynat-v1_train_05402,스포츠
 ynat-v1_train_44939,경제
 ynat-v1_train_00612,IT과학
 ynat-v1_train_06151,생활문화
-ynat-v1_train_38895,경제
+ynat-v1_train_38895,사회
 ynat-v1_train_25368,경제
 ynat-v1_train_43694,정치
 ynat-v1_train_26237,정치
@@ -7446,7 +7446,7 @@ ynat-v1_train_03253,스포츠
 ynat-v1_train_33818,정치
 ynat-v1_train_09246,경제
 ynat-v1_train_18793,사회
-ynat-v1_train_28668,생활문화
+ynat-v1_train_28668,IT과학
 ynat-v1_train_37568,정치
 ynat-v1_train_08937,생활문화
 ynat-v1_train_20628,정치
@@ -7473,7 +7473,7 @@ ynat-v1_train_30817,스포츠
 ynat-v1_train_34340,생활문화
 ynat-v1_train_06810,IT과학
 ynat-v1_train_17381,스포츠
-ynat-v1_train_03807,IT과학
+ynat-v1_train_03807,경제
 ynat-v1_train_22622,세계
 ynat-v1_train_01260,스포츠
 ynat-v1_train_39815,생활문화
@@ -7482,7 +7482,7 @@ ynat-v1_train_43210,IT과학
 ynat-v1_train_07276,세계
 ynat-v1_train_20189,IT과학
 ynat-v1_train_17972,IT과학
-ynat-v1_train_09234,생활문화
+ynat-v1_train_09234,사회
 ynat-v1_train_36479,IT과학
 ynat-v1_train_36497,스포츠
 ynat-v1_train_43451,IT과학
@@ -7506,10 +7506,10 @@ ynat-v1_train_32726,세계
 ynat-v1_train_27485,스포츠
 ynat-v1_train_12782,세계
 ynat-v1_train_27720,스포츠
-ynat-v1_train_36009,IT과학
+ynat-v1_train_36009,사회
 ynat-v1_train_39429,경제
 ynat-v1_train_02547,스포츠
-ynat-v1_train_01395,IT과학
+ynat-v1_train_01395,사회
 ynat-v1_train_32059,스포츠
 ynat-v1_train_39315,정치
 ynat-v1_train_26286,정치
@@ -7524,7 +7524,7 @@ ynat-v1_train_20800,세계
 ynat-v1_train_12159,세계
 ynat-v1_train_06567,생활문화
 ynat-v1_train_32975,정치
-ynat-v1_train_40440,생활문화
+ynat-v1_train_40440,스포츠
 ynat-v1_train_12169,스포츠
 ynat-v1_train_25106,스포츠
 ynat-v1_train_15345,경제
@@ -7605,7 +7605,7 @@ ynat-v1_train_09507,스포츠
 ynat-v1_train_08839,경제
 ynat-v1_train_16310,생활문화
 ynat-v1_train_25921,세계
-ynat-v1_train_21487,정치
+ynat-v1_train_21487,사회
 ynat-v1_train_01950,세계
 ynat-v1_train_21712,경제
 ynat-v1_train_23496,경제
@@ -7727,7 +7727,7 @@ ynat-v1_train_10073,IT과학
 ynat-v1_train_13437,경제
 ynat-v1_train_27986,세계
 ynat-v1_train_28563,경제
-ynat-v1_train_26751,IT과학
+ynat-v1_train_26751,사회
 ynat-v1_train_02144,스포츠
 ynat-v1_train_32989,정치
 ynat-v1_train_22541,경제
@@ -7809,7 +7809,7 @@ ynat-v1_train_38958,스포츠
 ynat-v1_train_09795,정치
 ynat-v1_train_11524,경제
 ynat-v1_train_18538,경제
-ynat-v1_train_05620,경제
+ynat-v1_train_05620,IT과학
 ynat-v1_train_10471,생활문화
 ynat-v1_train_28843,세계
 ynat-v1_train_15667,세계
@@ -7894,7 +7894,7 @@ ynat-v1_train_36464,IT과학
 ynat-v1_train_38492,정치
 ynat-v1_train_13388,정치
 ynat-v1_train_28002,생활문화
-ynat-v1_train_20341,경제
+ynat-v1_train_20341,사회
 ynat-v1_train_39712,IT과학
 ynat-v1_train_05230,사회
 ynat-v1_train_42697,정치
@@ -7941,7 +7941,7 @@ ynat-v1_train_40509,생활문화
 ynat-v1_train_33446,스포츠
 ynat-v1_train_36548,사회
 ynat-v1_train_17296,경제
-ynat-v1_train_26006,사회
+ynat-v1_train_26006,생활문화
 ynat-v1_train_36396,생활문화
 ynat-v1_train_09011,세계
 ynat-v1_train_34070,경제
@@ -7949,15 +7949,15 @@ ynat-v1_train_21880,경제
 ynat-v1_train_03429,생활문화
 ynat-v1_train_28748,정치
 ynat-v1_train_00905,스포츠
-ynat-v1_train_09241,IT과학
+ynat-v1_train_09241,경제
 ynat-v1_train_12846,생활문화
 ynat-v1_train_37959,정치
 ynat-v1_train_14685,스포츠
 ynat-v1_train_33847,스포츠
 ynat-v1_train_44522,IT과학
-ynat-v1_train_15351,세계
+ynat-v1_train_15351,사회
 ynat-v1_train_29622,스포츠
-ynat-v1_train_02890,정치
+ynat-v1_train_02890,세계
 ynat-v1_train_09386,정치
 ynat-v1_train_09282,스포츠
 ynat-v1_train_31114,경제
@@ -8001,7 +8001,7 @@ ynat-v1_train_37885,생활문화
 ynat-v1_train_43403,정치
 ynat-v1_train_05786,스포츠
 ynat-v1_train_36324,사회
-ynat-v1_train_18437,스포츠
+ynat-v1_train_18437,정치
 ynat-v1_train_37832,스포츠
 ynat-v1_train_27301,정치
 ynat-v1_train_13148,정치
@@ -8106,7 +8106,7 @@ ynat-v1_train_39551,정치
 ynat-v1_train_04203,세계
 ynat-v1_train_38218,생활문화
 ynat-v1_train_05778,경제
-ynat-v1_train_34439,사회
+ynat-v1_train_34439,IT과학
 ynat-v1_train_44879,사회
 ynat-v1_train_37924,경제
 ynat-v1_train_41856,스포츠
@@ -8117,7 +8117,7 @@ ynat-v1_train_36477,경제
 ynat-v1_train_12609,세계
 ynat-v1_train_26059,IT과학
 ynat-v1_train_35087,사회
-ynat-v1_train_27161,스포츠
+ynat-v1_train_27161,세계
 ynat-v1_train_39826,생활문화
 ynat-v1_train_43087,생활문화
 ynat-v1_train_03226,세계
@@ -8208,7 +8208,7 @@ ynat-v1_train_34290,정치
 ynat-v1_train_13758,스포츠
 ynat-v1_train_16432,사회
 ynat-v1_train_35360,세계
-ynat-v1_train_22618,경제
+ynat-v1_train_22618,사회
 ynat-v1_train_32546,정치
 ynat-v1_train_20040,IT과학
 ynat-v1_train_01948,사회
@@ -8258,7 +8258,7 @@ ynat-v1_train_26721,스포츠
 ynat-v1_train_19192,세계
 ynat-v1_train_45630,정치
 ynat-v1_train_21028,경제
-ynat-v1_train_16385,생활문화
+ynat-v1_train_16385,사회
 ynat-v1_train_43713,생활문화
 ynat-v1_train_09767,경제
 ynat-v1_train_09541,스포츠
@@ -8340,13 +8340,13 @@ ynat-v1_train_23207,세계
 ynat-v1_train_35490,정치
 ynat-v1_train_11970,사회
 ynat-v1_train_39253,세계
-ynat-v1_train_02051,생활문화
+ynat-v1_train_02051,사회
 ynat-v1_train_08530,정치
 ynat-v1_train_44619,세계
 ynat-v1_train_05295,경제
 ynat-v1_train_37710,생활문화
 ynat-v1_train_34284,정치
-ynat-v1_train_04023,생활문화
+ynat-v1_train_04023,사회
 ynat-v1_train_33712,세계
 ynat-v1_train_07482,경제
 ynat-v1_train_26229,세계
@@ -8357,7 +8357,7 @@ ynat-v1_train_05309,세계
 ynat-v1_train_15584,스포츠
 ynat-v1_train_04836,정치
 ynat-v1_train_11384,생활문화
-ynat-v1_train_03991,경제
+ynat-v1_train_03991,세계
 ynat-v1_train_18395,스포츠
 ynat-v1_train_21535,생활문화
 ynat-v1_train_15458,스포츠
@@ -8391,7 +8391,7 @@ ynat-v1_train_33435,스포츠
 ynat-v1_train_27517,세계
 ynat-v1_train_15142,IT과학
 ynat-v1_train_13118,세계
-ynat-v1_train_00955,정치
+ynat-v1_train_00955,사회
 ynat-v1_train_26881,경제
 ynat-v1_train_08586,생활문화
 ynat-v1_train_11661,IT과학
@@ -8433,7 +8433,7 @@ ynat-v1_train_13467,세계
 ynat-v1_train_36689,세계
 ynat-v1_train_37610,IT과학
 ynat-v1_train_04247,사회
-ynat-v1_train_34175,생활문화
+ynat-v1_train_34175,사회
 ynat-v1_train_42587,생활문화
 ynat-v1_train_13611,스포츠
 ynat-v1_train_33019,정치
@@ -8481,10 +8481,10 @@ ynat-v1_train_38529,세계
 ynat-v1_train_21772,스포츠
 ynat-v1_train_24927,스포츠
 ynat-v1_train_42245,경제
-ynat-v1_train_31736,생활문화
+ynat-v1_train_31736,세계
 ynat-v1_train_24515,스포츠
 ynat-v1_train_41639,정치
-ynat-v1_train_28944,사회
+ynat-v1_train_28944,경제
 ynat-v1_train_15497,정치
 ynat-v1_train_21984,생활문화
 ynat-v1_train_27990,세계
@@ -8495,7 +8495,7 @@ ynat-v1_train_20439,스포츠
 ynat-v1_train_21797,세계
 ynat-v1_train_08121,생활문화
 ynat-v1_train_11136,IT과학
-ynat-v1_train_21184,경제
+ynat-v1_train_21184,IT과학
 ynat-v1_train_22579,IT과학
 ynat-v1_train_10958,세계
 ynat-v1_train_19398,생활문화
@@ -8540,7 +8540,7 @@ ynat-v1_train_22374,세계
 ynat-v1_train_27500,사회
 ynat-v1_train_18431,세계
 ynat-v1_train_06469,IT과학
-ynat-v1_train_13835,생활문화
+ynat-v1_train_13835,사회
 ynat-v1_train_14381,세계
 ynat-v1_train_31860,경제
 ynat-v1_train_44612,세계
@@ -8636,7 +8636,7 @@ ynat-v1_train_21595,스포츠
 ynat-v1_train_08441,정치
 ynat-v1_train_04446,경제
 ynat-v1_train_36412,IT과학
-ynat-v1_train_30518,세계
+ynat-v1_train_30518,사회
 ynat-v1_train_31755,세계
 ynat-v1_train_17456,세계
 ynat-v1_train_28094,경제
@@ -8645,7 +8645,7 @@ ynat-v1_train_38206,IT과학
 ynat-v1_train_45497,경제
 ynat-v1_train_41617,정치
 ynat-v1_train_18800,정치
-ynat-v1_train_30873,정치
+ynat-v1_train_30873,사회
 ynat-v1_train_36201,생활문화
 ynat-v1_train_03420,정치
 ynat-v1_train_24176,정치
@@ -8699,7 +8699,7 @@ ynat-v1_train_43379,IT과학
 ynat-v1_train_28414,스포츠
 ynat-v1_train_07448,스포츠
 ynat-v1_train_28971,생활문화
-ynat-v1_train_23501,IT과학
+ynat-v1_train_23501,사회
 ynat-v1_train_38883,생활문화
 ynat-v1_train_34147,경제
 ynat-v1_train_20577,사회
@@ -8747,7 +8747,7 @@ ynat-v1_train_23118,생활문화
 ynat-v1_train_13743,사회
 ynat-v1_train_27246,IT과학
 ynat-v1_train_42326,스포츠
-ynat-v1_train_21330,세계
+ynat-v1_train_21330,정치
 ynat-v1_train_27809,세계
 ynat-v1_train_37674,정치
 ynat-v1_train_06193,경제
@@ -8781,9 +8781,9 @@ ynat-v1_train_23479,스포츠
 ynat-v1_train_17849,스포츠
 ynat-v1_train_22172,경제
 ynat-v1_train_11807,사회
-ynat-v1_train_25755,스포츠
+ynat-v1_train_25755,IT과학
 ynat-v1_train_24232,스포츠
-ynat-v1_train_01986,사회
+ynat-v1_train_01986,스포츠
 ynat-v1_train_21373,정치
 ynat-v1_train_36325,정치
 ynat-v1_train_42780,세계
@@ -8850,7 +8850,7 @@ ynat-v1_train_10207,세계
 ynat-v1_train_45446,경제
 ynat-v1_train_41208,정치
 ynat-v1_train_23355,경제
-ynat-v1_train_12946,사회
+ynat-v1_train_12946,정치
 ynat-v1_train_30383,세계
 ynat-v1_train_38265,정치
 ynat-v1_train_40974,IT과학
@@ -8907,7 +8907,7 @@ ynat-v1_train_19994,사회
 ynat-v1_train_34372,스포츠
 ynat-v1_train_23637,생활문화
 ynat-v1_train_39985,생활문화
-ynat-v1_train_07941,세계
+ynat-v1_train_07941,정치
 ynat-v1_train_26474,IT과학
 ynat-v1_train_06401,세계
 ynat-v1_train_37950,세계
@@ -8995,7 +8995,7 @@ ynat-v1_train_17732,세계
 ynat-v1_train_05539,세계
 ynat-v1_train_45006,정치
 ynat-v1_train_36267,세계
-ynat-v1_train_32332,스포츠
+ynat-v1_train_32332,사회
 ynat-v1_train_22023,경제
 ynat-v1_train_37034,스포츠
 ynat-v1_train_16768,세계
@@ -9006,7 +9006,7 @@ ynat-v1_train_34510,스포츠
 ynat-v1_train_18653,사회
 ynat-v1_train_18159,사회
 ynat-v1_train_23916,세계
-ynat-v1_train_21707,IT과학
+ynat-v1_train_21707,경제
 ynat-v1_train_24984,정치
 ynat-v1_train_09315,IT과학
 ynat-v1_train_32343,정치
@@ -9037,7 +9037,7 @@ ynat-v1_train_11758,정치
 ynat-v1_train_25747,생활문화
 ynat-v1_train_10805,생활문화
 ynat-v1_train_34543,스포츠
-ynat-v1_train_32944,세계
+ynat-v1_train_32944,스포츠
 ynat-v1_train_13614,경제
 ynat-v1_train_06218,사회
 ynat-v1_train_21437,스포츠
@@ -9050,7 +9050,7 @@ ynat-v1_train_36194,IT과학
 ynat-v1_train_06064,정치
 ynat-v1_train_24672,스포츠
 ynat-v1_train_05195,사회
-ynat-v1_train_21312,사회
+ynat-v1_train_21312,세계
 ynat-v1_train_19000,스포츠
 ynat-v1_train_16404,정치
 ynat-v1_train_25130,IT과학
@@ -9066,7 +9066,7 @@ ynat-v1_train_26264,정치
 ynat-v1_train_45226,정치
 ynat-v1_train_28983,IT과학
 ynat-v1_train_34432,IT과학
-ynat-v1_train_11076,정치
+ynat-v1_train_11076,세계
 ynat-v1_train_37232,스포츠
 ynat-v1_train_21550,세계
 ynat-v1_train_20270,정치
@@ -9094,7 +9094,7 @@ ynat-v1_train_39443,경제
 ynat-v1_train_10502,스포츠
 ynat-v1_train_15442,세계
 ynat-v1_train_13642,경제
-ynat-v1_train_42192,세계
+ynat-v1_train_42192,정치
 ynat-v1_train_36656,경제
 ynat-v1_train_01382,스포츠
 ynat-v1_train_02198,정치
@@ -9106,16 +9106,16 @@ ynat-v1_train_30715,스포츠
 ynat-v1_train_07622,스포츠
 ynat-v1_train_43022,세계
 ynat-v1_train_09412,스포츠
-ynat-v1_train_26261,생활문화
+ynat-v1_train_26261,IT과학
 ynat-v1_train_23109,세계
 ynat-v1_train_30632,사회
-ynat-v1_train_32667,스포츠
+ynat-v1_train_32667,사회
 ynat-v1_train_00822,사회
 ynat-v1_train_19520,정치
 ynat-v1_train_27705,세계
 ynat-v1_train_25003,생활문화
 ynat-v1_train_18766,경제
-ynat-v1_train_29575,사회
+ynat-v1_train_29575,IT과학
 ynat-v1_train_29349,사회
 ynat-v1_train_28723,정치
 ynat-v1_train_30455,사회

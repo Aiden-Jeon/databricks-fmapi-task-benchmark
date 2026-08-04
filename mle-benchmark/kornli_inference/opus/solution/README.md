@@ -1,61 +1,84 @@
-# t10_kornli — 자연어 추론 (번역체) 해법
+# t10_kornli — 자연어 추론 (KorNLI / MultiNLI-ko)
+
+`train.csv`(48,000행)만 사용해 학습하고 `test.csv`(12,000행)의 레이블을
+예측합니다. 외부 데이터·사전학습 가중치·인터넷 리소스는 사용하지 않았습니다
+(모든 임베딩은 랜덤 초기화 후 `train.csv`로만 학습).
 
 ## 실행
+
 ```bash
-bash solution/run_all.sh      # 전체 재현 (약 7분, CPU 4코어 / 메모리 ~1.5GB)
+bash solution/run_all.sh      # 작업 루트에서 실행, CPU 4코어 기준 약 35분
 ```
-결과: `outputs/submission.csv` (`id,label`, test 12,000행 각 1회).
 
-## 환경 제약
-GPU 없음, `torch`/`transformers` 미설치, 인터넷·외부 데이터·사전학습 가중치 사용 불가.
-따라서 사전학습 언어모델 대신 **어휘 기반 특징 + 선형/트리 모델 앙상블**로 구성했다.
-외부 자원 없이 `train.csv`/`test.csv` 문장만 사용한다.
+산출물: `outputs/submission.csv` (`id,label`)
 
-## 파이프라인
-1. `features.py` / `make_cache.py` — 희소 어휘 특징
-   - 세 가지 표현(char\_wb 2–4그램, 어절 1–2그램, "의사 형태소"=어절 앞 2글자)에 대해
-     전제 A와 가설 B의 TF-IDF를 만들고 **overlap = min(A,B)** 와
-     **novelty = B − min(A,B)** 블록을 사용 (정렬/비정렬 어휘 표현).
-   - 가설 단독(hypothesis-only) 블록은 검증에서 과적합을 유발해 제외했다
-     (60.4% vs 54.0%).
-   - 밀집 특징 51개: 길이/비율, IDF 가중 커버리지, Jaccard, char 3그램 중복,
-     `difflib` 유사도, 부정·수량·완화 표현 비대칭, 숫자/로마자 불일치 등.
-2. `make_align.py` — 문서-단어 행렬 SVD(128차원)로 얻은 단어 임베딩을 이용한
-   soft 토큰 정렬 특징 12개 (가설 토큰별 최대 코사인 유사도의 IDF 가중 통계).
-3. `make_lsa.py` — 공유 LSA 공간(200차원)의 문장 벡터 u, v 로 `u*v, |u−v|, u, v` 구성.
-4. `run_final.py` — 5-fold OOF + 폴드 평균 테스트 예측
-   - `lin`: SGD 로지스틱(평균화, alpha=3e-7, 3 시드) on 희소 overlap/novelty + 밀집
-   - `gb` : HistGradientBoosting on 밀집 63개
-   - `mlp`: MLP(384,128) on 밀집+LSA
-5. `blend_submit.py` + `constraint.py` — 로그확률 가중 기하 블렌딩 후
-   **전제 그룹 제약** 적용, 최종 제출 작성.
+## 구성
 
-## 핵심 아이디어: 전제 그룹 제약
-MNLI/KorNLI는 하나의 전제에 클래스별 가설을 여러 개 수집한다. 학습 데이터에서
-같은 전제를 공유하는 두 행의 레이블은 **98.4%가 서로 다르다**
-(같은 레이블 쌍은 1.6%). test 12,000행 중 2,891행이 train과 전제를 공유하고,
-823행은 test 내부에서 전제를 공유한다. 따라서
-- train에서 관측된 형제 행의 레이블에는 큰 로그 페널티(λ=−6, 사실상 배제)를 주고,
-- test 내부 그룹은 3^k(k≤3) 조합을 전수 탐색해 결합 최적 배정을 구한다.
+### 1. `data.py` — 전처리 / 토큰화
+한국어는 교착어라서 어절(공백) 단위 어휘는 매우 희소합니다. 따라서 각 어절을
+**하위 단어 집합**(어절 자체 + 문자 3/4-gram, fastText 방식)으로 표현하고
+단어 임베딩을 그 평균으로 계산합니다. 굴절형 사이에 통계적 강도를 공유하므로
+어휘 희소성 문제가 크게 완화됩니다.
+어휘/해시 버킷은 `train.csv`에서만 만듭니다.
 
-λ는 OOF에서 튜닝했고(형제 유무 비율은 train 24.3%, test 24.1%로 동일),
-블렌딩 가중치도 **제약 적용 후** OOF 정확도로 선택한다.
+또한 NLI에 유용한 명시적 dense 피처 19개(어휘 중첩률, 어간 중첩률, 문자 중첩률,
+길이 비/차, 부정어 개수, 가설 전용 단어 비율 등)를 계산합니다.
 
-## 검증 결과 (48,000행 5-fold OOF accuracy)
-| 모델 | accuracy |
+### 2. `model.py` — 신경망 (from scratch)
+Decomposable Attention (Parikh et al. 2016) 구조:
+
+- 하위 단어 합성 임베딩 (dim 160) → 선형 투영 (208)
+- `F` MLP 로 전제·가설 토큰을 attend, soft-alignment 계산
+- `G` MLP 로 (토큰, 정렬된 상대 토큰) 쌍을 비교
+- sum/max pooling 후 dense 피처를 concat → `H` MLP → 3-way softmax
+
+RNN이 없어 CPU에서도 학습이 가능합니다. 임베딩은 sparse gradient + `SparseAdam`,
+나머지는 `AdamW` + OneCycle 스케줄로 학습하고 마지막 4 epoch 예측을 평균합니다
+(snapshot ensemble).
+
+### 3. `train_linear.py` — 희소 피처 선형 모델
+- 가설 1/2-gram tf-idf (hypothesis-only bias)
+- 전제 unigram tf-idf
+- **unmatched 가설 단어** tf-idf (전제에 없는 가설 단어 → neutral/contradiction 단서)
+- 해시된 **cross word-pair** 피처 (전제 단어 × 가설 단어, 2^20 버킷)
+- 문자 n-gram tf-idf의 element-wise 곱 / 절대차
+- dense 피처와 그 제곱
+→ 다항 로지스틱 회귀
+
+### 4. `sibling.py` — 전제 그룹 구조 사전확률
+(Multi)NLI는 하나의 전제에 대해 entailment / neutral / contradiction 가설을
+각각 작성하게 만든 데이터입니다. `train.csv`에서 측정하면 전제를 공유하는 행들의
+레이블이 **97.1%**의 경우 서로 다릅니다. test의 24%(2,891행)는 전제를 train과
+공유하므로, 관측된 형제 행의 레이블로부터 추정한 사전확률
+`P(y | 형제 레이블들)`(leave-one-out으로 train에서만 추정)을 모델 확률에
+로그 공간에서 더해 줍니다. 홀드아웃에서 검증된 순수 학습 기반 신호입니다.
+
+### 5. `blend.py` — 앙상블 + 제출
+홀드아웃(StratifiedKFold(10, seed 7)의 fold 0) 정확도를 기준으로 로그 확률
+가중치를 coordinate ascent로 탐색하고, 사전확률 가중치도 같은 홀드아웃에서
+선택한 뒤 `outputs/submission.csv`를 씁니다.
+
+## 결과 (홀드아웃 4,800행 = StratifiedKFold(10, seed 7) fold 0)
+
+| 모델 | acc |
 |---|---|
-| 다수 클래스 | 0.334 |
-| char TF-IDF + LogReg (초기 베이스라인) | 0.556 |
-| HistGB (밀집 63개) | 0.570 |
-| MLP (밀집+LSA) | 0.553 |
-| SGD 로지스틱 (희소 overlap/novelty + 밀집) | 0.602 |
-| 3모델 블렌딩 | 0.605 |
-| **블렌딩 + 전제 그룹 제약** | **0.636** |
+| 최빈 클래스 | 0.334 |
+| 단순 TF-IDF(문장별) + 로지스틱 회귀 | 0.462 |
+| 희소 피처 선형 모델 (`train_linear.py`) | 0.558 |
+| Decomposable Attention `h1` (dim144) | 0.577 |
+| Decomposable Attention `b` (dim128, wdrop .25) | 0.579 |
+| Decomposable Attention `c` (dim176/hid240) | 0.571 |
+| 4-모델 로그확률 블렌드 | 0.597 |
+| **블렌드 + 전제 그룹 사전확률** | **0.631** |
 
-제약은 형제가 있는 부분집합에서 0.597 → 0.727로 크게 개선된다.
+`train_linear.py`의 `--tag a` 결과는 `work/lin_a.log`, 신경망 로그는
+`work/nn_*.log`, 블렌드 로그는 `work/blend.log`에 있습니다.
 
-## 시도했지만 채택하지 않은 것
-- 가설 단독 어휘 특징(주석 편향): 과적합으로 −1.4%p.
-- 해시된 교차 단어쌍(전제×가설 미정렬 토큰) 특징: −2.4%p (48k 표본에 과다 파라미터).
-- 더 넓은 char 2–5그램 뷰, 여러 뷰 평균, modified\_huber 손실: 개선 없음.
-- 클래스 사전확률(bias) 보정: +0.0001로 무의미해 제외.
+## 관찰
+
+- 신경망은 2 epoch 부근에서 최고 성능에 도달한 뒤 빠르게 과적합합니다
+  (48k쌍 대비 파라미터가 많고 사전학습 임베딩이 없기 때문). 그래서
+  epoch별 스냅샷을 홀드아웃으로 평가해 greedy 선택합니다.
+- CPU 4코어 환경이라 RNN 없는 attention 구조 + sparse gradient 임베딩
+  최적화(`SparseAdam`)로 epoch당 약 110초까지 줄였습니다.
+- 전제 그룹 사전확률이 단일 기법으로 가장 큰 이득(+3.4%p)을 줍니다.

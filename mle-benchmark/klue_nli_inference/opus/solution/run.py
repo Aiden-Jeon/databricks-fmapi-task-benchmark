@@ -1,30 +1,20 @@
-"""Final reproducible pipeline for t6_klue_nli.
+"""KLUE-NLI (t6_klue_nli) — final solution.
 
-Usage:  python solution/run.py [--task-dir DIR] [--eval SEED]
+    python solution/run.py                 # fit on train.csv -> outputs/submission.csv
+    python solution/run.py --validate      # held-out evaluation of the same pipeline
 
-Method
-------
-1. Feature extraction (`nli_lib.build_features`): TF-IDF over several text views
-   of the (premise, hypothesis) pair -- hypothesis words/chars, premise words,
-   "new information" tokens (hypothesis tokens absent from the premise), shared
-   tokens, dropped premise tokens, and the concatenated pair -- with a crude
-   Korean stemmer (leading 2..4 chars of each token) plus 40 hand-crafted NLI
-   cue features (overlap ratios, negation / quantifier / hedge counts, numeric
-   mismatch, length ratios).
-2. Base classifier: multinomial logistic regression (C=0.15).
-3. Group-constraint decoding: KLUE-NLI pairs every premise with exactly one
-   entailment, one neutral and one contradiction hypothesis.  Since the split is
-   row-wise, 96% of test rows share their premise with labelled train rows.  Each
-   premise group is decoded jointly by enumerating label assignments, weighting
-   them by an empirical prior over label multisets (estimated from the fully
-   observed train groups: all-distinct is ~28x more likely per ordered tuple than
-   a repeated label) times the tempered base-classifier likelihood.
+Pipeline
+  1. TF-IDF (word + char) over premise / hypothesis / the novel and shared parts
+     of the hypothesis, plus 31 dense overlap-negation-length features.
+  2. Multinomial logistic regression (C=0.5)  ->  p(label | premise, hypothesis).
+  3. Structured decoding per premise group, using the empirical label-multiset
+     prior estimated on train.csv (see solution/decoder.py).
 
-Validation (pseudo-test reproducing the real test's group structure):
-   base classifier alone  ~0.578 accuracy
-   + group decoding       ~0.878 accuracy
+Everything is fit on train.csv only; no external data, no pretrained weights.
+Runtime: ~2 min on 4 CPU cores.
 """
 import argparse
+import collections
 import os
 import sys
 import time
@@ -32,117 +22,79 @@ import time
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nli_lib import (CLASSES, C2I, PAIRS, build_features, decode_groups_pair,
-                     multiset_prior, norm)
+from feats import FeatureBuilder, LABELS, L2I  # noqa: E402
+from decoder import fit_prior, decode  # noqa: E402
 
-BASE_C = 0.15
-TEMP = 1.5
-SEED = 0
-
-
-def load(task_dir):
-    tr = pd.read_csv(os.path.join(task_dir, "train.csv"))
-    te = pd.read_csv(os.path.join(task_dir, "test.csv"))
-    tr["key"] = tr.premise.map(norm)
-    te["key"] = te.premise.map(norm)
-    return tr, te
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+C_MC = 0.5          # logistic regression regularisation
+W_PRIOR = 3.0       # weight of the group-structure prior
+ALPHA = 0.5         # Laplace smoothing of the multiset prior
+SEED = 42
 
 
-def solve(fit_df, pred_df, base_c=BASE_C, temp=TEMP, verbose=True, prior_df=None):
-    """fit_df needs premise/hypothesis/label/key, pred_df premise/hypothesis/key.
-
-    prior_df: labelled frame used to estimate the label-multiset prior.  It must
-    contain *complete* premise groups, so in offline validation pass the full
-    train set here (the fit split has all of its size-3 groups truncated).
-    """
-    y_fit = fit_df.label.map(C2I).values
-    n_fit = len(fit_df)
-    df = pd.concat([fit_df[["premise", "hypothesis", "key"]],
-                    pred_df[["premise", "hypothesis", "key"]]], ignore_index=True)
-    t0 = time.time()
-    X = build_features(df, n_fit)
-    if verbose:
-        print("features %s (%.0fs)" % (X.shape, time.time() - t0), flush=True)
-
-    clf = LogisticRegression(C=base_c, max_iter=2000, random_state=SEED)
-    clf.fit(X[:n_fit], y_fit)
-    proba = clf.predict_proba(X[n_fit:])
-    if verbose:
-        print("base model fitted (%.0fs)" % (time.time() - t0), flush=True)
-
-    # empirical prior over label multisets, from fully observed size-3 groups
-    grp = (fit_df if prior_df is None else prior_df).groupby("key").label.apply(list)
-    w3, rho = multiset_prior([v for v in grp if len(v) == 3])
-    if verbose:
-        print("multiset prior w3=%s" % {k: round(v, 5) for k, v in w3.items()},
-              flush=True)
-
-    kf, ku = fit_df.key.values, pred_df.key.values
-    zu = {p: np.zeros(len(pred_df)) for p in PAIRS}
-    zf = {p: np.zeros(n_fit) for p in PAIRS}
-    post = decode_groups_pair(kf, y_fit, ku, proba, zu, zf, w3, rho,
-                              temp=temp, beta=0.0)
-    return proba, post
-
-
-def make_pseudo_test(tr, seed):
-    """Hold out rows so the group structure matches the real test set."""
-    rng = np.random.RandomState(seed)
-    groups = {k: np.array(v) for k, v in tr.groupby("key").indices.items()}
-    keys3 = [k for k, v in groups.items() if len(v) == 3]
-    rng.shuffle(keys3)
-    n1 = int(round(len(keys3) * 0.795))
-    hold = []
-    for i, k in enumerate(keys3):
-        v = groups[k].copy(); rng.shuffle(v)
-        hold.extend(v[:1] if i < n1 else v[:2])
-    other = [k for k, v in groups.items() if len(v) != 3]
-    rng.shuffle(other)
-    c = 0
-    for k in other:                      # mimic the 178 unseen-premise test rows
-        if c >= 178:
-            break
-        hold.extend(groups[k]); c += len(groups[k])
-    hold = np.array(sorted(set(hold)))
-    m = np.zeros(len(tr), bool); m[hold] = True
-    return np.where(~m)[0], hold
+def fit_predict(df_fit, df_pred):
+    fb = FeatureBuilder()
+    X = fb.fit_transform(df_fit)
+    Xp = fb.transform(df_pred)
+    y = df_fit.label.map(L2I).values
+    mc = LogisticRegression(C=C_MC, max_iter=2000, n_jobs=-1).fit(X, y)
+    logp = np.log(np.clip(mc.predict_proba(Xp), 1e-9, 1.0))
+    prior = fit_prior(df_fit.premise.values, y, alpha=ALPHA)
+    pred = decode(df_pred.premise.values, logp, df_fit.premise.values, y,
+                  prior, w_prior=W_PRIOR)
+    return pred, logp
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task-dir", default=os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))))
-    ap.add_argument("--eval", type=int, default=None,
-                    help="run offline validation with this seed instead of submitting")
-    ap.add_argument("--base-c", type=float, default=BASE_C)
-    ap.add_argument("--temp", type=float, default=TEMP)
-    a = ap.parse_args()
-    tr, te = load(a.task_dir)
+    ap.add_argument("--validate", action="store_true")
+    args = ap.parse_args()
+    t0 = time.time()
+    train = pd.read_csv(f"{ROOT}/train.csv")
 
-    if a.eval is not None:
-        fit_i, hold_i = make_pseudo_test(tr, a.eval)
-        fit_df, ho_df = tr.iloc[fit_i], tr.iloc[hold_i]
-        y_true = ho_df.label.map(C2I).values
-        proba, post = solve(fit_df, ho_df, a.base_c, a.temp, prior_df=tr)
-        nk = pd.Series(ho_df.key.values).map(
-            pd.Series(fit_df.key.values).value_counts()).fillna(0).astype(int).values
-        res = pd.DataFrame({"nk": nk, "ok": post.argmax(1) == y_true})
-        print("seed=%d base %.4f -> decoded %.4f" %
-              (a.eval, (proba.argmax(1) == y_true).mean(), res.ok.mean()))
-        print(res.groupby("nk").ok.agg(["size", "mean"]))
-        return
-
-    proba, post = solve(tr, te, a.base_c, a.temp)
-    pred = post.argmax(1)
-    out = os.path.join(a.task_dir, "outputs")
-    os.makedirs(out, exist_ok=True)
-    sub = pd.DataFrame({"id": te.id.values, "label": [CLASSES[i] for i in pred]})
-    sub.to_csv(os.path.join(out, "submission.csv"), index=False)
-    print(sub.label.value_counts())
-    print("agreement base vs decoded: %.4f" % (proba.argmax(1) == pred).mean())
-    print("wrote", os.path.join(out, "submission.csv"), sub.shape)
+    if args.validate:
+        y = train.label.map(L2I).values
+        itr, iva = train_test_split(np.arange(len(train)), test_size=5000,
+                                    random_state=SEED, stratify=y)
+        dtr = train.iloc[itr].reset_index(drop=True)
+        dva = train.iloc[iva].reset_index(drop=True)
+        pred, logp = fit_predict(dtr, dva)
+        yva = y[iva]
+        print(f"row-independent argmax accuracy : {(logp.argmax(1) == yva).mean():.4f}")
+        print(f"structured decoding accuracy    : {(pred == yva).mean():.4f}")
+        # the held-out split has a different mix of group cases than test.csv,
+        # so also report the accuracy re-weighted to the test.csv case mix
+        known = collections.defaultdict(list)
+        for p, l in zip(dtr.premise.values, y[itr]):
+            known[p].append(l)
+        gb = collections.Counter(dva.premise.values)
+        W = {(2, 2, 1): 3084, (1, 1, 2): 1588, (0, 0, 3): 159, (1, 2, 1): 96,
+             (1, 1, 1): 51, (0, 0, 2): 18, (0, 0, 1): 1}
+        st = collections.defaultdict(lambda: [0, 0])
+        for i, p in enumerate(dva.premise.values):
+            k = (len(set(known.get(p, []))), len(known.get(p, [])), gb[p])
+            st[k][0] += 1
+            st[k][1] += int(pred[i] == yva[i])
+        est = (sum(W[k] * st[k][1] / st[k][0] for k in W if k in st)
+               / sum(W[k] for k in W if k in st))
+        print(f"re-weighted to test case mix    : {est:.4f}")
+        for k in sorted(st, key=lambda k: -st[k][0]):
+            print(f"   known_distinct={k[0]} known_n={k[1]} group_test_n={k[2]}"
+                  f"  n={st[k][0]:5d}  acc={st[k][1]/st[k][0]:.3f}")
+    else:
+        test = pd.read_csv(f"{ROOT}/test.csv")
+        pred, logp = fit_predict(train, test)
+        os.makedirs(f"{ROOT}/outputs", exist_ok=True)
+        sub = pd.DataFrame({"id": test.id.values, "label": [LABELS[i] for i in pred]})
+        sub.to_csv(f"{ROOT}/outputs/submission.csv", index=False)
+        assert len(sub) == len(test) and sub.id.is_unique
+        assert sub.label.isin(LABELS).all()
+        print(sub.label.value_counts().to_string())
+        print(f"wrote {ROOT}/outputs/submission.csv")
+    print(f"done in {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

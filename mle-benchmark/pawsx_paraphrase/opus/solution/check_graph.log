@@ -1,0 +1,2 @@
+no graph                           oof acc = 0.7639
+graph (strict, fold-only)          oof acc = 0.8073

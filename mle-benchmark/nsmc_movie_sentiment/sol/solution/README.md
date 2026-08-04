@@ -1,16 +1,17 @@
 # NSMC solution
 
-The final model is an ensemble of three linear SVM classifiers trained on
-TF-IDF features. It combines unrestricted character n-grams (60%),
-word-boundary character n-grams (35%), and word n-grams (5%). All components
-use only `train.csv`.
+The solution is an ensemble of three TF-IDF `LinearSVC` text classifiers:
 
-Run from the workspace root:
+- raw character 1-5 grams (weight 0.7)
+- whitespace-normalized character 2-6 grams (weight 0.2)
+- word 1-2 grams (weight 0.1)
+
+All vectorizers and classifiers are fitted only on `train.csv`. Run from any
+directory with:
 
 ```bash
-python solution/train.py
+python solution/train_predict.py
 ```
 
-This deterministically creates `outputs/submission.csv`. The implementation
-requires Python 3 with pandas, NumPy, and scikit-learn. `validate.py` reproduces
-the fixed, stratified holdout model comparison used to choose the ensemble.
+The default output is `outputs/submission.csv`. Paths can be changed with
+`--train`, `--test`, and `--output`.

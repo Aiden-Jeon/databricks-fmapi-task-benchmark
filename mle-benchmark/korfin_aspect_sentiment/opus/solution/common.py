@@ -1,107 +1,95 @@
-"""Shared feature-engineering utilities for KorFin-ASC."""
+"""Shared data loading / feature engineering for KorFin-ASC."""
+import os
 import re
 import numpy as np
 import pandas as pd
 
-MARK_L = "《"
-MARK_R = "》"
-TGT = "㋣"  # single-char placeholder for the target aspect
+TASK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLASSES = ["NEGATIVE", "NEUTRAL", "POSITIVE"]
+MASK = " @ASP@ "
+
+# ---- Hangul jamo decomposition (pure python, no external data) ----
+CHO = list("\u3131\u3132\u3134\u3137\u3138\u3139\u3141\u3142\u3143\u3145\u3146"
+           "\u3147\u3148\u3149\u314a\u314b\u314c\u314d\u314e")
+JUNG = list("\u314f\u3150\u3151\u3152\u3153\u3154\u3155\u3156\u3157\u3158\u3159"
+            "\u315a\u315b\u315c\u315d\u315e\u315f\u3160\u3161\u3162\u3163")
+JONG = [""] + list("\u3131\u3132\u3133\u3134\u3135\u3136\u3137\u3139\u313a\u313b"
+                   "\u313c\u313d\u313e\u313f\u3140\u3141\u3142\u3144\u3145\u3146"
+                   "\u3147\u3148\u314a\u314b\u314c\u314d\u314e")
 
 
-def _find_all(hay: str, needle: str):
+def to_jamo(text):
     out = []
-    if not needle:
-        return out
-    start = 0
-    while True:
-        i = hay.find(needle, start)
-        if i < 0:
-            break
-        out.append(i)
-        start = i + 1
-    return out
+    for ch in text:
+        o = ord(ch)
+        if 0xAC00 <= o <= 0xD7A3:
+            i = o - 0xAC00
+            out.append(CHO[i // 588])
+            out.append(JUNG[(i % 588) // 28])
+            j = JONG[i % 28]
+            out.append(j if j else "-")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
-def mark_sentence(sent: str, aspect: str) -> str:
-    """Wrap every occurrence of the aspect with explicit marker characters."""
-    if not isinstance(sent, str):
-        sent = ""
-    if not isinstance(aspect, str) or not aspect:
-        return sent
-    if aspect in sent:
-        return sent.replace(aspect, MARK_L + aspect + MARK_R)
-    return MARK_L + aspect + MARK_R + " : " + sent
+def mask_sent(s, a):
+    if isinstance(a, str) and a and a in s:
+        return s.replace(a, MASK)
+    return s
 
 
-def mask_sentence(sent: str, aspect: str) -> str:
-    """Replace the aspect with a generic placeholder (aspect-identity agnostic)."""
-    if not isinstance(sent, str):
-        sent = ""
-    if not isinstance(aspect, str) or not aspect:
-        return sent
-    if aspect in sent:
-        return sent.replace(aspect, TGT)
-    return TGT + " : " + sent
+def window(s, a, w=30):
+    if not (isinstance(a, str) and a and a in s):
+        return s
+    out = []
+    for m in re.finditer(re.escape(a), s):
+        lo = max(0, m.start() - w)
+        hi = min(len(s), m.end() + w)
+        out.append(s[lo:m.start()] + MASK + s[m.end():hi])
+    return " || ".join(out)
 
 
-def context_window(sent: str, aspect: str, width: int = 30) -> str:
-    """Text around the first/last occurrence of the aspect, aspect itself masked."""
-    if not isinstance(sent, str):
-        sent = ""
-    if not isinstance(aspect, str) or not aspect or aspect not in sent:
-        return TGT + " " + sent[:2 * width]
-    idxs = _find_all(sent, aspect)
-    chunks = []
-    for i in idxs[:3]:
-        lo = max(0, i - width)
-        hi = min(len(sent), i + len(aspect) + width)
-        chunks.append(sent[lo:i] + TGT + sent[i + len(aspect):hi])
-    return " ".join(chunks)
+def add_feats(df):
+    df = df.copy()
+    df["masked"] = [mask_sent(s, a) for s, a in zip(df.sentence, df.aspect)]
+    df["win"] = [window(s, a, 30) for s, a in zip(df.sentence, df.aspect)]
+    df["win15"] = [window(s, a, 15) for s, a in zip(df.sentence, df.aspect)]
+    df["text"] = (df["masked"] + " ~~ " + df["win"]
+                  + " ~~ ASPECT " + df.aspect.fillna(""))
+    df["text2"] = (df["masked"] + " ~~ " + df["win"] + " ~~ " + df["win15"]
+                   + " ~~ ASPECT " + df.aspect.fillna(""))
+    df["jamo"] = [to_jamo(t) for t in df["text"]]
+    return df
 
 
-def clause_window(sent: str, aspect: str) -> str:
-    """The clause (split on Korean sentence/clause delimiters) containing the aspect."""
-    if not isinstance(sent, str):
-        sent = ""
-    if not isinstance(aspect, str) or not aspect or aspect not in sent:
-        return TGT + " " + sent
-    parts = re.split(r"(?<=[.!?,;])\s+|(?<=[다요음])\s+(?=[가-힣])", sent)
-    hit = [p for p in parts if aspect in p]
-    if not hit:
-        hit = [sent]
-    return " ".join(p.replace(aspect, TGT) for p in hit)
+def load():
+    tr = pd.read_csv(f"{TASK}/train.csv")
+    te = pd.read_csv(f"{TASK}/test.csv")
+    return add_feats(tr), add_feats(te)
 
 
-def build_frame(df: pd.DataFrame) -> pd.DataFrame:
-    out = pd.DataFrame(index=df.index)
-    s = df["sentence"].fillna("").astype(str)
-    a = df["aspect"].fillna("").astype(str)
-    out["marked"] = [mark_sentence(x, y) for x, y in zip(s, a)]
-    out["masked"] = [mask_sentence(x, y) for x, y in zip(s, a)]
-    out["ctx"] = [context_window(x, y, 30) for x, y in zip(s, a)]
-    out["ctx_s"] = [context_window(x, y, 12) for x, y in zip(s, a)]
-    out["clause"] = [clause_window(x, y) for x, y in zip(s, a)]
-    out["aspect"] = a
-    out["sentence"] = s
-    return out
-
-
-def numeric_feats(df: pd.DataFrame) -> np.ndarray:
-    s = df["sentence"].fillna("").astype(str)
-    a = df["aspect"].fillna("").astype(str)
-    n_occ = np.array([len(_find_all(x, y)) if y else 0 for x, y in zip(s, a)], dtype=float)
-    pos = np.array([(x.find(y) / max(len(x), 1)) if (y and y in x) else -1.0
-                    for x, y in zip(s, a)], dtype=float)
-    feats = np.column_stack([
-        s.str.len().values / 100.0,
-        a.str.len().values / 10.0,
-        n_occ,
+def numeric_feats(df):
+    """Dense hand-crafted numeric features."""
+    s = df.sentence.fillna("")
+    a = df.aspect.fillna("")
+    n = len(df)
+    pos = np.zeros(n)
+    cnt = np.zeros(n)
+    for i, (ss, aa) in enumerate(zip(s, a)):
+        if aa and aa in ss:
+            pos[i] = ss.index(aa) / max(len(ss), 1)
+            cnt[i] = ss.count(aa)
+        else:
+            pos[i] = -1.0
+    X = np.c_[
+        s.str.len().values,
+        a.str.len().values,
         pos,
-        s.str.count(r"[%]").values,
-        s.str.count(r"\d").values / 10.0,
-        s.str.contains(r"상승|급등|호조|증가|개선|성장|수혜|기대|양호|확대|사상 최대|흑자").astype(float).values,
-        s.str.contains(r"하락|급락|부진|감소|악화|우려|손실|적자|둔화|축소|리스크|무산").astype(float).values,
-        s.str.contains(r"목표주가|투자의견|매수|비중확대|Buy|BUY").astype(float).values,
-        (a.str.len() == 0).astype(float).values,
-    ])
-    return feats
+        cnt,
+        s.str.count("%").values,
+        s.str.count(r"\d").values,
+        df.id.str.split("_").str[1].astype(int).values,  # aspect index in sentence
+        s.str.count(",").values,
+    ].astype(np.float32)
+    return X

@@ -1,9 +1,8 @@
-# KoBEST SentiNeg solution
+# KoBEST SentiNeg Solution
 
-The solution averages the decision scores of three linear SVM classifiers. Each
-classifier uses character TF-IDF features with a slightly different n-gram range
-or word-boundary treatment. The fixed ensemble was selected using stratified
-5-fold cross-validation on `train.csv`.
+The final model is a character 1-5 gram TF-IDF representation followed by a
+linear support vector classifier. It was selected using fixed, stratified
+5-fold cross-validation on `train.csv` (mean accuracy: 0.9548).
 
 Run from any directory with:
 
@@ -11,6 +10,8 @@ Run from any directory with:
 python solution/train.py
 ```
 
-The script requires Python 3.9+, NumPy, pandas, and scikit-learn. It writes the
-submission to `outputs/submission.csv` and validates input IDs and output row
-coverage before saving.
+This reads the task CSV files from the workspace root and writes
+`outputs/submission.csv`. `evaluate.py` reproduces the candidate model
+comparison used to select the final pipeline.
+
+Tested with Python 3.12, pandas 1.5.3, and scikit-learn 1.4.2.

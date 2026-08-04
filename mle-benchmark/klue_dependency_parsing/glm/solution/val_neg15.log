@@ -1,0 +1,6 @@
+train 3840 val 960
+head feat dim 492327 max_neg 15
+head train acc 0.9764962650350438 solver liblinear C 0.5
+dep train acc 0.9953725437596406 solver liblinear C 1.0
+UAS 0.7763058289174868
+LAS 0.7332513247539743

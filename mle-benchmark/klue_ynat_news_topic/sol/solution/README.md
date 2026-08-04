@@ -1,18 +1,19 @@
 # YNAT solution
 
-The final model is a character-boundary TF-IDF (`1` to `5`-grams) classifier
-with a linear SVM. Mild inverse-frequency class weighting is used because the
-evaluation metric is macro F1.
+The model combines character 2-6 gram and whitespace-token 1-2 gram TF-IDF
+features in a class-balanced linear SVM. It uses only `train.csv`. The default
+regularization strength (`C=0.1`) achieved 0.8339 macro F1 on the fixed 20%
+stratified holdout.
 
-Run from any directory with:
+Run from the task root:
 
 ```bash
-python solution/train_predict.py
+python solution/train.py
 ```
 
-The script reads the CSV files from the workspace root by default and writes
-`outputs/submission.csv`. Paths can be overridden with `--train`, `--test`,
-`--sample-submission`, and `--output`.
+This writes `outputs/submission.csv`. To reproduce the fixed stratified
+holdout experiment used for selecting the regularization strength:
 
-Only NumPy, pandas, and scikit-learn are required. No external data or model
-weights are used.
+```bash
+python solution/train.py --validate
+```

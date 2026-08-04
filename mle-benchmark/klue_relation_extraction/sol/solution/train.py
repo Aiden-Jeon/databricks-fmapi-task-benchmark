@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Train a local-only KLUE-RE classifier and create the submission."""
+"""Train a reproducible KLUE-RE classifier and create the submission."""
 
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy import sparse
+from scipy.sparse import hstack
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -17,173 +16,185 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.svm import LinearSVC
 
 
-SEED = 20260731
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def marked_text(row: pd.Series) -> str:
+def mark_entities(row: pd.Series) -> str:
+    """Expose entity roles to a bag-of-ngrams model while retaining their text."""
     sentence = str(row["sentence"])
     subject = str(row["subject_entity"])
     obj = str(row["object_entity"])
 
-    if subject != obj:
-        entities = sorted((subject, obj), key=len, reverse=True)
-        pattern = re.compile("|".join(re.escape(entity) for entity in entities))
-
-        def add_marker(match: re.Match[str]) -> str:
-            entity = match.group(0)
-            role = "SUBJ" if entity == subject else "OBJ"
-            return f" [{role}] {entity} [/{role}] "
-
-        sentence = pattern.sub(add_marker, sentence)
-
-    # Repeating the explicit pair gives the sparse model direct entity features.
-    return f"{sentence} [SUBJECT] {subject} [OBJECT] {obj} [PAIR] {subject} {obj}"
+    # Replace one mention of each entity. Longer-first avoids corrupting nested names.
+    entities = sorted(((subject, "SUBJ"), (obj, "OBJ")), key=lambda x: len(x[0]), reverse=True)
+    for entity, role in entities:
+        sentence = sentence.replace(entity, f" {role}_START {entity} {role}_END ", 1)
+    return sentence
 
 
-def make_text(frame: pd.DataFrame) -> list[str]:
-    return [marked_text(row) for _, row in frame.iterrows()]
+def local_context(row: pd.Series, margin: int = 30) -> str:
+    sentence = str(row["sentence"])
+    subject = str(row["subject_entity"])
+    obj = str(row["object_entity"])
+    subject_at = sentence.find(subject)
+    object_at = sentence.find(obj)
+    if subject_at < 0 or object_at < 0:
+        return mark_entities(row)
+    left = min(subject_at, object_at)
+    right = max(subject_at + len(subject), object_at + len(obj))
+    local_row = row.copy()
+    local_row["sentence"] = sentence[max(0, left - margin) : right + margin]
+    return mark_entities(local_row)
 
 
-def entity_categories(frame: pd.DataFrame) -> pd.DataFrame:
-    categories = frame[["subject_entity", "object_entity"]].astype(str).copy()
-    categories["entity_pair"] = categories["subject_entity"] + "\x1f" + categories["object_entity"]
-    return categories
+def make_texts(frame: pd.DataFrame) -> tuple[list[str], list[str], list[str]]:
+    marked = frame.apply(mark_entities, axis=1).tolist()
+    local = frame.apply(local_context, axis=1).tolist()
+    entities = (
+        "SUBJECT_"
+        + frame["subject_entity"].astype(str)
+        + " OBJECT_"
+        + frame["object_entity"].astype(str)
+    ).tolist()
+    return marked, local, entities
 
 
-def fit_features(train: pd.DataFrame, other: pd.DataFrame):
-    train_text = make_text(train)
-    other_text = make_text(other)
-    word = TfidfVectorizer(
-        analyzer="word",
-        ngram_range=(1, 2),
-        min_df=2,
-        max_features=250_000,
-        sublinear_tf=True,
-        token_pattern=r"(?u)\b\w+\b",
-        dtype=np.float32,
-    )
-    char = TfidfVectorizer(
-        analyzer="char",
-        ngram_range=(2, 5),
-        min_df=2,
-        max_features=400_000,
-        sublinear_tf=True,
-        dtype=np.float32,
-    )
-    entities = OneHotEncoder(
-        handle_unknown="ignore", min_frequency=2, dtype=np.float32
-    )
-    train_matrix = sparse.hstack(
-        (
-            word.fit_transform(train_text),
-            char.fit_transform(train_text),
-            entities.fit_transform(entity_categories(train)),
+def build_features(train: pd.DataFrame, other: pd.DataFrame):
+    train_marked, train_local, train_entities = make_texts(train)
+    other_marked, other_local, other_entities = make_texts(other)
+
+    vectorizers = [
+        TfidfVectorizer(
+            analyzer="word",
+            ngram_range=(1, 2),
+            token_pattern=r"(?u)\b\w+\b",
+            min_df=2,
+            max_features=140_000,
+            sublinear_tf=True,
+            dtype=np.float32,
         ),
-        format="csr",
-    )
-    other_matrix = sparse.hstack(
-        (
-            word.transform(other_text),
-            char.transform(other_text),
-            entities.transform(entity_categories(other)),
+        TfidfVectorizer(
+            analyzer="char",
+            ngram_range=(2, 5),
+            min_df=2,
+            max_features=240_000,
+            sublinear_tf=True,
+            dtype=np.float32,
         ),
-        format="csr",
-    )
-    return train_matrix, other_matrix
+        TfidfVectorizer(
+            analyzer="char",
+            ngram_range=(2, 5),
+            min_df=2,
+            max_features=100_000,
+            sublinear_tf=True,
+            dtype=np.float32,
+        ),
+        TfidfVectorizer(
+            analyzer="char",
+            ngram_range=(2, 5),
+            min_df=2,
+            max_features=140_000,
+            sublinear_tf=True,
+            dtype=np.float32,
+        ),
+    ]
 
+    train_parts = [
+        vectorizers[0].fit_transform(train_marked),
+        vectorizers[1].fit_transform(train_marked),
+        vectorizers[2].fit_transform(train_entities),
+        vectorizers[3].fit_transform(train_local),
+    ]
+    other_parts = [
+        vectorizers[0].transform(other_marked),
+        vectorizers[1].transform(other_marked),
+        vectorizers[2].transform(other_entities),
+        vectorizers[3].transform(other_local),
+    ]
 
-def pair_statistics(frame: pd.DataFrame) -> dict[tuple[str, str], tuple[str, int, float]]:
-    stats: dict[tuple[str, str], tuple[str, int, float]] = {}
-    for pair, group in frame.groupby(["subject_entity", "object_entity"], sort=False):
-        counts = group["label"].value_counts()
-        stats[pair] = (str(counts.index[0]), int(counts.iloc[0]), float(counts.iloc[0] / counts.sum()))
-    return stats
+    categorical = OneHotEncoder(handle_unknown="ignore", dtype=np.float32)
+    train_categories = train[["subject_entity", "object_entity"]].astype(str)
+    other_categories = other[["subject_entity", "object_entity"]].astype(str)
+    train_parts.append(categorical.fit_transform(train_categories))
+    other_parts.append(categorical.transform(other_categories))
 
-
-def pair_override(
-    predictions: np.ndarray,
-    frame: pd.DataFrame,
-    stats: dict[tuple[str, str], tuple[str, int, float]],
-    min_majority: int,
-    min_purity: float,
-) -> np.ndarray:
-    result = predictions.copy()
-    if min_majority <= 0:
-        return result
-    for i, row in enumerate(frame.itertuples(index=False)):
-        value = stats.get((str(row.subject_entity), str(row.object_entity)))
-        if value is not None and value[1] >= min_majority and value[2] >= min_purity:
-            result[i] = value[0]
-    return result
+    return hstack(train_parts, format="csr"), hstack(other_parts, format="csr")
 
 
 def validate(data: pd.DataFrame) -> None:
     fit, valid = train_test_split(
-        data, test_size=0.2, random_state=SEED, stratify=data["label"]
+        data, test_size=0.2, random_state=2026, stratify=data["label"]
     )
-    x_fit, x_valid = fit_features(fit, valid)
-    stats = pair_statistics(fit)
-
-    for c in (0.25, 0.5, 0.75, 1.0):
-        model = LinearSVC(C=c, dual=True, random_state=SEED)
+    x_fit, x_valid = build_features(fit, valid)
+    print(f"feature matrices: train={x_fit.shape}, valid={x_valid.shape}")
+    for c in (0.7, 1.0, 1.4, 2.0):
+        model = LinearSVC(C=c, dual="auto", random_state=2026)
         model.fit(x_fit, fit["label"])
-        base = model.predict(x_valid)
-        print(f"C={c:g} SVM accuracy: {accuracy_score(valid['label'], base):.6f}")
-        for min_majority, min_purity in ((1, 1.0), (2, 0.75), (3, 0.6), (3, 0.75), (5, 0.6)):
-            pred = pair_override(base, valid, stats, min_majority, min_purity)
-            print(
-                f"  pair majority>={min_majority}, purity>={min_purity:.2f}: "
-                f"{accuracy_score(valid['label'], pred):.6f}"
-            )
+        prediction = model.predict(x_valid)
+        print(f"C={c:.1f} accuracy={accuracy_score(valid['label'], prediction):.6f}")
+        if c == 1.0:
+            for minimum in (2, 3, 4, 5):
+                overridden, changed = override_stable_pairs(
+                    fit, valid, prediction, minimum_count=minimum
+                )
+                score = accuracy_score(valid["label"], overridden)
+                print(f"  stable-pair min={minimum} changed={changed} accuracy={score:.6f}")
 
 
-def train_and_predict(root: Path, c: float, min_majority: int, min_purity: float) -> Path:
-    train = pd.read_csv(root / "train.csv")
-    test = pd.read_csv(root / "test.csv")
-    sample = pd.read_csv(root / "sample_submission.csv")
+def override_stable_pairs(
+    train: pd.DataFrame,
+    other: pd.DataFrame,
+    prediction: np.ndarray,
+    minimum_count: int = 3,
+) -> tuple[np.ndarray, int]:
+    """Use a relation only when every observed occurrence of a pair agrees."""
+    keys = ["subject_entity", "object_entity"]
+    counts = train.groupby(keys + ["label"]).size().rename("label_count").reset_index()
+    totals = counts.groupby(keys)["label_count"].transform("sum")
+    stable = counts[(counts["label_count"] == totals) & (totals >= minimum_count)]
+    lookup = stable.set_index(keys)["label"]
 
-    x_train, x_test = fit_features(train, test)
-    model = LinearSVC(C=c, dual=True, random_state=SEED)
+    result = prediction.copy()
+    other_keys = pd.MultiIndex.from_frame(other[keys])
+    mapped = lookup.reindex(other_keys)
+    mask = mapped.notna().to_numpy()
+    result[mask] = mapped[mask].to_numpy()
+    return result, int(mask.sum())
+
+
+def train_and_predict(train: pd.DataFrame, test: pd.DataFrame, output: Path, c: float) -> None:
+    x_train, x_test = build_features(train, test)
+    print(f"feature matrices: train={x_train.shape}, test={x_test.shape}")
+    model = LinearSVC(C=c, dual="auto", random_state=2026)
     model.fit(x_train, train["label"])
-    predictions = model.predict(x_test)
-    predictions = pair_override(
-        predictions, test, pair_statistics(train), min_majority, min_purity
-    )
+    prediction = model.predict(x_test)
+    prediction, changed = override_stable_pairs(train, test, prediction, minimum_count=3)
+    print(f"stable entity-pair predictions applied: {changed}")
 
-    submission = pd.DataFrame({"id": test["id"], "label": predictions})
-    if list(submission.columns) != list(sample.columns):
-        raise ValueError("Submission columns do not match sample_submission.csv")
-    if len(submission) != len(test) or not submission["id"].is_unique:
-        raise ValueError("Submission must contain every test id exactly once")
-    if submission["id"].tolist() != test["id"].tolist():
-        raise ValueError("Submission id order differs from test.csv")
-    if not set(submission["label"]).issubset(set(train["label"])):
-        raise ValueError("Submission contains an unknown label")
-
-    output = root / "outputs" / "submission.csv"
+    submission = pd.DataFrame({"id": test["id"], "label": prediction})
     output.parent.mkdir(parents=True, exist_ok=True)
     submission.to_csv(output, index=False)
-    print(f"Wrote {len(submission)} predictions to {output}")
-    return output
+    print(f"wrote {len(submission)} predictions to {output}")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--validate", action="store_true", help="run a fixed validation split")
+    parser.add_argument("--c", type=float, default=1.0, help="LinearSVC regularization parameter")
+    parser.add_argument(
+        "--output", type=Path, default=ROOT / "outputs" / "submission.csv"
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--validate", action="store_true", help="run a fixed validation split first")
-    parser.add_argument("--validate-only", action="store_true", help="run validation without submission")
-    parser.add_argument("--c", type=float, default=0.5)
-    parser.add_argument(
-        "--pair-min-majority", type=int, default=0,
-        help="enable majority override with this minimum count (0 disables it)",
-    )
-    parser.add_argument("--pair-min-purity", type=float, default=0.6)
-    args = parser.parse_args()
-
-    root = Path(__file__).resolve().parents[1]
-    if args.validate or args.validate_only:
-        validate(pd.read_csv(root / "train.csv"))
-    if not args.validate_only:
-        train_and_predict(root, args.c, args.pair_min_majority, args.pair_min_purity)
+    args = parse_args()
+    train = pd.read_csv(ROOT / "train.csv")
+    if args.validate:
+        validate(train)
+        return
+    test = pd.read_csv(ROOT / "test.csv")
+    train_and_predict(train, test, args.output, args.c)
 
 
 if __name__ == "__main__":

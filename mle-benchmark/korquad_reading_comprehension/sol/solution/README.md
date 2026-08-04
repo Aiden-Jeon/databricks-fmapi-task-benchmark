@@ -1,15 +1,15 @@
-# KorQuAD classical extractive QA
+# KorQuAD extractive QA solution
 
-This solution uses only `train.csv` and packages available in the environment. It
-generates short answer spans from question-relevant sentences and trains a
-gradient-boosted ranker directly on character F1.
+This solution trains only on `train.csv`. It learns a hashed sparse linear ranker over
+candidate character spans, using question type, sentence relevance, lexical position,
+span shape, and Korean answer-boundary features. No external data or pretrained model
+is used.
 
 Run from the task root:
 
 ```bash
-python solution/train.py
+python solution/train_predict.py
 ```
 
-The deterministic output is written to `outputs/submission.csv`. Use
-`python solution/train.py --validate --max-train-rows 4000` for a quick
-document-grouped local validation run.
+The command writes `outputs/submission.csv`. A context-grouped holdout check is available
+with `python solution/train_predict.py --validate --epochs 1`.

@@ -1,0 +1,17 @@
+[04:22:13] data (24000, 4) (6000, 3)
+[04:22:13] A dense
+[04:22:13] B alignment
+[04:22:13] C graph
+[04:22:13]   graph evidence train/test 0.246/0.253
+[04:22:13] D edit script
+[04:22:13]   edit SVD (24000, 64)
+[04:22:13] E sparse stacking
+[04:22:19]   sparse[diff_word] oof acc=0.5722
+[04:22:19]   sparse[diff_char] oof acc=0.5837
+[04:22:19]   sparse[inter_word] oof acc=0.5430
+[04:22:19]   sparse[pair_char] oof acc=0.6210
+[04:22:19]   sparse[pair_word] oof acc=0.5983
+[04:22:28]   sparse[edit12] oof acc=0.7017
+[04:22:33]   sparse[edit1] oof acc=0.6955
+[04:22:33] design matrix (24000, 345)
+[04:23:56]   g1 f0 it=2000 acc=0.8490

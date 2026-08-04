@@ -1,16 +1,17 @@
-# Reproducible solution
+# Bike Demand Solution
 
 Run from any directory with:
 
 ```bash
-python solution/train_predict.py
+python /path/to/workspace/solution/train.py
 ```
 
-The script reads the three CSV files from the workspace root, trains three
-deterministic histogram gradient boosting regressors, and writes
-`outputs/submission.csv`. It uses only the supplied training data. Calendar
-features are computed from `date`; non-functioning hours are set to zero after
-the ensemble prediction, matching every such observation in the training set.
+The script reads the provided `train.csv`, `test.csv`, and
+`sample_submission.csv`, then writes `outputs/submission.csv`.
 
-The model settings were selected with chronological rolling holdouts rather
-than random validation. Required packages are listed in `requirements.txt`.
+The model is a deterministic blend of histogram gradient boosting and extra
+randomized trees. Features include the provided weather and operating fields,
+calendar fields derived from `date`, and cyclic encodings for hour, weekday,
+and day of year. Validation used forward-only 73-day holdouts to match the
+forecast horizon. Rows marked as non-functioning are set to zero because every
+such row in the training data has a zero target.

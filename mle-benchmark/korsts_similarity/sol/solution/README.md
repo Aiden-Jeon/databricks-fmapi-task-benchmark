@@ -1,17 +1,15 @@
 # KorSTS solution
 
+The solution uses multi-resolution word/character TF-IDF cosine similarity,
+lexical overlap, length, number agreement, and coarse source-position features.
+Two complementary tree regressors are blended with fixed weights. No external data or
+pretrained model is used.
+
 Run from the task directory:
 
 ```bash
-python solution/train.py
+python solution/train.py --validate
 ```
 
-The script uses only `train.csv` to fit its text transforms and models. It
-combines character/word TF-IDF similarity, surface overlap and latent semantic
-features with histogram gradient boosting, extremely randomized trees and a
-sparse ridge model. Five-fold out-of-fold predictions fit a non-negative linear
-blend. Exact sentence-pair repeats use the mean available training annotation.
-
-The fixed random seed is `20260731`. On the fixed five-fold split used during
-development, the blend obtained approximately 0.739 Pearson before exact-pair
-replacement. The generated file is `outputs/submission.csv`.
+Omit `--validate` to train only the final models. Both commands write
+`outputs/submission.csv` using a fixed random seed.

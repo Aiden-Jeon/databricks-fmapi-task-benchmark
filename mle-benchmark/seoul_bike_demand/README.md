@@ -8,9 +8,9 @@ Korean ML-engineering task. Metric: **RMSE** (lower is better). Full spec in [`T
 
 | Model | 결과물 퀄리티 (RMSE) | 소요시간 | LLM 비용 |
 |---|---|---|---|
-| Opus 5 | 299.4 | 28 min | $23.22 |
-| GPT-5.6-sol | 219.6 | 10 min | $5.17 |
-| GLM 5.2 | **209.8** | 16 min | $3.10 |
+| Opus 5 | 329.8 | 55 min | $23.22 |
+| GPT-5.6-sol | 246.5 | 5 min | $5.17 |
+| GLM 5.2 | **233.9** | 70 min | $3.10 |
 
 Each model folder (`opus/` · `sol/` · `glm/`) holds that model's `submission.csv`, the agent-written `solution/` code, and `metrics.json`.
 

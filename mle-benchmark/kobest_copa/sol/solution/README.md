@@ -1,19 +1,22 @@
 # KoBEST COPA solution
 
-The solution treats each alternative as a candidate and trains a character
-TF-IDF logistic-regression classifier on the two candidates from every training
-row. A row's score is the score of `alternative_2` minus that of
-`alternative_1`.
+This solution uses only `train.csv` and locally available Python packages.
+Each row is expanded into two candidate causal statements. Character TF-IDF
+features feed two complementary models:
 
-Five-fold out-of-fold predictions calibrate the fraction of rows assigned to
-label 1. The final model is then fit on all training rows and applies that
-fraction to the ranked test scores. No external data or pretrained weights are
-used.
+- similarity-weighted retrieval of training candidates with the same question
+  direction (`원인` or `결과`)
+- logistic regression for global candidate plausibility patterns
+
+The two candidate scores are compared, so the model predicts which alternative
+is more plausible rather than directly learning answer position.
 
 Run from any directory with:
 
 ```bash
-python solution/train_predict.py
+python solution/run.py
 ```
 
-Required packages: `numpy`, `pandas`, and `scikit-learn`.
+The script writes `outputs/submission.csv`. It requires Python 3, NumPy,
+pandas, and scikit-learn. Hyperparameters were selected with stratified 5-fold
+cross-validation (`random_state=42`); the final script fits all training rows.

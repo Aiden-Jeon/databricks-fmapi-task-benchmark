@@ -4,19 +4,30 @@
 
 | | Opus 5 | GPT-5.6-sol | GLM 5.2 |
 |---|---|---|---|
-| task wins (of 24) | **15** | 6 | 3 |
+| decided wins (of 24) | **12** | 0 | 0 |
 | profile | quality leader | efficiency frontier | budget contender |
 | reliability | 22/24 valid | **24/24 valid** | 19/24 (5 DNFs) |
 | LLM $ (v1 5-task pass) | $23.22 | $5.17 | $3.10 |
 
-- **Opus 5** wins 15/24, widening on the harder Korean-NLP
-  tasks (NLI, STS, RE, QA, and calibration-heavy 작가판별). It costs ~4.5× GPT and
-  ~7.5× GLM (measured on the v1 5-task pass) and runs longest — buy it when the
-  score is worth the money.
-- **GPT-5.6-sol** is the efficiency frontier: 6 wins, fastest
-  everywhere, and the only model with a perfect 24/24 valid-submission rate.
-- **GLM 5.2** is the budget play — 3 wins (bike RMSE, NER, multi-label
-  toxicity) at a fraction of the cost — but the least reliable (5 DNFs).
+**12 of 24 tasks are statistical ties** — the leader's margin sat
+inside run-to-run noise, so no winner is claimed.
+Win counts therefore do not sum to 24, and that gap is a result, not a
+gap in the data: at n=1 those same cells looked decisive.
+
+- **Opus 5** takes 12/24 decided cells, concentrated in the
+  harder Korean-NLP tasks (STS, QA, RE-adjacent, and calibration-heavy 작가판별).
+  It costs ~4.5× GPT and ~7.5× GLM (measured on the v1 5-task pass) and runs
+  longest — buy it when the score is worth the money.
+- **GPT-5.6-sol** is the efficiency frontier: 0 decided wins, fastest
+  everywhere, and the only model with a perfect 24/24 valid-submission rate. Its
+  edge is throughput and reliability, not peak quality.
+- **GLM 5.2** is the budget play — 0 decided wins at a fraction of the
+  cost — but the least reliable (5 DNFs).
+- Repeats matter most where **output is structured**: dependency parsing and NER
+  swing by ±0.14–0.17 across identical reruns, while sentiment/classification is
+  near-deterministic (±0.00–0.01). The variance is format conformance, not
+  capability — the same failure class as the DNFs, seen as a score swing instead
+  of a rejected submission.
 - All three operated **fully in Korean** with no instruction-following failures.
 
 ## "Recite, don't engineer" — why trivia tasks break an MLE benchmark

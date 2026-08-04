@@ -1,213 +1,180 @@
 #!/usr/bin/env python3
-"""Train a local-only KoBEST BoolQ ensemble and create the submission."""
+"""Train a reproducible KoBEST BoolQ model and create the submission."""
 
 from __future__ import annotations
 
 import argparse
-import difflib
+import csv
 import re
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedKFold
 from sklearn.svm import LinearSVC
 
 
-RANDOM_STATE = 42
+NEGATION_TERMS = (
+    "않",
+    "아니",
+    "없",
+    "못",
+    "금지",
+    "불가능",
+    "제외",
+    "반대",
+    "달리",
+    "더 이상",
+    "없이",
+    "실패",
+    "거부",
+    "중단",
+    "폐지",
+    "부정",
+)
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--output", type=Path, default=None)
-    return parser.parse_args()
+def read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as file:
+        return list(csv.DictReader(file))
 
 
-def char_grams(text: str, n: int) -> list[str]:
-    text = re.sub(r"\s", "", text)
-    return [text[i : i + n] for i in range(max(0, len(text) - n + 1))]
+def normalize(text: str) -> str:
+    return re.sub(r"[^가-힣a-z0-9]", "", text.lower())
 
 
-def best_sentence(paragraph: str, question: str) -> str:
+def bigram_recall(question: str, sentence: str) -> float:
+    question_bigrams = {
+        question[index : index + 2] for index in range(max(0, len(question) - 1))
+    }
+    sentence = normalize(sentence)
+    sentence_bigrams = {
+        sentence[index : index + 2] for index in range(max(0, len(sentence) - 1))
+    }
+    return len(question_bigrams & sentence_bigrams) / max(1, len(question_bigrams))
+
+
+def add_relation_markers(row: dict[str, str]) -> str:
+    paragraph = row["paragraph"]
+    question = row["question"]
+    normalized_question = normalize(question)
     sentences = [
-        part.strip()
-        for part in re.split(r"(?<=[.!?다요까])\s+|[。]", paragraph)
-        if part.strip()
-    ] or [paragraph]
-    q_grams = set(char_grams(question, 3))
-    return max(sentences, key=lambda text: len(q_grams & set(char_grams(text, 3))))
-
-
-def lexical_features(paragraph: str, question: str) -> list[float]:
-    sentence = best_sentence(paragraph, question)
-    features: list[float] = [
-        len(question),
-        len(paragraph),
-        len(sentence),
-        len(question) / (len(paragraph) + 1),
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+|다\.\s*", paragraph)
+        if sentence
     ]
+    nearest_sentence = max(
+        sentences,
+        key=lambda sentence: bigram_recall(normalized_question, sentence),
+        default=paragraph,
+    )
 
-    for text in (paragraph, sentence):
-        compact_text = re.sub(r"\s", "", text)
-        compact_question = re.sub(r"\s", "", question)
-        for n in range(1, 7):
-            question_grams = char_grams(question, n)
-            unique_question_grams = set(question_grams)
-            text_grams = set(char_grams(text, n))
-            features.extend(
-                [
-                    sum(gram in text_grams for gram in question_grams)
-                    / (len(question_grams) or 1),
-                    len(unique_question_grams & text_grams)
-                    / (len(unique_question_grams) or 1),
-                ]
-            )
-        features.append(
-            difflib.SequenceMatcher(
-                None, compact_question, compact_text, autojunk=False
-            ).ratio()
+    parts = [question]
+    for term in NEGATION_TERMS:
+        paragraph_state = int(term in paragraph)
+        nearest_state = int(term in nearest_sentence)
+        question_state = int(term in question)
+        parts.append(f"WHOLEPOL{term}{paragraph_state}{question_state}")
+        parts.append(f"NEARPOL{term}{nearest_state}{question_state}")
+
+    paragraph_numbers = set(re.findall(r"\d+", paragraph))
+    question_numbers = set(re.findall(r"\d+", question))
+    parts.append(f"NUMMISS{int(bool(question_numbers - paragraph_numbers))}")
+    return " ".join(parts)
+
+
+def make_vectorizer(kind: str) -> TfidfVectorizer:
+    if kind == "char":
+        return TfidfVectorizer(
+            analyzer="char",
+            ngram_range=(2, 5),
+            min_df=2,
+            max_features=200_000,
+            sublinear_tf=True,
         )
-
-    question_words = re.findall(r"[가-힣A-Za-z0-9]+", question)
-    for text in (paragraph, sentence):
-        text_words = re.findall(r"[가-힣A-Za-z0-9]+", text)
-        text_word_set = set(text_words)
-        joined_text = "".join(text_words)
-        for trim in (0, 1, 2):
-            stems = [
-                word[:-trim] if trim else word
-                for word in question_words
-                if len(word) > trim + 1
-            ]
-            features.extend(
-                [
-                    sum(stem in joined_text for stem in stems) / (len(stems) or 1),
-                    sum(stem in text_word_set for stem in stems) / (len(stems) or 1),
-                ]
-            )
-
-    numbers = re.findall(r"\d+", question)
-    features.extend(
-        [len(numbers), sum(number in paragraph for number in numbers) / (len(numbers) or 1)]
+    return TfidfVectorizer(
+        analyzer="word",
+        ngram_range=(1, 2),
+        min_df=2,
+        max_features=100_000,
+        sublinear_tf=True,
     )
 
-    contrast_terms = [
-        "않", "아니", "없", "못", "제외", "불가", "금지", "모든", "항상",
-        "유일", "오직", "최초", "마지막", "가장", "이상", "이하", "이전",
-        "이후", "보다", "달리", "반면", "그러나", "결국", "실패", "취소",
-        "중단", "거절",
-    ]
-    for term in contrast_terms:
-        in_question = term in question
-        in_sentence = term in sentence
-        features.extend([in_question, in_sentence, in_question != in_sentence])
 
-    features.extend(
-        question.endswith(suffix)
-        for suffix in ("가?", "까?", "나요?", "는가?", "인가?", "다.", "한다.", "있다.")
-    )
-    return [float(value) for value in features]
+def cross_validated_scale(
+    texts: list[str], labels: np.ndarray, kind: str, c_value: float
+) -> float:
+    folds = StratifiedKFold(n_splits=5, shuffle=True, random_state=2026)
+    scores = np.zeros(len(labels), dtype=float)
+    for train_indices, validation_indices in folds.split(texts, labels):
+        vectorizer = make_vectorizer(kind)
+        train_matrix = vectorizer.fit_transform(
+            [texts[index] for index in train_indices]
+        )
+        validation_matrix = vectorizer.transform(
+            [texts[index] for index in validation_indices]
+        )
+        model = LinearSVC(C=c_value, dual="auto")
+        model.fit(train_matrix, labels[train_indices])
+        scores[validation_indices] = model.decision_function(validation_matrix)
+    return float(scores.std())
 
 
-def standardized(values: np.ndarray) -> np.ndarray:
-    scale = values.std()
-    return (values - values.mean()) / (scale if scale > 0 else 1.0)
+def fit_predict(
+    train_texts: list[str],
+    test_texts: list[str],
+    labels: np.ndarray,
+    kind: str,
+    c_value: float,
+) -> np.ndarray:
+    vectorizer = make_vectorizer(kind)
+    train_matrix = vectorizer.fit_transform(train_texts)
+    test_matrix = vectorizer.transform(test_texts)
+    model = LinearSVC(C=c_value, dual="auto")
+    model.fit(train_matrix, labels)
+    return model.decision_function(test_matrix)
 
 
 def main() -> None:
-    args = parse_args()
-    output_path = args.output or args.data_dir / "outputs" / "submission.csv"
-    train = pd.read_csv(args.data_dir / "train.csv").fillna("")
-    test = pd.read_csv(args.data_dir / "test.csv").fillna("")
-    sample = pd.read_csv(args.data_dir / "sample_submission.csv")
-    y = train["label"].astype(int).to_numpy()
-    cv = StratifiedKFold(5, shuffle=True, random_state=RANDOM_STATE)
+    default_root = Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-dir", type=Path, default=default_root)
+    parser.add_argument(
+        "--output", type=Path, default=default_root / "outputs" / "submission.csv"
+    )
+    args = parser.parse_args()
 
-    text_configs = [
-        ((2, 6), 2, 0.15, "question"),
-        ((3, 5), 2, 0.20, "question"),
-        ((2, 4), 2, 0.15, "question"),
-        ((2, 5), 3, 0.30, "pair"),
-    ]
-    test_scores: list[np.ndarray] = []
-    for ngram_range, min_df, c_value, source in text_configs:
-        if source == "question":
-            train_text = train["question"]
-            test_text = test["question"]
-        else:
-            train_text = "질문 " + train["question"] + " 지문 " + train["paragraph"]
-            test_text = "질문 " + test["question"] + " 지문 " + test["paragraph"]
-        vectorizer = TfidfVectorizer(
-            analyzer="char",
-            ngram_range=ngram_range,
-            min_df=min_df,
-            max_features=160_000,
-            sublinear_tf=True,
+    train_rows = read_csv(args.data_dir / "train.csv")
+    test_rows = read_csv(args.data_dir / "test.csv")
+    sample_rows = read_csv(args.data_dir / "sample_submission.csv")
+    labels = np.asarray([int(row["label"]) for row in train_rows], dtype=int)
+
+    test_ids = [row["id"] for row in test_rows]
+    sample_ids = [row["id"] for row in sample_rows]
+    if len(test_ids) != len(set(test_ids)) or test_ids != sample_ids:
+        raise ValueError("Test IDs must be unique and match sample_submission.csv order")
+
+    train_texts = [add_relation_markers(row) for row in train_rows]
+    test_texts = [add_relation_markers(row) for row in test_rows]
+
+    char_scale = cross_validated_scale(train_texts, labels, "char", 0.25)
+    word_scale = cross_validated_scale(train_texts, labels, "word", 0.30)
+    char_scores = fit_predict(train_texts, test_texts, labels, "char", 0.25)
+    word_scores = fit_predict(train_texts, test_texts, labels, "word", 0.30)
+    scores = char_scores + 0.4 * (char_scale / word_scale) * word_scores
+    predictions = (scores > 0.0).astype(int)
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=["id", "label"])
+        writer.writeheader()
+        writer.writerows(
+            {"id": sample_id, "label": int(label)}
+            for sample_id, label in zip(sample_ids, predictions, strict=True)
         )
-        train_matrix = vectorizer.fit_transform(train_text)
-        test_matrix = vectorizer.transform(test_text)
-        model = LinearSVC(C=c_value, dual=True)
-        model.fit(train_matrix, y)
-        test_scores.append(standardized(model.decision_function(test_matrix)))
 
-    train_numeric = np.asarray(
-        [lexical_features(p, q) for p, q in zip(train["paragraph"], train["question"])],
-        dtype=float,
-    )
-    test_numeric = np.asarray(
-        [lexical_features(p, q) for p, q in zip(test["paragraph"], test["question"])],
-        dtype=float,
-    )
-    tree_models = [
-        RandomForestClassifier(
-            n_estimators=700,
-            min_samples_leaf=6,
-            max_features=0.8,
-            class_weight="balanced",
-            n_jobs=-1,
-            random_state=RANDOM_STATE,
-        ),
-        ExtraTreesClassifier(
-            n_estimators=700,
-            min_samples_leaf=5,
-            max_features=0.8,
-            class_weight="balanced",
-            n_jobs=-1,
-            random_state=RANDOM_STATE,
-        ),
-    ]
-    for model in tree_models:
-        # OOF probabilities provide a non-overfit scale reference for each tree ensemble.
-        oof = cross_val_predict(
-            model, train_numeric, y, cv=cv, method="predict_proba", n_jobs=1
-        )[:, 1]
-        model.fit(train_numeric, y)
-        raw_test = model.predict_proba(test_numeric)[:, 1]
-        test_scores.append((raw_test - oof.mean()) / (oof.std() or 1.0))
-
-    ensemble_score = np.mean(np.column_stack(test_scores), axis=1)
-
-    # The complete KoBEST split is balanced; train has two fewer positives than negatives.
-    # Assigning the upper half of this random holdout to positive preserves that prior.
-    positive_count = (len(test) + 1) // 2
-    positive_rows = np.argsort(ensemble_score)[-positive_count:]
-    predictions = np.zeros(len(test), dtype=int)
-    predictions[positive_rows] = 1
-
-    submission = pd.DataFrame({"id": test["id"], "label": predictions})
-    if list(submission.columns) != list(sample.columns):
-        raise ValueError("Submission columns do not match sample_submission.csv")
-    if len(submission) != len(test) or submission["id"].nunique() != len(test):
-        raise ValueError("Submission IDs are incomplete or duplicated")
-    if set(submission["id"]) != set(test["id"]):
-        raise ValueError("Submission IDs do not match test.csv")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    submission.to_csv(output_path, index=False)
-    print(f"Wrote {len(submission)} rows to {output_path}")
-    print(submission["label"].value_counts().sort_index().to_dict())
+    print(f"Wrote {len(predictions)} predictions to {args.output}")
+    print(f"Predicted class counts: {np.bincount(predictions, minlength=2).tolist()}")
 
 
 if __name__ == "__main__":

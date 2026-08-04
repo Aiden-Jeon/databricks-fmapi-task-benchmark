@@ -1,0 +1,21 @@
+[03:45:28] data (24000, 4) (6000, 3)
+[03:45:28] dense features: train
+[03:45:28] dense features: train swapped
+[03:45:28] dense features: test
+[03:45:28] dense features: test swapped
+[03:45:28] dense dim 213
+[03:45:28] text views
+[03:45:34] sparse stacking models
+[03:45:37]   sparse[diff_word] oof acc=0.5722
+[03:45:50]   sparse[diff_char] oof acc=0.5837
+[03:46:57]   sparse[pair_char] oof acc=0.6210
+[03:47:13]   sparse[pair_word] oof acc=0.5983
+[03:47:16]   sparse[inter_word] oof acc=0.5430
+[03:47:16] GBM training (24000, 218)
+[03:47:40]   fold 0 iters=800 acc=0.7792
+[03:48:03]   fold 1 iters=800 acc=0.7762
+[03:48:25]   fold 2 iters=800 acc=0.7802
+[03:48:47]   fold 3 iters=800 acc=0.7740
+[03:49:10]   fold 4 iters=800 acc=0.7656
+[03:49:10] GBM oof acc = 0.7750
+[03:49:10] wrote submission (6000, 2) pos rate 0.37716666666666665 222s

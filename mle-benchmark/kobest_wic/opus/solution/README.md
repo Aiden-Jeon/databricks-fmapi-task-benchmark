@@ -1,87 +1,73 @@
 # KoBEST WiC — solution
 
-## How to run
+Reproduce with (from the task root):
+
 ```bash
-cd solution
-python run.py          # prints CV scores and writes ../outputs/submission.csv
+python solution/run.py      # ~25 s, writes outputs/submission.csv
 ```
-Only `numpy`, `pandas`, `scipy`, `scikit-learn` are required (no GPU, no
-pretrained weights, no internet — none were available in this environment).
-Runtime ≈ 80 s on 4 CPU cores. Caches the feature matrix in
-`content_cache.pkl` (delete it to force a rebuild).
 
-## Files
-| file | content |
+Only `numpy` / `pandas` / `scikit-learn` are used (no torch/transformers are
+installed in this environment, no internet, no external data or pretrained
+weights). Everything is fit on `train.csv`; `test.csv` contributes only its
+unlabelled texts and its `word` grouping.
+
+## Approach
+
+The prediction is the posterior of a small hierarchical model that combines two
+independent sources of evidence.
+
+### 1. Text model (`features.py`)
+Logistic regression (C=0.3) on 45 features of the pair:
+
+* **Structural / morphological**: the string glued to the target word in each
+  context (Korean particle vs. space vs. derivational suffix), whether those
+  match, the neighbouring tokens, the relative position of the target in the
+  sentence, sentence lengths.
+* **Lexical overlap**: token and character 2/3/4-gram Jaccard and containment
+  between the two contexts.
+* **Distributional similarity**: cosine similarity in four views — word and
+  `char_wb` 2–4-gram TF-IDF, and 180-dimensional LSA (TruncatedSVD) of each.
+  The vector spaces are fit unsupervised on all 6 636 contexts.
+
+5-fold OOF accuracy: **0.602**. Sparse pair representations (intersection /
+symmetric difference of n-gram sets), element-wise metric learning on the LSA
+vectors, target masking, multi-view stacking, HGB/ExtraTrees and blends were all
+tried and did not beat this; without pretrained Korean representations the
+context signal saturates around 0.60.
+
+### 2. Per-word count model (`count_model.py`)
+The benchmark is constructed *per target word*: each word contributes a small
+set of pairs (483 of the 775 words have exactly 3) whose positive/negative
+counts are close to balanced. The number of positives per word is clearly
+**under-dispersed** relative to a binomial — for T=3 words the estimated
+distribution over the number of positives m is `[0.06, 0.43, 0.48, 0.04]`
+(sd 0.65 vs. 0.87 for a binomial). So the labelled pairs of a word are
+informative about its remaining pairs.
+
+* `fit_prior_em` estimates P(m | T) by EM over all words, using the
+  hypergeometric likelihood of the observed (k positives out of n labelled
+  pairs) — sparse pair-counts back off to a discretised Gaussian whose
+  dispersion factor is fitted by pooled ML (it comes out at the binomial value
+  for T>=6, i.e. no signal is claimed there).
+* Conditional on m all C(T, m) label configurations are exchangeable, so the
+  posterior over the unknown labels z of a word is
+  `P(z) ~ P_T(k + sum z) / C(T, k + sum z) * prod_i LR_i^{z_i}`
+  with `LR_i` the tempered likelihood ratio of the text model. All `2^t`
+  configurations are enumerated, giving exact marginals (and a joint constraint
+  when a word has several test rows).
+
+### Validation
+Words with no rows in `test.csv` are *complete*: their whole original pair set
+sits inside `train.csv`. Splitting their rows 80/20 therefore reproduces the
+real situation exactly (T observable, prior fit on the retained part). Averaged
+over 40 splits:
+
+| model | accuracy |
 |---|---|
-| `run.py` | final pipeline: CV + full fit + submission |
-| `content.py` | builds the pair-level content/similarity feature matrix |
-| `feats.py` | text normalisation, Korean particle stripping, TF-IDF/LSA representations |
-| `feats2.py` | collocation extraction + PPMI-SVD word embeddings (built from the task corpus only) |
-| `prior.py` | per-word label-prior features (fold-honest / leave-one-out) |
-| `build.py` | data loading and the context table (each context gets an id) |
-| `experiments/` | exploratory CV scripts and their logs (feature sweeps, sense clustering) |
+| count model alone | 0.569 |
+| text model alone | 0.607 |
+| **combined (text tempering w=1.5)** | **0.625** |
 
-## Method
-The environment had **no deep-learning stack and no pretrained Korean LM**, so a
-transformer cross-encoder (the usual approach for WiC) was impossible. The
-solution is therefore a feature-based linear/GBM blend built on two independent
-signal sources.
-
-**1. Content similarity between the two contexts** (`content.py`)
-* char-`wb` 2–4-gram TF-IDF cosine, stemmed word-unigram TF-IDF cosine
-* LSA (TruncatedSVD-200) cosine of both of the above
-* PPMI-SVD word-embedding cosine (embeddings trained on the 6 636 sentences of
-  this task only)
-* each of the above computed on the whole sentence *and* on a ±20-character
-  window around the marked target word
-* each similarity additionally **normalised within the target word**
-  (z-score and percentile against all context pairs of that word), which makes
-  values comparable across words of different topical spread
-* surface / collocation features: length and token-count differences, target
-  position, particle following the target, first characters of the neighbouring
-  eojeol, light-verb markers (하/되/받/…), ellipsis / hanja markers
-
-**2. Per-word label prior** (`prior.py`) — the biggest single gain.
-Pairs that share a target word are constructed to contain a **mix** of
-same-sense and different-sense examples: among words with exactly 3 pairs,
-91 % have both labels present, versus 75 % expected under independence. The
-labels of the *other* pairs of the same word are therefore informative and
-negatively correlated with the current one (e.g. if the two known pairs of a
-3-pair word are both label 1, the remaining one is label 1 only ~25 % of the
-time). Features: neighbour counts `n1/n0`, number of known labels `k`, total
-number of pairs of the word (known from train+test), an analytic
-hyper-geometric conditional probability with an empirically fitted prior over
-"#positives per word", and a smoothed empirical target-encoding table.
-All of these are computed **leave-one-out** for train rows and only from
-training-fold labels inside CV, so the reported CV is honest.
-
-**Model.** Blend (simple average) of three L2 logistic regressions
-(C = 0.01/0.02/0.05 on standardised features) and a gradient-boosting
-classifier. Evaluated with 3 × 5-fold stratified CV.
-
-## Results (3×5-fold CV accuracy on train)
-| model | accuracy | AUC |
-|---|---|---|
-| majority class | 0.506 | — |
-| content features only | 0.599 | 0.643 |
-| content + per-word prior, LR C=0.01 | 0.623 | 0.676 |
-| **final blend (3×LR + GB)** | **0.626** | **0.676** |
-
-## Things that were tried and did *not* help
-* **Constrained sense clustering** per word (signed Ising / correlation
-  clustering over all contexts of a word, train labels as must-link /
-  cannot-link constraints, `experiments/senseclust.py`): AUC 0.625, i.e. no
-  better than the raw similarity it is built from. Reason: *every context in
-  the dataset occurs exactly once*, so the label graph is a perfect matching
-  with no transitivity to exploit — the only cross-pair link is content
-  similarity, which is weak for one-sentence contexts that often share no
-  content words at all.
-* **Kernel label propagation** across pairs of the same word — anti-correlated
-  with the target (AUC 0.43), dropped.
-* **Learned diagonal metric** (logistic regression on `[z1*z2, |z1-z2|]` of LSA
-  vectors) and **logistic regression on the sparse element-wise minimum of the
-  TF-IDF vectors** (learned per-token "sharing" weights): AUC 0.55–0.59, worse
-  than plain cosine and redundant with it.
-* **id-order / index leakage**: none (ids are shuffled, AUC 0.497).
-* Exact per-word label balance: does not hold, only the softer "mixed labels"
-  tendency described above.
+An exhaustive leave-one-out check on the complete words confirms the direction
+of the count signal (T=3, 2 labelled pairs: k=0 -> P(y=1)=0.73, k=1 -> 0.54,
+k=2 -> 0.18), and the same pattern is visible in the emitted predictions.

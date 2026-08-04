@@ -1,14 +1,23 @@
-# Reproducible solution
+# BEEP classifier
 
-Run from any directory with:
+The solution uses character `(1, 5)`-gram TF-IDF features and a class-balanced
+linear SVM. Character features handle spacing variation, slang, and obfuscated
+spellings without external tokenizers or pretrained resources. A small fixed
+decision-score adjustment improves the under-predicted `offensive` class; all
+settings were selected with stratified cross-validation on `train.csv` only.
+
+From the workspace root, reproduce the submission with:
 
 ```bash
-python solution/train_predict.py
+python solution/train.py
 ```
 
-The script trains a class-weighted linear SVM on character-boundary TF-IDF
-1-5 grams. This representation handles Korean slang, misspellings, and spacing
-variation without external tokenizers or data. It writes and validates
-`outputs/submission.csv` against `sample_submission.csv`.
+To also print the deterministic five-fold validation result before training:
 
-Tested with Python 3.12, pandas 1.5.3, and scikit-learn 1.4.2.
+```bash
+python solution/train.py --cv
+```
+
+The script requires Python 3, pandas, NumPy, and scikit-learn. It writes
+`outputs/submission.csv` and validates its columns, IDs, row count, and labels
+against `sample_submission.csv`.

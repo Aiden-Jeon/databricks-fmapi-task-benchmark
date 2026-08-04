@@ -1,14 +1,9 @@
 # KorFin-ASC solution
 
-The solution uses an ensemble of three character TF-IDF `LinearSVC` models:
-
-- the aspect-marked full sentence;
-- a 35-character context window around the aspect;
-- the aspect text alone, used only when the test sentence also occurs in the
-  training set.
-
-The fixed ensemble weights were selected with 3-fold stratified
-cross-validation (Macro F1 approximately 0.666).
+The solution uses target-marked character TF-IDF features and a one-vs-rest
+NB-SVM classifier. A 25-character context on either side of the aspect is
+repeated so that target-local evidence has more weight than unrelated parts of
+the sentence. Five stratified fold models and one full-data model are averaged.
 
 Run from any directory with:
 
@@ -16,6 +11,6 @@ Run from any directory with:
 python solution/train_predict.py
 ```
 
-This reads the CSV files from the workspace root and writes
-`outputs/submission.csv`. The script checks row count, ID coverage, ID
-uniqueness, and label validity before writing the result.
+The script reads the three CSV files from the workspace root by default and
+writes `outputs/submission.csv`. Paths can be changed with `--data-dir` and
+`--output`.

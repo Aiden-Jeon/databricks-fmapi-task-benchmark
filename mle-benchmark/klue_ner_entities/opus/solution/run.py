@@ -1,125 +1,180 @@
-"""Train char-level averaged perceptron NER and write submission.
-
-Usage:
-  python solution/run.py dev      # 90/10 split, report dev F1 per epoch
-  python solution/run.py full     # train on all data, write outputs/submission.csv
-"""
-import os
-import pickle
-import sys
-import time
-
+import os, sys, time, argparse, pickle
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from data import load, bio_to_ents, format_entities, micro_f1  # noqa
-from features import build_gaz, gaz_matches, sent_features  # noqa
-from tagger import TAGS, TAG2I, Tagger  # noqa
+from ner import (TYPES, Decoder, LABELS, NL, parse_ents, ents_to_spans, spans_to_labels,
+                 labels_to_spans, spans_to_str, Gazetteer, sent_features,
+                 FeatureMap, Perceptron, micro_f1)
 
-NFOLD = 5
-EPOCHS = int(os.environ.get("EPOCHS", 8))
-GAZ_MIN_PREC = float(os.environ.get("GAZ_MIN_PREC", 0.2))
+T0 = time.time()
 
 
-def gaz_lens_of(gaz):
-    return sorted({len(s) for s in gaz})
+def log(*a):
+    print('[%6.1fs]' % (time.time() - T0), *a, flush=True)
 
 
-def featurize(rows, gaz, with_gold=True):
-    gl = gaz_lens_of(gaz)
-    out = []
-    for r in rows:
-        ids = sent_features(r["sentence"], gaz, gl)
-        if with_gold:
-            gold = np.array([TAG2I[t] for t in r["tags"]], dtype=np.int8)
-            out.append((ids, gold))
-        else:
-            out.append((ids, None))
-    return out
-
-
-def featurize_train_jackknife(rows, seed=7):
-    """Gazetteer features for training rows come from out-of-fold dictionaries."""
-    rng = np.random.RandomState(seed)
-    folds = rng.randint(0, NFOLD, size=len(rows))
-    data = [None] * len(rows)
-    for k in range(NFOLD):
-        sub = [r for r, f in zip(rows, folds) if f != k]
-        gaz = build_gaz(sub, min_prec=GAZ_MIN_PREC)
-        gl = gaz_lens_of(gaz)
-        for i, (r, f) in enumerate(zip(rows, folds)):
-            if f != k:
-                continue
-            ids = sent_features(r["sentence"], gaz, gl)
-            gold = np.array([TAG2I[t] for t in r["tags"]], dtype=np.int8)
-            data[i] = (ids, gold)
-        print("  jackknife fold %d done (%d dict entries)" % (k, len(gaz)), flush=True)
+def encode_set(sents, gaz, fm, freeze, quiet=False):
+    fm.frozen = freeze
+    data = []
+    for k, s in enumerate(sents):
+        gm = gaz.match(s) if gaz is not None else None
+        feats = sent_features(s, gm)
+        idx, cnts = fm.encode(feats)
+        offs = np.zeros(len(cnts), dtype=np.int64)
+        np.cumsum(cnts[:-1], out=offs[1:])
+        data.append((idx, offs, len(s)))
+        if not quiet and (k + 1) % 4000 == 0:
+            log('  encoded %d/%d (vocab=%d)' % (k + 1, len(sents), len(fm.d)))
     return data
 
 
-def decode(tg, feats, rows, W=None, T=None):
-    preds = []
-    for (ids, _), r in zip(feats, rows):
-        path = tg.predict_ids(ids, W, T)
-        tags = [TAGS[i] for i in path]
-        preds.append(bio_to_ents(r["sentence"], tags))
-    return preds
+def encode_train_kfold(sents, spans, fm, k=5, seed=13):
+    """Encode training sentences using out-of-fold gazetteers so that the model
+    does not learn to blindly trust the (in-sample-perfect) gazetteer."""
+    n = len(sents)
+    rng = np.random.RandomState(seed)
+    fold = rng.randint(0, k, size=n)
+    data = [None] * n
+    for f in range(k):
+        oth = np.nonzero(fold != f)[0]
+        cur = np.nonzero(fold == f)[0]
+        g = Gazetteer().fit([sents[i] for i in oth], [spans[i] for i in oth])
+        sub = encode_set([sents[i] for i in cur], g, fm, freeze=False, quiet=True)
+        for j, i in enumerate(cur):
+            data[i] = sub[j]
+        log('  fold %d/%d done (gaz=%d, vocab=%d)' % (f + 1, k, len(g.d), len(fm.d)))
+    return data
+
+
+def train_one(data, golds, nfeat, epochs, seed=0, dev=None, dev_sents=None,
+              dev_gold_strs=None, tag=''):
+    model = Perceptron(nfeat)
+    rng = np.random.RandomState(seed)
+    order = np.arange(len(data))
+    for ep in range(epochs):
+        rng.shuffle(order)
+        err = tot = 0
+        for i in order:
+            idx, offs, n = data[i]
+            pred = model.decode(idx, offs, n)
+            g = golds[i]
+            if not np.array_equal(pred, g):
+                err += model.update(idx, offs, g, pred)
+            tot += n
+        msg = '%sepoch %d  tokerr=%.4f' % (tag, ep + 1, err / tot)
+        if dev is not None and (ep + 1) % 2 == 0:
+            model.use_avg()
+            preds = [spans_to_str(s, labels_to_spans(model.decode(*d)))
+                     for s, d in zip(dev_sents, dev)]
+            pr, rc, f = micro_f1(dev_gold_strs, preds)
+            msg += '  dev P=%.4f R=%.4f F1=%.4f' % (pr, rc, f)
+            model.use_raw()
+        log(msg)
+    W, T = model.averaged()
+    del model
+    return W, T
+
+
+def train(data, golds, nfeat, epochs, seeds=(0,), **kw):
+    Wsum = Tsum = None
+    for k, sd in enumerate(seeds):
+        W, T = train_one(data, golds, nfeat, epochs, seed=sd,
+                         tag='m%d ' % k, **kw)
+        if Wsum is None:
+            Wsum, Tsum = W, T
+        else:
+            Wsum += W
+            Tsum += T
+            del W, T
+        if len(seeds) > 1 and kw.get('dev') is not None:
+            m = Decoder(Wsum / (k + 1), Tsum / (k + 1))
+            preds = [spans_to_str(s, labels_to_spans(m.decode(*d)))
+                     for s, d in zip(kw['dev_sents'], kw['dev'])]
+            pr, rc, f = micro_f1(kw['dev_gold_strs'], preds)
+            log('ENSEMBLE(%d) dev P=%.4f R=%.4f F1=%.4f' % (k + 1, pr, rc, f))
+            del m
+    n = len(seeds)
+    if n > 1:
+        Wsum /= n
+        Tsum /= n
+    return Decoder(Wsum, Tsum)
 
 
 def main():
-    mode = sys.argv[1] if len(sys.argv) > 1 else "dev"
-    t0 = time.time()
-    rows, ne, nf = load("train.csv")
-    print("train sentences %d entities %d align_fail %d" % (len(rows), ne, nf), flush=True)
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--mode', default='full', choices=['dev', 'full'])
+    ap.add_argument('--epochs', type=int, default=8)
+    ap.add_argument('--limit', type=int, default=0)
+    ap.add_argument('--kfold', type=int, default=5)
+    ap.add_argument('--seeds', type=int, default=1)
+    ap.add_argument('--biases', default='0')
+    ap.add_argument('--obias', type=float, default=0.0)
+    ap.add_argument('--out', default='outputs/submission.csv')
+    args = ap.parse_args()
 
-    if mode == "dev":
+    tr = pd.read_csv('train.csv', keep_default_na=False)
+    te = pd.read_csv('test.csv', keep_default_na=False)
+    if args.limit:
+        tr = tr.iloc[:args.limit].reset_index(drop=True)
+
+    tr_sents = tr['sentence'].tolist()
+    tr_spans = [ents_to_spans(s, parse_ents(e))
+                for s, e in zip(tr_sents, tr['entities'])]
+
+    if args.mode == 'dev':
         rng = np.random.RandomState(42)
-        idx = rng.permutation(len(rows))
-        ntr = int(len(rows) * 0.9)
-        tr = [rows[i] for i in idx[:ntr]]
-        va = [rows[i] for i in idx[ntr:]]
+        perm = rng.permutation(len(tr_sents))
+        ncut = int(len(perm) * 0.85)
+        tri, dvi = perm[:ncut], perm[ncut:]
+        fit_sents = [tr_sents[i] for i in tri]
+        fit_spans = [tr_spans[i] for i in tri]
+        ev_sents = [tr_sents[i] for i in dvi]
+        ev_gold = [tr['entities'].iloc[i] for i in dvi]
+        ev_ids = None
     else:
-        tr, va = rows, []
+        fit_sents, fit_spans = tr_sents, tr_spans
+        ev_sents = te['sentence'].tolist()
+        ev_gold = None
+        ev_ids = te['id'].tolist()
 
-    print("featurizing train (jackknife gaz)...", flush=True)
-    trf = featurize_train_jackknife(tr)
-    print("  %.1fs" % (time.time() - t0), flush=True)
+    log('fit=%d eval=%d' % (len(fit_sents), len(ev_sents)))
+    gaz = Gazetteer().fit(fit_sents, fit_spans)
+    log('gazetteer size=%d' % len(gaz.d))
 
-    gaz_full = build_gaz(tr, min_prec=GAZ_MIN_PREC)
-    print("full gaz entries", len(gaz_full), flush=True)
+    fm = FeatureMap()
+    if args.kfold > 1:
+        Xtr = encode_train_kfold(fit_sents, fit_spans, fm, k=args.kfold)
+    else:
+        Xtr = encode_set(fit_sents, gaz, fm, freeze=False)
+    log('train encoded, vocab=%d' % len(fm.d))
+    Xev = encode_set(ev_sents, gaz, fm, freeze=True)
+    log('eval encoded')
 
-    tg = Tagger()
-    dev_eval = None
-    if va:
-        vaf = featurize(va, gaz_full)
-        gold = [r["ents"] for r in va]
+    golds = [spans_to_labels(len(s), sp) for s, sp in zip(fit_sents, fit_spans)]
+    nfeat = len(fm.d)
 
-        def dev_eval(W, T):
-            return micro_f1(gold, decode(tg, vaf, va, W, T))[2]
+    dev_args = {}
+    if ev_gold is not None:
+        dev_args = dict(dev=Xev, dev_sents=ev_sents, dev_gold_strs=ev_gold)
+    model = train(Xtr, golds, nfeat, args.epochs,
+                  seeds=tuple(range(args.seeds)), **dev_args)
 
-    tg.train(trf, epochs=EPOCHS, dev_eval=dev_eval)
-    print("trained in %.1fs" % (time.time() - t0), flush=True)
-
-    if va:
-        preds = decode(tg, vaf, va, tg.Wavg, tg.Tavg)
-        print("FINAL dev P/R/F1", micro_f1(gold, preds), flush=True)
-        if tg.best:
-            print("BEST epoch %d devF1 %.4f" % (tg.best[3], tg.best[0]), flush=True)
-
-    if mode == "full":
-        test = load("test.csv", with_labels=False)
-        tef = featurize(test, gaz_full, with_gold=False)
-        preds = decode(tg, tef, test, tg.Wavg, tg.Tavg)
-        os.makedirs("outputs", exist_ok=True)
-        pd.DataFrame({"id": [r["id"] for r in test],
-                      "entities": [format_entities(p) for p in preds]}).to_csv(
-            "outputs/submission.csv", index=False)
-        print("wrote outputs/submission.csv", flush=True)
-        with open("solution/model.pkl", "wb") as f:
-            pickle.dump({"W": tg.Wavg, "T": tg.Tavg}, f)
-    print("total %.1fs" % (time.time() - t0))
+    biases = [float(x) for x in args.biases.split(',')]
+    for b in biases:
+        preds = [spans_to_str(s, labels_to_spans(model.decode(*d, o_bias=b)))
+                 for s, d in zip(ev_sents, Xev)]
+        if ev_gold is not None:
+            p, r, f = micro_f1(ev_gold, preds)
+            log('FINAL bias=%.2f dev P=%.4f R=%.4f F1=%.4f' % (b, p, r, f))
+        else:
+            out = args.out if b == args.obias else (
+                'outputs/cand_b%g.csv' % b)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            pd.DataFrame({'id': ev_ids, 'entities': preds}).to_csv(
+                out, index=False)
+            log('wrote %s (bias=%g)' % (out, b))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

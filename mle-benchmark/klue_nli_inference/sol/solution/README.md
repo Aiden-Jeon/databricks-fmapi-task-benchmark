@@ -1,18 +1,11 @@
 # KLUE-NLI solution
 
-This solution uses only `train.csv`. It combines character/word TF-IDF,
-sentence-pair overlap features, a linear SVM, and joint decoding of examples
-that share a premise. A stratified holdout on complete premise groups reached
-0.907 accuracy with the default decoding strength.
-
-Run from the task root:
+Run from the task directory:
 
 ```bash
-python solution/train.py
+python solution/train_predict.py
 ```
 
-Optional local validation:
-
-```bash
-python solution/train.py --validate
-```
+The script trains only on `train.csv` and writes `outputs/submission.csv`.
+It combines word/character TF-IDF features, pairwise lexical features, a linear
+SVM, and a group constraint for repeated premises in the dataset.

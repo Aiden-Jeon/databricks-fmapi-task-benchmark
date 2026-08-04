@@ -1,0 +1,41 @@
+{
+  "models": [
+    "lr_jamo",
+    "lr_jamo_c2",
+    "lr_jamo_c16",
+    "svc_jamo",
+    "svc_jamo_bal",
+    "sgd_jamo",
+    "lr_js",
+    "svc_js_bal",
+    "lr_cwb",
+    "svc_cwb_bal",
+    "lr_main_c4",
+    "lr_main_c12",
+    "lr_main_bal",
+    "svc_main",
+    "svc_main_bal",
+    "ridge_main",
+    "cnb_counts",
+    "mlp_svd",
+    "lr_jw",
+    "lr_jw_bal",
+    "svc_jw"
+  ],
+  "stack_C": 200.0,
+  "use_all_labels": false,
+  "oof_macro_f1": 0.7398721405839798,
+  "holdout_macro_f1": 0.733857604912806,
+  "thresholds": [
+    0.39000000000000007,
+    0.5100000000000001,
+    0.4700000000000001,
+    0.4700000000000001,
+    0.39000000000000007,
+    0.34,
+    0.5700000000000002,
+    0.26000000000000006,
+    0.5,
+    0.5
+  ]
+}

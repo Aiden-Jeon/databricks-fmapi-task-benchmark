@@ -8,9 +8,9 @@ Korean ML-engineering task. Metric: **accuracy** (higher is better). Full spec i
 
 | Model | 결과물 퀄리티 (accuracy) | 소요시간 | LLM 비용 |
 |---|---|---|---|
-| Opus 5 | **0.7743** | 68 min | $23.22 |
-| GPT-5.6-sol | 0.7248 | 7 min | $5.17 |
-| GLM 5.2 | 0.7091 | 32 min | $3.10 |
+| Opus 5 | **0.7682** | 64 min | $23.22 |
+| GPT-5.6-sol | 0.7427 | 14 min | $5.17 |
+| GLM 5.2 | 0.7117 | 81 min | $3.10 |
 
 Each model folder (`opus/` · `sol/` · `glm/`) holds that model's `submission.csv`, the agent-written `solution/` code, and `metrics.json`.
 

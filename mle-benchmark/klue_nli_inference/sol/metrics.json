@@ -5,12 +5,12 @@
   "quality": {
     "metric": "accuracy",
     "direction": "higher",
-    "score": 0.8986,
+    "score": 0.8504,
     "valid_submission": true
   },
-  "time_seconds": 548.3,
+  "time_seconds": 808.4,
   "llm_cost_usd_per_run": null,
   "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $5.17.",
   "run_arch": "aarch64",
-  "run_id": "M2_t6_klue_nli_full_20260731_010748"
+  "run_id": "M2_t6_klue_nli_full_20260804_011926"
 }

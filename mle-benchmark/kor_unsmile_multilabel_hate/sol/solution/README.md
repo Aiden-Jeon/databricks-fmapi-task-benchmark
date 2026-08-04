@@ -1,23 +1,14 @@
 # UnSmile solution
 
-The final model is an equal-weight ensemble of two TF-IDF character models:
+The solution uses character-boundary TF-IDF features and ten independent linear SVM classifiers.
+Five stratified folds provide out-of-fold decision scores for selecting each label's F1-optimal
+threshold. Test decision scores are averaged across the same five models.
 
-- character 1-5 grams
-- within-word-boundary character 2-5 grams
-
-Each feature set is classified by a class-balanced one-vs-rest linear SVM. Five-fold
-out-of-fold predictions determine the F1-optimal positive prevalence for each label.
-The two models are then retrained on all training rows, and those prevalences are
-transferred to the test ranking. This avoids applying validation thresholds to models
-trained on a different amount of data.
-
-Run from any directory with:
+Run from the workspace root:
 
 ```bash
-python /path/to/task/solution/train.py
+python solution/train.py
 ```
 
-The script reads `train.csv` and `test.csv` from the task root and writes
-`outputs/submission.csv`. It uses only the provided data and fixed random seeds.
-
-Dependencies: Python 3, NumPy, pandas, SciPy, and scikit-learn 1.4 or newer.
+The script uses only `train.csv`, `test.csv`, and `sample_submission.csv`, fixes all randomized
+splits, validates the input/output schemas, and writes `outputs/submission.csv`.

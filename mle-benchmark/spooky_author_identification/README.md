@@ -8,9 +8,9 @@ Korean ML-engineering task. Metric: **multiclass log loss** (lower is better). F
 
 | Model | 결과물 퀄리티 (multiclass log loss) | 소요시간 | LLM 비용 |
 |---|---|---|---|
-| Opus 5 | **0.2582** | 94 min | $23.22 |
-| GPT-5.6-sol | 0.3625 | 15 min | $5.17 |
-| GLM 5.2 | 0.3712 | 105 min | $3.10 |
+| Opus 5 | 0.4126 | 13 min | $23.22 |
+| GPT-5.6-sol | 0.3765 | 5 min | $5.17 |
+| GLM 5.2 | **0.3557** | 120 min | $3.10 |
 
 Each model folder (`opus/` · `sol/` · `glm/`) holds that model's `submission.csv`, the agent-written `solution/` code, and `metrics.json`.
 

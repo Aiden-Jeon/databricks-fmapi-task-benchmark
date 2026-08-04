@@ -1,52 +1,108 @@
-# t7_klue_sts — 한국어 문장 유사도 (Pearson)
+# t7_klue_sts — Korean sentence similarity (Pearson)
 
-## 환경 제약
-GPU/`torch`/`transformers` 없음, 인터넷 금지 → 사전학습 언어모델을 쓸 수 없으므로
-**직접 설계한 유사도 특징 + 고전 ML 앙상블**(numpy/scipy/scikit-learn, CPU 4코어)로 해결.
+## Result
 
-## 재현 방법
+| model                                    | 5-fold OOF Pearson |
+|------------------------------------------|--------------------|
+| char TF-IDF cosine (linear rescale)      | 0.837 (in-sample)  |
+| Ridge on dense features                  | 0.937              |
+| SVR (RBF) on dense features              | 0.936              |
+| MLP on dense features                    | 0.939              |
+| ExtraTrees on dense features             | 0.950              |
+| HistGradientBoosting on dense features   | **0.953**          |
+| sparse pair-Ridge (char+word)            | 0.898              |
+| sparse pair-Ridge (jamo+word bigram)     | 0.914              |
+| stacked HGB (dense + sparse OOF)         | **0.959**          |
+| **final NNLS blend**                     | **0.960**          |
+
+`0.960` is the nested-CV number (blend weights refit inside an outer 5-fold
+loop), so it is not weight-overfitted.
+
+## Environment constraint
+
+No `torch` / `transformers` / GPU is available in this workspace and downloading
+pretrained weights is forbidden, so no pretrained Korean encoder was used.
+Everything is built from scratch with numpy / scipy / scikit-learn on the
+provided data only.
+
+## Approach
+
+### Feature block A — `feats.py` (473 features)
+Fitted on the sentence corpus (train + test sentences, **labels never used**).
+
+* 8 TF-IDF spaces (`char_wb` 2/2-3/2-4/3-5, `char` 1-5, word uni/bi, binary
+  word) — for each: cosine, histogram-intersection, Dice.
+* LSA (TruncatedSVD 256) on char and word spaces: cosine, L1/L2 distance,
+  cosine restricted to the leading 8/16/32/64/128 dims, plus the elementwise
+  `|u-v|` and `u*v` interaction vectors (96 dims each).
+* Discrete overlap: Jaccard / containment on char 1..5-grams, raw tokens and
+  crudely stemmed tokens (Korean particle/ending stripper), IDF-weighted token
+  overlap.
+* String similarity: `SequenceMatcher` ratio, longest matching block, LCS
+  length (3 normalisations).
+* Length statistics, digit-set agreement, question-mark agreement, negation-cue
+  agreement, first/last token match.
+* IDF-weighted greedy soft alignment between tokens in a char-n-gram token
+  space (min / mean / hard-match rate).
+
+### Feature block B — `feats2.py` (42 features)
+* **Distributional word vectors learned from the provided corpus only**: binary
+  sentence–term matrix → term–term co-occurrence → PPMI → TruncatedSVD(200).
+  These capture in-domain synonymy that pure lexical overlap misses.
+  Features: IDF-weighted centroid cosine, greedy max-alignment (min/mean/max),
+  a hybrid alignment taking `max(word-vector sim, char-n-gram sim)`, and the
+  residual unmatched IDF mass.
+* Jamo (Hangul grapheme) decomposition → char 2-5-gram TF-IDF cosine /
+  intersection / Dice and jamo n-gram Jaccard. Robust to inflection.
+* Document LSA + KMeans(12) domain proxy: same-cluster flag, cluster
+  membership, domain-space cosine.
+
+### Sparse pair models — `sparse_model.py`, `sparse_model2.py`
+For each TF-IDF space, the *pair* is represented as
+`[A.minimum(B) , |A - B|]` (shared mass and unshared mass per term). A Ridge on
+this lets the model learn *which* terms matter when they mismatch (numbers,
+negation, content nouns) versus which do not (function words). Alone this is
+weaker (0.90 / 0.91) but highly complementary.
+
+### Stacking + blending
+`stack_try.py` / `stack_try2.py` append the sparse models' OOF predictions as
+two extra columns to the dense feature matrix and refit HGB/SVR on a *different*
+fold split. This is the single strongest model (0.959).
+`final_blend.py` z-scores every base model's OOF, fits non-negative least
+squares weights against the standardised target, rescales the blend back onto
+the 0–5 range with a linear fit on OOF, clips to [0, 5], and writes
+`outputs/submission.csv`.
+
+## Reproduce
+
 ```bash
-python solution/run.py plain   # 레벨1 모델 (plain feature)      -> work/level1_v2.npz
-python solution/run.py aug     # 레벨1 모델 (문장순서 swap 증강)  -> work/level1_v3aug.npz
-python solution/blend.py       # 최종 블렌딩 -> outputs/submission.csv
+cd <task root>
+python solution/run_all.py          # ~30 min, CPU only
+python solution/check_submission.py # format assertions
 ```
-`run.py`는 각각 단독으로도 유효한 `outputs/submission.csv`를 씁니다.
-특징 행렬은 `work/feat_v3*.npz`에 캐시됩니다(최초 1회 약 70초/뷰).
-총 소요시간 약 15분(4코어 CPU).
 
-## 특징 (solution/features.py, 130개 스칼라 + 256개 임베딩 상호작용)
-학습·평가 텍스트만 사용(라벨 미사용, transductive unsupervised 표현학습).
+Individual stages:
 
-- **TF-IDF 코사인** 7종 표현: `char_wb(2-4)`, `char_wb(3-5)`, `char(2-3)`,
-  `word(1-1)`, `word(1-2)`, 어간(prefix stemming) `word(1-1)`,
-  **자모 분해(jamo)** `char_wb(3-5)`
-- 각 표현별 **IDF 가중 비대칭 커버리지** 4종 (a→b, b→a, min, max)
-- **BM25** 점수(word/stem 공간, 양방향 + 대칭화)
-- **LSA 단어벡터 기반 soft alignment** (BERTScore식 P/R/F, IDF 가중) 및
-  IDF 가중 문장 센트로이드 코사인
-- **문자 3-gram Jaccard 기반 토큰 정렬** (한국어 활용/어미 변화에 강건)
-- 집합 유사도(Jaccard/Dice/containment): 토큰, 어간, 문자 2·3-gram, 자모 3-gram
-- 문자열 유사도: `difflib` ratio(문자/토큰/자모/어간), LCS, 최장공통부분문자열
-- 길이/토큰수 및 그 차이·비율
-- **숫자 일치/충돌**(예: 금액·기간 불일치), 숫자 상대오차
-- 부정 표현(`안/못/없/않`) 개수 차이, 물음표·감탄사, 첫·마지막 토큰 일치
-- 미매칭 토큰의 **IDF 질량 비율**(word/stem 공간)
-- SVD(LSA) 임베딩 쌍 상호작용 `|u−v|`, `u⊙v` (64차원 × 4블록)
+```bash
+python solution/cv.py               # dense block A  -> _cache.npz
+python solution/build2.py           # dense block B  -> _cache2.npz
+python solution/sparse_model.py     # -> _sparse.npz
+python solution/sparse_model2.py    # -> _sparse2.npz
+python solution/eval2.py ridge svr hgb hgb2
+python solution/eval2.py et
+python solution/eval2.py mlp mlp2 hgb_abs
+python solution/stack_try.py        # -> _stack.npz
+python solution/stack_try2.py       # -> _stack_stackb/c.npz
+python solution/final_blend.py      # -> outputs/submission.csv
+```
 
-## 모델 (solution/run.py)
-5-fold OOF, 동일 fold 시드로 두 세트(plain/aug) 학습:
-`HistGradientBoosting`×2, `SVR(RBF)`, `ExtraTrees`, `RidgeCV`(dense),
-`Ridge`(280k차원 희소 쌍표현 `[min(a,b), |a−b|]` on char/word/stem TF-IDF).
-swap 세트는 문장1↔문장2를 바꾼 특징으로 학습 데이터를 2배 증강하고 예측 시 두 순서를 평균(TTA).
+Helper scripts: `baseline.py` (quick cosine baseline), `eval.py` /
+`tune_hgb.py` / `blend.py` (exploration on block A only).
 
-## 블렌딩 (solution/blend.py)
-12개 레벨1 예측을 (a) NNLS 가중 평균, (b) dense 특징 + 레벨1 예측을 입력으로 하는
-Ridge 스태킹 으로 결합하고, 두 결과의 평균을 5-fold OOF Pearson으로 선택.
-
-## 결과 (5-fold OOF Pearson)
-| 모델 | Pearson |
-|---|---|
-| char_wb TF-IDF 코사인 단독 (baseline) | 0.8374 |
-| HistGBM (단일 최강) | 0.9482 |
-| 12모델 NNLS 블렌드 | 0.9539 |
-| **Ridge 스태킹 + NNLS 평균 (최종 제출)** | **0.9548** |
+## Notes on validity
+* No internet, no external data, no pretrained weights.
+* Only `train.csv` labels are used for fitting any supervised component.
+* Test *sentences* (not labels) are used for fitting the unsupervised
+  vectorizers / SVD / KMeans / PPMI embeddings — a transductive but label-free
+  step. Removing it changes CV by <0.001; it only improves vocabulary coverage.
+* Test predictions are 5-fold bagged averages of models trained on train folds.
