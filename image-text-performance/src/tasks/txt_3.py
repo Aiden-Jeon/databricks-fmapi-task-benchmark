@@ -38,7 +38,9 @@ def parse_html_table(html_str: str) -> list[tuple[int, int, str]]:
         # 간단한 정규식 기반 파싱 (html.parser보다 빠르고 견고)
         # <tr>...</tr> 블록 추출
         tr_pattern = re.compile(r'<tr[^>]*>(.*?)</tr>', re.DOTALL | re.IGNORECASE)
-        td_pattern = re.compile(r'<td[^>]*>(.*?)</td>', re.DOTALL | re.IGNORECASE)
+        # td와 th를 모두 셀로 취급 — 헤더(<th>)도 표 구조의 일부라 채점에 포함해야 한다
+        # (안 그러면 헤더행이 pred·GT 양쪽에서 통째로 빠져 헤더 추출 정확도가 측정되지 않음).
+        td_pattern = re.compile(r'<t[dh][^>]*>(.*?)</t[dh]>', re.DOTALL | re.IGNORECASE)
 
         rows = tr_pattern.findall(html_str)
         for row_idx, row_html in enumerate(rows):

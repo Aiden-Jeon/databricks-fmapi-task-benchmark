@@ -66,6 +66,18 @@ table_struct:
   note: "html_table config provides GT HTML structure for TEDS-ready evaluation."
   expected_sha256: null
 
+table_image:
+  hf_id: "apoidea/pubtabnet-html"
+  config: "default"
+  license: "CDLA-Permissive-1.0"
+  commercial_ok: true
+  languages: [en]
+  split: "validation"
+  image_column: "image"        # PIL.Image (렌더된 표 PNG) — IMG-6 vision 입력
+  html_column: "html_table"    # 정답 HTML(<table>…) — Cell-F1 채점(TXT-3와 동일 로직)
+  note: "TXT-3(table_struct)와 같은 PubTabNet이지만 image+html_table을 함께 사용(표 이미지→HTML). 다양한 행/열·colspan 포함."
+  expected_sha256: null
+
 table_qa:
   hf_id: "lighteval/wikitablequestions"
   license: "mirror CC-BY-4.0 / original CC-BY-4.0"

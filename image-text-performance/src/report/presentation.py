@@ -112,6 +112,8 @@ def build_presentation(
             f"<tr><td class='m'>{_esc(m)}</td><td>{_esc(o)}</td></tr>" for m, o in g["rows"]
         )
         inp = "입력 비표시 (민감 태스크)" if g.get("sensitive") else f"샘플 #{_esc(g['sample_id'])}"
+        # 질문/지시를 별도 강조(컨텍스트에 묻히는 문제 해결). 없으면 생략.
+        q_html = f'<p class="qask"><strong>질문/지시:</strong> {_esc(g["question"])}</p>' if g.get("question") else ""
         # 입력 렌더: 이미지면 인라인, 텍스트면 인용 박스
         input_html = ""
         if g.get("image_data_uri"):
@@ -122,6 +124,7 @@ def build_presentation(
     <section class="slide">
       <h2>정성 비교 · {_esc(g['task_id'])} {_esc(g['label'])}</h2>
       <p class="qmeta">{inp} · 정답: <code>{_esc(g['reference'])}</code></p>
+      {q_html}
       {input_html}
       <table class="qtable"><thead><tr><th>모델</th><th>출력/판정</th></tr></thead>
       <tbody>{rows}</tbody></table>

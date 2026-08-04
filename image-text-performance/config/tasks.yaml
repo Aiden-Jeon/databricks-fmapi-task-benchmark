@@ -34,6 +34,11 @@ image_tasks:
     kind: binary
     datasets: {en: img_person}
     metrics: [accuracy, f1]
+  - id: IMG-6        # 표 이미지 → HTML 표 추출 (Cell-F1; TXT-3 채점 재사용)
+    desc: 표 이미지 구조 추출
+    kind: extraction
+    datasets: {en: table_image}
+    metrics: [cell_f1]
 
 # 텍스트 태스크
 text_tasks:

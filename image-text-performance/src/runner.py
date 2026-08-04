@@ -506,7 +506,8 @@ def _run_samples(
 
                     cell_results.append(SampleResult(
                         model_id=model.id, task_id=task_id, sample_id=s.sample_id,
-                        reasoning_mode=mode, prompt=_truncate(_prompt_text(messages), 2000),
+                        # 가운데 생략으로 head+tail 보존 → 표/문서 뒤에 오는 질문이 안 잘림(갤러리 질문 표시용).
+                        reasoning_mode=mode, prompt=_elide_middle(_prompt_text(messages), 2400),
                         model_output=output_text, reference=s.reference, request_id=req_id,
                         finish_reason=finish, usage=usage, latency_ms_local=latency_ms,
                         timestamp=datetime.now(timezone.utc).isoformat(),
@@ -784,6 +785,19 @@ def _prompt_text(messages: list[dict[str, Any]]) -> str:
 
 def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + "…"
+
+
+def _elide_middle(text: str, limit: int) -> str:
+    """가운데를 잘라 head+tail을 모두 보존(프롬프트 저장용).
+
+    프롬프트는 '지시…큰 컨텍스트(표/문서)…질문' 구조라 앞만 자르면(head-only) 뒤쪽 질문이
+    사라진다(리포트 갤러리에서 '질문이 안 보임' 원인). head 2/3 + tail 1/3을 남겨 질문 보존.
+    """
+    if len(text) <= limit:
+        return text
+    head = int(limit * 2 / 3)
+    tail = limit - head
+    return text[:head] + "\n…(중략)…\n" + text[-tail:]
 
 
 if __name__ == "__main__":

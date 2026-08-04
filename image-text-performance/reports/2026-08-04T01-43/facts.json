@@ -1,16 +1,16 @@
 {
   "per_task_scores": {
     "IMG-1/minimal": {
-      "opus": 0.3381,
-      "sol": 0.4376
+      "opus": 0.3205,
+      "sol": 0.4149
     },
     "IMG-2/minimal": {
-      "opus": 0.1966,
-      "sol": 0.2472
+      "opus": 0.1893,
+      "sol": 0.2463
     },
     "IMG-3/minimal": {
-      "opus": 0.7,
-      "sol": 0.6333
+      "opus": 0.6667,
+      "sol": 0.6667
     },
     "IMG-4/minimal": {
       "opus": 0.9333,
@@ -20,30 +20,34 @@
       "opus": 0.9333,
       "sol": 0.9667
     },
+    "IMG-6/minimal": {
+      "opus": 0.0667,
+      "sol": 0.0
+    },
     "TXT-1/minimal": {
-      "opus": 0.0047,
-      "sol": 0.0264,
-      "glm": 0.0216
+      "sol": 0.0,
+      "glm": 0.0105,
+      "opus": 0.0063
     },
     "TXT-2/minimal": {
       "opus": 0.1,
       "sol": 0.0,
-      "glm": 0.2
+      "glm": 0.3
     },
     "TXT-3/minimal": {
-      "opus": 0.9432,
+      "opus": 0.945,
       "sol": 0.9791,
-      "glm": 0.9733
+      "glm": 0.9725
     },
     "TXT-4/minimal": {
-      "opus": 0.8783,
-      "sol": 0.8957,
-      "glm": 0.9584
+      "opus": 0.883,
+      "sol": 0.9031,
+      "glm": 0.9658
     },
     "TXT-5/minimal": {
-      "opus": 0.3208,
-      "sol": 0.3144,
-      "glm": 0.2818
+      "opus": 0.325,
+      "sol": 0.3107,
+      "glm": 0.2939
     },
     "TXT-6/minimal": {
       "opus": 0.8667,
@@ -51,14 +55,14 @@
       "glm": 0.8333
     },
     "TXT-7/minimal": {
-      "opus": 0.3571,
-      "sol": 0.4066,
-      "glm": 0.5099
+      "opus": 0.3609,
+      "sol": 0.4309,
+      "glm": 0.5053
     },
     "TXT-8/minimal": {
-      "opus": 0.8,
-      "sol": 0.8,
-      "glm": 0.8667
+      "opus": 0.8667,
+      "sol": 0.8333,
+      "glm": 0.9
     }
   },
   "task_winners": {
@@ -67,7 +71,8 @@
     "IMG-3/minimal": "opus",
     "IMG-4/minimal": "opus",
     "IMG-5/minimal": "sol",
-    "TXT-1/minimal": "sol",
+    "IMG-6/minimal": "opus",
+    "TXT-1/minimal": "glm",
     "TXT-2/minimal": "glm",
     "TXT-3/minimal": "sol",
     "TXT-4/minimal": "glm",
@@ -77,39 +82,39 @@
     "TXT-8/minimal": "glm"
   },
   "win_counts": {
-    "sol": 5,
-    "opus": 4,
-    "glm": 4
+    "sol": 4,
+    "opus": 5,
+    "glm": 5
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
   "perf": {
     "opus": {
-      "n_calls": 370,
-      "errors": 1,
-      "latency_ms_median": 2641.2,
-      "latency_ms_p95": 7578.4,
-      "total_usd": 1.829125,
-      "in_tokens": 161119,
-      "out_tokens": 40941
+      "n_calls": 400,
+      "errors": 29,
+      "latency_ms_median": 2725.3,
+      "latency_ms_p95": 9667.1,
+      "total_usd": 1.878905,
+      "in_tokens": 161635,
+      "out_tokens": 42829
     },
     "sol": {
-      "n_calls": 370,
-      "errors": 0,
-      "latency_ms_median": 1762.9,
-      "latency_ms_p95": 5314.3,
-      "total_usd": 1.359158,
-      "in_tokens": 119179,
-      "out_tokens": 25442
+      "n_calls": 400,
+      "errors": 60,
+      "latency_ms_median": 1830.0,
+      "latency_ms_p95": 7871.1,
+      "total_usd": 1.337088,
+      "in_tokens": 118425,
+      "out_tokens": 24832
     },
     "glm": {
       "n_calls": 220,
       "errors": 0,
-      "latency_ms_median": 972.5,
-      "latency_ms_p95": 7377.6,
-      "total_usd": 0.222865,
+      "latency_ms_median": 1003.1,
+      "latency_ms_p95": 7394.6,
+      "total_usd": 0.224779,
       "in_tokens": 71850,
-      "out_tokens": 28421
+      "out_tokens": 28408
     }
   }
 }

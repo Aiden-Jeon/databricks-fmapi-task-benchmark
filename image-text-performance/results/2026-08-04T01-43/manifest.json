@@ -1,6 +1,6 @@
 {
-  "run_id": "2026-08-03T23-44",
-  "created_at": "2026-08-03T23:44:11.715302+00:00",
+  "run_id": "2026-08-04T01-43",
+  "created_at": "2026-08-04T01:43:03.349874+00:00",
   "models": [
     {
       "id": "opus",
@@ -27,6 +27,7 @@
     "IMG-3",
     "IMG-4",
     "IMG-5",
+    "IMG-6",
     "TXT-1",
     "TXT-2",
     "TXT-3",
@@ -36,7 +37,7 @@
     "TXT-7",
     "TXT-8"
   ],
-  "git_commit": "d3b7e63",
+  "git_commit": "5fd84f1",
   "datasets": {
     "img_caption": {
       "hf_id": "yerevann/coco-karpathy",
@@ -61,6 +62,11 @@
     "img_person": {
       "hf_id": "detection-datasets/coco",
       "split": "val",
+      "config": "default"
+    },
+    "table_image": {
+      "hf_id": "apoidea/pubtabnet-html",
+      "split": "validation",
       "config": "default"
     },
     "doc_vqa": {

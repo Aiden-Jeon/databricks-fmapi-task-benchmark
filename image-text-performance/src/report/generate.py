@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from pathlib import Path
 from typing import Any
@@ -417,6 +418,34 @@ def _norm(s: str) -> str:
     return " ".join(str(s).lower().split())
 
 
+def _extract_question(prompt: str, task_id: str) -> str:
+    """프롬프트에서 '실제 질문/지시'만 뽑아 갤러리에 별도 표시(사람이 무엇을 물었는지 명확히).
+
+    태스크 프롬프트는 대개 '지시문 … 큰 컨텍스트(표/문서) … 질문'  또는
+    '지시문 … 이미지'  구조라, 컨텍스트에 묻혀 질문이 안 보인다(특히 표가 크면 잘림).
+    - "Question:"/"질문:" 라벨이 있으면 그 뒤를 우선 사용.
+    - 없으면 프롬프트의 첫 지시 문장(명령/의문문)을 사용(이미지 태스크의 "Describe…"/"Extract…" 등).
+    실패 시 빈 문자열(호출부에서 생략).
+    """
+    if not prompt:
+        return ""
+    # 1) 명시적 질문 라벨(대소문자·한/영). 컨텍스트 뒤에 오는 '마지막' 라벨이 실제 질문
+    #    (예: TXT-2는 "answer the question" 지시문 뒤 표, 그 뒤 "Question: …"가 진짜 질문).
+    labels = list(re.finditer(r"(?:^|\n)\s*(?:question|질문)\s*[:：]\s*([^\n]+)", prompt, re.IGNORECASE))
+    if labels:
+        return " ".join(labels[-1].group(1).split())[:300]
+    # 2) 라벨이 없으면 첫 비어있지 않은 지시 줄(이미지 태스크의 단일 지시문 등)
+    for line in prompt.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        # 표/문서 헤더 라인은 건너뜀
+        if s.lower().startswith(("table:", "document:", "context:", "지문:", "문서:", "표:", "|")):
+            continue
+        return " ".join(s.split())[:300]
+    return ""
+
+
 def _gallery_data(
     results: list[SampleResult],
     task_labels: dict[str, str],
@@ -457,6 +486,7 @@ def _gallery_data(
                 (mid, _truncate(str(model_out[mid][0]).replace("\n", " "), max_chars))
                 for mid in sorted(model_out)
             ]
+            prompt_full = prompts.get((task_id, sid), "")
             slides.append({
                 "task_id": task_id,
                 "label": task_labels.get(task_id, ""),
@@ -464,9 +494,12 @@ def _gallery_data(
                 "reference": _truncate(str(ref), max_chars),
                 "sensitive": task_id in sensitive,
                 "is_image": is_image,
+                # 질문/지시: 컨텍스트(표·문서)에 묻히거나 잘려 안 보이는 실제 물음을 별도로 뽑아 항상 표시.
+                #            텍스트·이미지 태스크 모두(이미지도 "Describe…"/"Extract…" 지시가 있음).
+                "question": _extract_question(prompt_full, task_id),
                 # 입력: 텍스트 태스크는 prompt 전문(사람이 직접 판별용, 길이 넉넉히).
                 #       이미지 태스크는 질문만 prompt에 있고 이미지는 image_data_uri로 별도 채움.
-                "input_text": "" if is_image else _truncate(prompts.get((task_id, sid), ""), 1200),
+                "input_text": "" if is_image else _truncate(prompt_full, 1200),
                 "image_data_uri": None,   # 이미지 태스크: generate_report에서 재로드해 채움(D3: NSFW 제외)
                 "rows": rows,
             })
@@ -519,6 +552,10 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
                 blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답:\n\n{_fence(ref)}\n")
             else:
                 blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답: `{ref}`\n")
+            # 질문/지시를 별도로 명확히 표시 (컨텍스트에 묻히거나 잘려 안 보이는 문제 해결).
+            q = g.get("question")
+            if q:
+                blocks.append(f"**질문/지시:** {_cell(q)}\n")
             # 입력 표시 (사람이 직접 판별용). 인용문(>)은 raw HTML 태그(<table> 등)를 렌더해
             # 표가 깨지므로, HTML/태그가 있으면 코드펜스로. 없으면 인용문.
             if g.get("input_text"):
