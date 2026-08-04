@@ -374,9 +374,19 @@ def _run_samples(
     if resume and scores_path.exists():
         scores = json.loads(scores_path.read_text(encoding="utf-8"))
         print(f"  [resume] 기존 scores.json에서 {len(scores)}개 셀 로드")
+        # IP 차단·대량 장애로 셀의 모델 응답이 대부분 __ERROR__가 되면, 각 태스크의 score()는
+        # 예외 없이 0.0류 hollow 지표를 산출해 scores.json에 'error' 키 없이 기록된다.
+        # 그러면 _cell_done이 '완료'로 오판해 스킵한다(옛 버그). 그런 셀은 scores에서 제거해
+        # 미완료로 되돌리고(→ 재실행), 아래 정합화가 옛 에러 행을 samples.jsonl에서 걷어낸다.
+        poisoned = {k for k in _poisoned_cells(samples_path) if k in scores}
+        if poisoned:
+            for k in sorted(poisoned):
+                del scores[k]
+            print(f"  [resume] 응답 대량 실패(>50% __ERROR__)로 재실행할 셀 {len(poisoned)}개: "
+                  f"{', '.join(sorted(poisoned))}")
         # samples.jsonl을 scores.json과 정합화: 완료된 셀(scores에 존재)의 행만 남기고
-        # 부분 기록(크래시 직전 셀은 scores 미기록)은 버린다. 안 그러면 그 셀 재실행 시
-        # 옛 부분행 + 새 행이 중복돼 perf/비용 집계(_perf_by_model)가 부풀려진다.
+        # 부분 기록(크래시 직전 셀은 scores 미기록)·오염 셀 행은 버린다. 안 그러면 그 셀
+        # 재실행 시 옛 행 + 새 행이 중복돼 perf/비용 집계(_perf_by_model)가 부풀려진다.
         _reconcile_samples_with_scores(samples_path, set(scores.keys()))
     else:
         scores = {}
@@ -625,6 +635,33 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=2, default=str)
     os.replace(tmp, path)
+
+
+def _poisoned_cells(samples_path: Path, threshold: float = 0.5) -> set[str]:
+    """samples.jsonl을 훑어 모델 응답이 __ERROR__인 비율이 threshold를 넘는 셀 key를 반환.
+
+    IP ACL 403·엔드포인트 장애 등으로 한 셀의 응답이 대량 실패하면, 그 셀의 지표는
+    0.0류로 산출되지만 예외가 아니라 scores.json에 'error' 키 없이 남는다. resume가 그런
+    셀을 '완료'로 오판해 스킵하는 것을 막기 위해, 여기서 오염 셀을 식별해 재실행 대상으로 삼는다.
+    파일이 없으면 빈 집합.
+    """
+    if not samples_path.exists():
+        return set()
+    total: dict[str, int] = {}
+    errs: dict[str, int] = {}
+    with open(samples_path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+                key = f"{d['model_id']}::{d['task_id']}::{d['reasoning_mode']}"
+            except (json.JSONDecodeError, KeyError):
+                continue
+            total[key] = total.get(key, 0) + 1
+            if str(d.get("model_output", "")).startswith("__ERROR__"):
+                errs[key] = errs.get(key, 0) + 1
+    return {k for k, n in total.items() if n > 0 and errs.get(k, 0) / n > threshold}
 
 
 def _reconcile_samples_with_scores(samples_path: Path, done_keys: set[str]) -> None:

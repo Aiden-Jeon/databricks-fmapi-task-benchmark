@@ -24,26 +24,6 @@
       "opus": 0.8948,
       "sol": 0.7871
     },
-    "TXT-3/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-6/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-7/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-8/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
     "TXT-1/minimal": {
       "opus": 0.0064,
       "sol": 0.0416,
@@ -63,6 +43,26 @@
       "opus": 0.3192,
       "sol": 0.3035,
       "glm": 0.3064
+    },
+    "TXT-3/minimal": {
+      "opus": 0.9432,
+      "sol": 0.9791,
+      "glm": 0.9725
+    },
+    "TXT-6/minimal": {
+      "opus": 0.8333,
+      "sol": 0.8333,
+      "glm": 0.8333
+    },
+    "TXT-7/minimal": {
+      "opus": 0.3917,
+      "sol": 0.3988,
+      "glm": 0.4961
+    },
+    "TXT-8/minimal": {
+      "opus": 0.8667,
+      "sol": 0.8667,
+      "glm": 0.9
     }
   },
   "task_winners": {
@@ -72,49 +72,49 @@
     "IMG-4/minimal": "opus",
     "IMG-5/minimal": "opus",
     "IMG-6/minimal": "opus",
-    "TXT-3/minimal": "opus",
-    "TXT-6/minimal": "opus",
-    "TXT-7/minimal": "opus",
-    "TXT-8/minimal": "opus",
     "TXT-1/minimal": "sol",
     "TXT-2/minimal": "glm",
     "TXT-4/minimal": "glm",
-    "TXT-5/minimal": "opus"
+    "TXT-5/minimal": "opus",
+    "TXT-3/minimal": "sol",
+    "TXT-6/minimal": "opus",
+    "TXT-7/minimal": "glm",
+    "TXT-8/minimal": "glm"
   },
   "win_counts": {
-    "sol": 3,
-    "opus": 9,
-    "glm": 2
+    "sol": 4,
+    "opus": 6,
+    "glm": 4
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
   "perf": {
     "opus": {
       "n_calls": 400,
-      "errors": 120,
-      "latency_ms_median": 2757.3,
-      "latency_ms_p95": 9391.4,
-      "total_usd": 1.674914,
-      "in_tokens": 133907,
-      "out_tokens": 40215
+      "errors": 1,
+      "latency_ms_median": 2592.2,
+      "latency_ms_p95": 9145.7,
+      "total_usd": 2.406026,
+      "in_tokens": 168364,
+      "out_tokens": 62568
     },
     "sol": {
       "n_calls": 400,
-      "errors": 123,
-      "latency_ms_median": 2150.5,
-      "latency_ms_p95": 8293.5,
-      "total_usd": 1.203887,
-      "in_tokens": 100683,
-      "out_tokens": 23349
+      "errors": 3,
+      "latency_ms_median": 2095.3,
+      "latency_ms_p95": 8795.8,
+      "total_usd": 1.929932,
+      "in_tokens": 124158,
+      "out_tokens": 43638
     },
     "glm": {
       "n_calls": 220,
-      "errors": 120,
-      "latency_ms_median": 1291.8,
-      "latency_ms_p95": 4216.5,
-      "total_usd": 0.086734,
-      "in_tokens": 47877,
-      "out_tokens": 7574
+      "errors": 0,
+      "latency_ms_median": 933.6,
+      "latency_ms_p95": 6528.9,
+      "total_usd": 0.209093,
+      "in_tokens": 71850,
+      "out_tokens": 27755
     }
   }
 }

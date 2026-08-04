@@ -14,9 +14,11 @@
 
 ## Executive Summary
 
-'opus'는 총 9개 태스크에서 1위를 차지하며 이미지와 텍스트 전반에서 가장 뛰어난 성능을 보였으나, 세 모델 모두 특정 텍스트 태스크(TXT-3, 6, 7, 8)에서 0점을 기록하며 공통적인 취약점을 보였습니다. 'sol'과 'glm'은 각각 3개와 2개의 태스크에서 우승하며 일부 영역에서만 제한적인 강점을 나타냈습니다. 속도와 비용의 트레이드오프 측면에서 'glm'은 가장 빠르고(중간값 1291.8ms) 저렴($0.086)하여 효율성이 높은 반면, 성능이 가장 우수한 'opus'는 응답 속도가 가장 느리고 비용($1.67)도 제일 비쌉니다.
+제공된 데이터에 기반한 요약은 다음과 같습니다.
 
-<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 9회, sol 3회, glm 2회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 1291.8ms). 비용은 **glm**가 가장 낮다($0.086734).</sub>
+총 14개 태스크 중 Opus가 6개(주로 이미지)에서 1위를 차지해 가장 많은 우위를 점했고, Sol과 GLM은 각각 4개 항목에서 1위를 기록했습니다. GLM은 텍스트(TXT) 태스크에서만 평가되었으나 해당 분야에서 강세를 보였으며, Sol은 텍스트와 이미지 모두에서 고른 성과를 냈지만 3번의 에러가 발생해 안정성이 다소 떨어졌습니다. 속도와 비용 측면에서 GLM은 지연시간 중간값 933.6ms 및 총비용 0.209달러로 가장 빠르고 저렴합니다. 반면 종합 성능이 가장 좋은 Opus는 2592.2ms의 가장 느린 속도와 2.406달러의 최고 비용이 발생하여 성능과 비용·속도 간의 뚜렷한 트레이드오프를 보여줍니다.
+
+<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 6회, sol 4회, glm 4회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 933.6ms). 비용은 **glm**가 가장 낮다($0.209093).</sub>
 
 ## 비교 그래프
 
@@ -36,12 +38,12 @@
 |---|---|---|---|
 | TXT-1 · 문서(PDF) 이해 QA | glm | minimal | token_f1=0.004, exact_match=0.0, n_evaluated=30, judge_mean=1.6 |
 | TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.3, token_f1=0.421, n_evaluated=10, judge_mean=4.5 |
-| TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.0, n_evaluated=30 |
+| TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.972, n_evaluated=30 |
 | TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.947, exact_match=0.833, n_evaluated=30, judge_mean=4.433 |
 | TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.306, rouge2=0.127, rougeL=0.244, n_evaluated=30, judge_mean=4.567 |
-| TXT-6 · 감정 분석 | glm | minimal | accuracy=0.0, macro_f1=0.0, n_evaluated=0, n_unparsed=30 |
-| TXT-7 · 키워드 추출 | glm | minimal | precision=0.0, recall=0.0, f1=0.0, n_evaluated=30, macro_precision=0.0, macro_recall=0.0 |
-| TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.0, f1=0.0, n_evaluated=0, n_unparsed=30 |
+| TXT-6 · 감정 분석 | glm | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
+| TXT-7 · 키워드 추출 | glm | minimal | precision=0.491, recall=0.502, f1=0.496, n_evaluated=30, macro_precision=0.472, macro_recall=0.497 |
+| TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.9, f1=0.824, n_evaluated=30, n_unparsed=0 |
 | IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.337, n_evaluated=30, judge_mean=0.0 |
 | IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.13, micro_recall=0.494, micro_f1=0.205, macro_precision=0.151, macro_recall=0.511, macro_f1=0.227 |
 | IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.667, f1=0.792, n_evaluated=30, n_unparsed=0 |
@@ -50,12 +52,12 @@
 | IMG-6 · 표 이미지 구조 추출 | opus | minimal | cell_f1=0.895, n_evaluated=30 |
 | TXT-1 · 문서(PDF) 이해 QA | opus | minimal | token_f1=0.006, exact_match=0.0, n_evaluated=30, judge_mean=1.733 |
 | TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.1, token_f1=0.197, n_evaluated=10, judge_mean=4.2 |
-| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.0, n_evaluated=30 |
+| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.943, n_evaluated=30 |
 | TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.808, exact_match=0.567, n_evaluated=30, judge_mean=4.133 |
 | TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.319, rouge2=0.163, rougeL=0.261, n_evaluated=30, judge_mean=4.8 |
-| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.0, macro_f1=0.0, n_evaluated=0, n_unparsed=30 |
-| TXT-7 · 키워드 추출 | opus | minimal | precision=0.0, recall=0.0, f1=0.0, n_evaluated=30, macro_precision=0.0, macro_recall=0.0 |
-| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.0, f1=0.0, n_evaluated=0, n_unparsed=30 |
+| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
+| TXT-7 · 키워드 추출 | opus | minimal | precision=0.333, recall=0.476, f1=0.392, n_evaluated=30, macro_precision=0.33, macro_recall=0.495 |
+| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 |
 | IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.427, n_evaluated=30, judge_mean=3.0 |
 | IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.181, micro_recall=0.388, micro_f1=0.247, macro_precision=0.203, macro_recall=0.423, macro_f1=0.268 |
 | IMG-3 · 무기/위협 존재 판별 | sol | minimal | accuracy=0.633, f1=0.776, n_evaluated=30, n_unparsed=0 |
@@ -64,20 +66,20 @@
 | IMG-6 · 표 이미지 구조 추출 | sol | minimal | cell_f1=0.787, n_evaluated=30 |
 | TXT-1 · 문서(PDF) 이해 QA | sol | minimal | token_f1=0.042, exact_match=0.0, n_evaluated=30, judge_mean=1.467 |
 | TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.0, token_f1=0.263, n_evaluated=10, judge_mean=3.6 |
-| TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.0, n_evaluated=30 |
+| TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.979, n_evaluated=30 |
 | TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.886, exact_match=0.667, n_evaluated=30, judge_mean=4.6 |
 | TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.303, rouge2=0.127, rougeL=0.248, n_evaluated=30, judge_mean=4.733 |
-| TXT-6 · 감정 분석 | sol | minimal | accuracy=0.0, macro_f1=0.0, n_evaluated=0, n_unparsed=30 |
-| TXT-7 · 키워드 추출 | sol | minimal | precision=0.0, recall=0.0, f1=0.0, n_evaluated=30, macro_precision=0.0, macro_recall=0.0 |
-| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.0, f1=0.0, n_evaluated=0, n_unparsed=30 |
+| TXT-6 · 감정 분석 | sol | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
+| TXT-7 · 키워드 추출 | sol | minimal | precision=0.383, recall=0.416, f1=0.399, n_evaluated=30, macro_precision=0.396, macro_recall=0.437 |
+| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 |
 
 ## 성능: 수행시간·비용 (모델별)
 
 | 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |
 |---|---|---|---|---|---|---|---|
-| glm | 220 | 120 | 1291.8 | 4216.5 | 47877 | 7574 | 0.086734 |
-| opus | 400 | 120 | 2757.3 | 9391.4 | 133907 | 40215 | 1.674914 |
-| sol | 400 | 123 | 2150.5 | 8293.5 | 100683 | 23349 | 1.203887 |
+| glm | 220 | 0 | 933.6 | 6528.9 | 71850 | 27755 | 0.209093 |
+| opus | 400 | 1 | 2592.2 | 9145.7 | 168364 | 62568 | 2.406026 |
+| sol | 400 | 3 | 2095.3 | 8795.8 | 124158 | 43638 | 1.929932 |
 
 > 비용은 `config/pricing.yaml` DBU 단가 기반 추정(usd_per_dbu 가정값). 정밀 비용은 `system.ai_gateway.usage` 조인 필요(§10).
 
@@ -239,7 +241,7 @@
 
 ### TXT-3 · 표 구조 추출
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답:
+**샘플 #1** · _모델 간 판정이 갈린 케이스_ · 정답:
 
 ```
 <html>
@@ -260,21 +262,24 @@
 Given the following table cell contents in row-major order, generate a valid HTML table with proper <table>, <tr>, and <td> tags.
 
 Table cells:
-[Genotype*] [Perimeter (mm)**] [%N2] [n]
-[kin-29(wk61)1, 2)] [1.90 ± 0.15] [73%] [42]
-[ctIs40 [pTG96(sur-5::gfp)]dbl-1(+)2] [2.76 ± 0.12] [106%] [42]
-[kin-29(wk61); ctIs40 [pTG96(sur-5::gfp)]1] [1.84 ± 0.20] [71%] [51]
-[sma-6(e1482) unc-4(e120)3] [1.47 ± 0.13] [57%] [37]
-[sma-6(e1482) unc-4(e120);kin-29(wk61)3] [1.48 ± 0.17] [57%] [38]
+[] [Group 1] [Group 2] [] [] [] [] [] []
+[Cut-off of FibroTest] [Sensitivity] [Specificity] [Positive Predictive Value] [Negative Predictive Value] [Sensitivity] [Specificity] [Positive Predictive Value] [Negative Predictive Value]
+[Stage F2F3F4] [Prevalence = 0.24 (40/170)] [] [] [Prevalence = 0.32 (31/97)] [] [] [] []
+[0.30] [0.83 (33/40)] [0.78 (101/130)] [0.53 (33/62)] [0.94 (101/108)] [0.71 (22/31)] [0.74 (49/66)] [0.56 (22/39)] [0.84 (49/58)]
+[0.70] [0.18 (7/40)] [0.98 (128/130)] [0.78 (7/9)] [0.80 (128/161)] [0.13 (4/31)] [0.98 (65/66)] [0.80 (4/5)] [0.71 (65/92)]
+[Stage F3F4] [Prevalence = 0.12 (20/170)] [] [] [Prevalence = 0.16 (16/97)] [] [] [] []
+[0.30] [0.95 (19/20)] [0.71 (107/150)] [0.31 (19/62)] [0.99 (107/108)] [0.88 (14/16)] [0.69 (56/81)] [0.36 (14/39)] [0.97 (56/58)]
+[0.70] [0.25 (5/20)] [0.97 (146/150)] [0.56 (5/9)] [0.91 (146/161)] [0.25 (4/16)] [0.99 (80/81)] [0.80 (4/5)] [0.87 (80/92)]
+[% of patients with FT between 0.30–0.70] [0.32 (54/170)] [] [] [] [0.35 (34/97)] [] [] []
 
-Generate the HTML table structure. Respond with ONLY the HTML code, no explanation:
+Generate the HTML table structure. Respond…
 ```
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ❌ | `__ERROR__: FMAPIError: databricks-glm-5-2 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for workspace…` |
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for wor…` |
-| sol | ❌ | `__ERROR__: FMAPIError: databricks-gpt-5-6-sol HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for works…` |
+| glm | ✅ | `'''html <table>   <tr>     <td></td>     <td>Group 1</td>     <td>Group 2</td>     <td></td>     <td></td>     <td></td>     <td></td>     <td></td>     <td></t…` |
+| opus | ✅ | `<table> <tr><td></td><td>Group 1</td><td>Group 2</td><td></td><td></td><td></td><td></td><td></td><td></td></tr> <tr><td>Cut-off of FibroTest</td><td>Sensitivit…` |
+| sol | ✅ | `<table>   <tr>     <td></td>     <td colspan="4">Group 1</td>     <td colspan="4">Group 2</td>   </tr>   <tr>     <td>Cut-off of FibroTest</td>     <td>Sensitiv…` |
 
 ### TXT-4 · 한국어 독해 QA
 
@@ -323,22 +328,22 @@ Police, family, volunteers search for eighth-grader .
 
 ### TXT-6 · 감정 분석
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
+**샘플 #20** · _일부 모델 오답 케이스_ · 정답: `1`
 
 **질문/지시:** Classify the sentiment of the following text as exactly one word: "positive" or "negative".
 
 **입력:**
 > Classify the sentiment of the following text as exactly one word: "positive" or "negative".
 > 
-> Text: it 's slow -- very , very slow . 
+> Text: 오게두어라! 서리한이 굶주렸다!
 > 
 > Respond with exactly one word: positive or negative
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ❌ | `__ERROR__: FMAPIError: databricks-glm-5-2 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for workspace…` |
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for wor…` |
-| sol | ❌ | `__ERROR__: FMAPIError: databricks-gpt-5-6-sol HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for works…` |
+| glm | ❌ | `negative` |
+| opus | ❌ | `negative` |
+| sol | ❌ | `negative` |
 
 ### TXT-7 · 키워드 추출
 
@@ -358,28 +363,28 @@ Police, family, volunteers search for eighth-grader .
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ❌ | `__ERROR__: FMAPIError: databricks-glm-5-2 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for workspace…` |
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for wor…` |
-| sol | ❌ | `__ERROR__: FMAPIError: databricks-gpt-5-6-sol HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for works…` |
+| glm | ✅ | `Nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
+| opus | ✅ | `nonlinear extrapolation algorithm, scalar random process, mixed central moment functions, canonical decomposition, V. S. Pugachev canonical decomposition appara…` |
+| sol | ✅ | `nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
 
 ### TXT-8 · 비속어/유해성 판별
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
+**샘플 #1** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
 
 **질문/지시:** You are a content moderation classifier. Analyze the following text and determine if it contains profanity, hate speech, or toxic language. Respond with exactly one word: "toxic" or "clean".
 
 **입력:**
 > You are a content moderation classifier. Analyze the following text and determine if it contains profanity, hate speech, or toxic language. Respond with exactly one word: "toxic" or "clean".
 > 
-> Text: You, sir, are my hero. Any chance you remember what page that's on?
+> Text: Hi Explicit, can you block O Fenian for edit-warring on the Giant's Causeway wp. He has made several edits which can only be described as terrorism.
 > 
 > Respond with exactly one word: toxic or clean
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ❌ | `__ERROR__: FMAPIError: databricks-glm-5-2 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for workspace…` |
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for wor…` |
-| sol | ❌ | `__ERROR__: FMAPIError: databricks-gpt-5-6-sol HTTP 403: {"error_code":403,"message":"Source IP address: 49.170.169.150 is blocked by Databricks IP ACL for works…` |
+| glm | — | `clean` |
+| opus | — | `clean` |
+| sol | — | `toxic` |
 
 
 ## 참고: Reasoning 정책
@@ -415,26 +420,6 @@ Police, family, volunteers search for eighth-grader .
       "opus": 0.8948,
       "sol": 0.7871
     },
-    "TXT-3/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-6/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-7/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
-    "TXT-8/minimal": {
-      "opus": 0.0,
-      "sol": 0.0,
-      "glm": 0.0
-    },
     "TXT-1/minimal": {
       "opus": 0.0064,
       "sol": 0.0416,
@@ -454,6 +439,26 @@ Police, family, volunteers search for eighth-grader .
       "opus": 0.3192,
       "sol": 0.3035,
       "glm": 0.3064
+    },
+    "TXT-3/minimal": {
+      "opus": 0.9432,
+      "sol": 0.9791,
+      "glm": 0.9725
+    },
+    "TXT-6/minimal": {
+      "opus": 0.8333,
+      "sol": 0.8333,
+      "glm": 0.8333
+    },
+    "TXT-7/minimal": {
+      "opus": 0.3917,
+      "sol": 0.3988,
+      "glm": 0.4961
+    },
+    "TXT-8/minimal": {
+      "opus": 0.8667,
+      "sol": 0.8667,
+      "glm": 0.9
     }
   },
   "task_winners": {
@@ -463,49 +468,49 @@ Police, family, volunteers search for eighth-grader .
     "IMG-4/minimal": "opus",
     "IMG-5/minimal": "opus",
     "IMG-6/minimal": "opus",
-    "TXT-3/minimal": "opus",
-    "TXT-6/minimal": "opus",
-    "TXT-7/minimal": "opus",
-    "TXT-8/minimal": "opus",
     "TXT-1/minimal": "sol",
     "TXT-2/minimal": "glm",
     "TXT-4/minimal": "glm",
-    "TXT-5/minimal": "opus"
+    "TXT-5/minimal": "opus",
+    "TXT-3/minimal": "sol",
+    "TXT-6/minimal": "opus",
+    "TXT-7/minimal": "glm",
+    "TXT-8/minimal": "glm"
   },
   "win_counts": {
-    "sol": 3,
-    "opus": 9,
-    "glm": 2
+    "sol": 4,
+    "opus": 6,
+    "glm": 4
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
   "perf": {
     "opus": {
       "n_calls": 400,
-      "errors": 120,
-      "latency_ms_median": 2757.3,
-      "latency_ms_p95": 9391.4,
-      "total_usd": 1.674914,
-      "in_tokens": 133907,
-      "out_tokens": 40215
+      "errors": 1,
+      "latency_ms_median": 2592.2,
+      "latency_ms_p95": 9145.7,
+      "total_usd": 2.406026,
+      "in_tokens": 168364,
+      "out_tokens": 62568
     },
     "sol": {
       "n_calls": 400,
-      "errors": 123,
-      "latency_ms_median": 2150.5,
-      "latency_ms_p95": 8293.5,
-      "total_usd": 1.203887,
-      "in_tokens": 100683,
-      "out_tokens": 23349
+      "errors": 3,
+      "latency_ms_median": 2095.3,
+      "latency_ms_p95": 8795.8,
+      "total_usd": 1.929932,
+      "in_tokens": 124158,
+      "out_tokens": 43638
     },
     "glm": {
       "n_calls": 220,
-      "errors": 120,
-      "latency_ms_median": 1291.8,
-      "latency_ms_p95": 4216.5,
-      "total_usd": 0.086734,
-      "in_tokens": 47877,
-      "out_tokens": 7574
+      "errors": 0,
+      "latency_ms_median": 933.6,
+      "latency_ms_p95": 6528.9,
+      "total_usd": 0.209093,
+      "in_tokens": 71850,
+      "out_tokens": 27755
     }
   }
 }
