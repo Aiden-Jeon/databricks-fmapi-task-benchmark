@@ -8,11 +8,16 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
 def rebuild_index(reports_root: str | Path = "reports", results_root: str | Path = "results") -> Path:
-    """reports/ 하위 run들을 스캔해 index.md를 재생성. 경로 반환."""
+    """reports/ 하위 run들을 스캔해 index.md를 재생성. 경로 반환.
+
+    최신 run으로 README의 '최신 리포트' 링크도 자동 갱신(하드코딩 run-id가 삭제되면
+    링크가 깨지던 문제 방지 — 옛 run 삭제·새 run 추가와 무관하게 항상 실재하는 최신을 가리킴).
+    """
     reports_root = Path(reports_root)
     reports_root.mkdir(parents=True, exist_ok=True)
 
@@ -41,7 +46,41 @@ def rebuild_index(reports_root: str | Path = "reports", results_root: str | Path
 
     index_path = reports_root / "index.md"
     index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    # README의 '최신 리포트' 링크를 최신 run으로 갱신(있으면). 스캔 결과 최상단이 최신.
+    if runs:
+        latest_id, latest_m = runs[0]
+        models = ",".join(x.get("id", "?") for x in latest_m.get("models", [])) or "opus·sol·glm"
+        spt = latest_m.get("samples_per_task", "?")
+        _update_readme_latest(reports_root.parent / "README.md", latest_id, models, spt)
+
     return index_path
+
+
+def _update_readme_latest(readme_path: Path, run_id: str, models: str, spt: object) -> None:
+    """README의 '최신 리포트' 불릿 한 줄을 최신 run 링크로 치환.
+
+    치환 대상은 `- **[최신 리포트 (…)](./reports/<id>/report.md)**` 패턴 한 줄.
+    패턴이 없으면(README 구조 변경 등) 조용히 skip — 인덱스 생성 자체는 실패시키지 않는다.
+    """
+    if not readme_path.exists():
+        return
+    try:
+        text = readme_path.read_text(encoding="utf-8")
+        new_line = (
+            f"- **[최신 리포트 ({run_id})](./reports/{run_id}/report.md)** — "
+            f"{spt}샘플, {models}. 리포트 내 \"고객 설명용 프레젠테이션\" 배너로 슬라이드(HTML)도 바로 볼 수 있다. "
+            f"*(이 줄은 새 run 때 runner가 자동 갱신)*"
+        )
+        # '최신 리포트' 불릿 한 줄만 교체(줄 단위, 앞의 '- **[최신 리포트'로 시작).
+        pattern = re.compile(r"^- \*\*\[최신 리포트 .*$", re.MULTILINE)
+        if pattern.search(text):
+            new_text = pattern.sub(new_line, text, count=1)
+            if new_text != text:
+                readme_path.write_text(new_text, encoding="utf-8")
+    except Exception:
+        # README 갱신 실패가 인덱스 생성을 막지 않도록 조용히 무시.
+        pass
 
 
 def _load_manifest(results_dir: Path) -> dict:
