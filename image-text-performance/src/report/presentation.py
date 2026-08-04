@@ -106,12 +106,20 @@ def build_presentation(
       <div class="note">비용은 pricing.yaml DBU 단가 기반 추정.</div>
     </section>""")
 
-    # 정성 비교 슬라이드 (모델 간 갈린 샘플) — 입력(텍스트/이미지)을 함께 보여 사람이 직접 판별
+    # 정성 비교 슬라이드 (선택 우선순위: 이견>오답>전부정답) — 입력·정답여부를 함께 표시
+    _tier_ko = {
+        "disagree": "모델 간 판정이 갈린 케이스", "some_wrong": "일부 모델 오답 케이스",
+        "all_correct": "전부 정답 케이스", "undetermined": "예시 케이스(자동 판정 불가)",
+    }
     for g in gallery_slides:
+        corr = g.get("correctness", {})
+        _mark = {True: "✅", False: "❌"}
         rows = "".join(
-            f"<tr><td class='m'>{_esc(m)}</td><td>{_esc(o)}</td></tr>" for m, o in g["rows"]
+            f"<tr><td class='m'>{_esc(m)}</td><td class='c'>{_mark.get(corr.get(m), '—')}</td><td>{_esc(o)}</td></tr>"
+            for m, o in g["rows"]
         )
         inp = "입력 비표시 (민감 태스크)" if g.get("sensitive") else f"샘플 #{_esc(g['sample_id'])}"
+        tier_html = f' · <span class="qtier">{_esc(_tier_ko.get(g.get("tier",""), ""))}</span>' if g.get("tier") else ""
         # 질문/지시를 별도 강조(컨텍스트에 묻히는 문제 해결). 없으면 생략.
         q_html = f'<p class="qask"><strong>질문/지시:</strong> {_esc(g["question"])}</p>' if g.get("question") else ""
         # 입력 렌더: 이미지면 인라인, 텍스트면 인용 박스
@@ -123,10 +131,10 @@ def build_presentation(
         slides.append(f"""
     <section class="slide">
       <h2>정성 비교 · {_esc(g['task_id'])} {_esc(g['label'])}</h2>
-      <p class="qmeta">{inp} · 정답: <code>{_esc(g['reference'])}</code></p>
+      <p class="qmeta">{inp}{tier_html} · 정답: <code>{_esc(g['reference'])}</code></p>
       {q_html}
       {input_html}
-      <table class="qtable"><thead><tr><th>모델</th><th>출력/판정</th></tr></thead>
+      <table class="qtable"><thead><tr><th>모델</th><th>정답?</th><th>출력/판정</th></tr></thead>
       <tbody>{rows}</tbody></table>
     </section>""")
 

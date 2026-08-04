@@ -167,6 +167,34 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 ---
 
+## 데이터 소스 (출처)
+
+모든 태스크는 **공개 표준 데이터셋**을 HuggingFace Hub에서 로드한다(합성·더미 데이터 없음, requirement #5).
+태스크별 출처·언어·라이선스는 아래와 같고, 버전·split·mirror 여부·해시는 [`datasets/registry.yaml`](./datasets/registry.yaml)에 고정 기록된다.
+
+| 태스크 | 데이터셋 | HuggingFace ID | 언어 | 라이선스 |
+|--------|----------|----------------|:----:|----------|
+| IMG-1 캡션 | COCO Captions (Karpathy split) | [yerevann/coco-karpathy](https://huggingface.co/datasets/yerevann/coco-karpathy) | en | CC-BY-4.0(주석) / 이미지는 Flickr 약관 |
+| IMG-2 태그추출 | COCO | [detection-datasets/coco](https://huggingface.co/datasets/detection-datasets/coco) | en | CC-BY-4.0(주석) |
+| IMG-3 무기/위협 | WeaponDetection | [Subh775/WeaponDetection](https://huggingface.co/datasets/Subh775/WeaponDetection) | en | CC-BY-4.0 |
+| IMG-4 NSFW | NSFW Image Classification | [DarkyMan/nsfw-image-classification](https://huggingface.co/datasets/DarkyMan/nsfw-image-classification) | en | CC(variant 미상) · **민감** |
+| IMG-5 사람 포함 | COCO (person 파생 binary) | [detection-datasets/coco](https://huggingface.co/datasets/detection-datasets/coco) | en | CC-BY-4.0(주석) |
+| IMG-6 표이미지 구조추출 | PubTabNet (image+HTML) | [apoidea/pubtabnet-html](https://huggingface.co/datasets/apoidea/pubtabnet-html) | en | CDLA-Permissive-1.0 |
+| TXT-1 문서QA | DocumentVQA | [HuggingFaceM4/DocumentVQA](https://huggingface.co/datasets/HuggingFaceM4/DocumentVQA) | en | mirror apache-2.0 / 원본 research-use |
+| TXT-2 표QA | WikiTableQuestions | [lighteval/wikitablequestions](https://huggingface.co/datasets/lighteval/wikitablequestions) | en | CC-BY-4.0 (mirror) |
+| TXT-3 표구조추출 | PubTabNet (HTML) | [apoidea/pubtabnet-html](https://huggingface.co/datasets/apoidea/pubtabnet-html) | en | CDLA-Permissive-1.0 |
+| TXT-4 한국어QA | KorQuAD v1 | [KorQuAD/squad_kor_v1](https://huggingface.co/datasets/KorQuAD/squad_kor_v1) | ko | CC-BY-ND-4.0 |
+| TXT-5 요약 | CNN/DailyMail(en) · Naver News 요약(ko) | [abisee/cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail) · [daekeun-ml/naver-news-summarization-ko](https://huggingface.co/datasets/daekeun-ml/naver-news-summarization-ko) | en·ko | apache-2.0 |
+| TXT-6 감정 | SST-2(en) · NSMC(ko) | [stanfordnlp/sst2](https://huggingface.co/datasets/stanfordnlp/sst2) · [Blpeng/nsmc](https://huggingface.co/datasets/Blpeng/nsmc) | en·ko | GLUE · CC-BY-2.0 |
+| TXT-7 키워드 | INSPEC | [memray/inspec](https://huggingface.co/datasets/memray/inspec) | en | research-use |
+| TXT-8 비속어 | Jigsaw Toxic Comment(en) · APEACH(ko) | [thesofakillers/jigsaw-toxic-comment-classification-challenge](https://huggingface.co/datasets/thesofakillers/jigsaw-toxic-comment-classification-challenge) · [jason9693/APEACH](https://huggingface.co/datasets/jason9693/APEACH) | en·ko | CC-BY-SA / CC0 · CC-BY-SA-4.0 |
+
+- **mirror 주의**: script-based 원본이 로드 불가하면 parquet mirror를 쓴다. mirror의 라이선스 태그가 원본과 다를 수 있어 registry에 **원본 라이선스를 함께 기록**한다(WikiTableQuestions·NSMC·Jigsaw·DocVQA 등).
+- **비상업 라이선스 주의**: KorQuAD(CC-BY-ND) · DocVQA 원본(research-use) · INSPEC(research-use) 등은 **연구·평가 용도 한정**이다. 상업 활용 전 각 데이터셋 원 라이선스를 확인한다.
+- **시간·비용 데이터 소스**는 데이터셋이 아니라 `system.ai_gateway.usage`(FMAPI 호출 실측) — 아래 "비용·시간 측정" 참고. judge 채점도 데이터셋과 무관한 별도 모델(`databricks-gemini-3-1-pro`)이다.
+
+---
+
 ## 데이터 취급 주의 (민감 태스크)
 
 - **IMG-4(NSFW)**: 이미지를 **repo에 절대 커밋하지 않는다.** 런타임에만 로컬 캐시로 내려받아 처리하고,

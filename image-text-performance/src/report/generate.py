@@ -17,6 +17,14 @@ from typing import Any
 from src.cost.pricing import compute_usd, load_pricing
 from src.results import SampleResult
 
+# 갤러리 정답판정에서 HTML 표(TXT-3·IMG-6)를 Cell-F1로 재사용. 모듈 로드 시 1회 import
+# (per-sample import 비용 제거). txt_3가 fuzzywuzzy 등에 의존하므로 실패 시 None 폴백.
+try:
+    from src.tasks.txt_3 import cell_f1_score as _cell_f1, parse_html_table as _parse_html_table
+except Exception:  # pragma: no cover - 의존성 없으면 HTML 정답판정만 비활성
+    _cell_f1 = None
+    _parse_html_table = None
+
 # 태스크별 "대표 메트릭" 우선순위 (그래프·Executive Summary 공용).
 # 각 태스크 유형의 핵심 지표가 앞에 오도록: 분류 accuracy/f1, QA token_f1, 표 cell_f1,
 # 캡션 caption_token_f1, 태그·키워드 micro_f1/f1, 요약 rouge1, judge.
@@ -152,10 +160,21 @@ def generate_report(
     return report_path
 
 
+# 차트 X축용 짧은 영문 태스크명(한글 desc는 matplotlib 폰트 깨짐 → ASCII로 자립적 라벨).
+# 그래프만 봐도 어떤 실험인지 알 수 있게 ID와 함께 표기(요구사항).
+_TASK_SHORT_EN = {
+    "IMG-1": "caption", "IMG-2": "tags", "IMG-3": "weapon", "IMG-4": "nsfw",
+    "IMG-5": "person", "IMG-6": "table-img", "TXT-1": "doc-qa", "TXT-2": "table-qa",
+    "TXT-3": "table-struct", "TXT-4": "ko-qa", "TXT-5": "summary", "TXT-6": "sentiment",
+    "TXT-7": "keyphrase", "TXT-8": "toxicity",
+}
+
+
 def _make_charts(reports_dir: Path, scores: dict, perf: dict, ep: dict) -> list[tuple[str, str]]:
     """비교 그래프 png 생성 → [(제목, 파일명)]. matplotlib 없거나 실패 시 빈 리스트.
 
-    라벨은 ASCII(태스크 ID·model_id)로 유지해 한글 폰트 깨짐 회피.
+    X축은 'ID + 영문 항목명'으로 라벨링해 그래프만 봐도 어떤 실험인지 알 수 있게 한다
+    (한글 desc는 폰트 깨짐 회피 위해 _TASK_SHORT_EN 매핑 사용).
     """
     try:
         import matplotlib
@@ -191,9 +210,11 @@ def _make_charts(reports_dir: Path, scores: dict, perf: dict, ep: dict) -> list[
                 vals = [task_model_score[t].get(mid, 0) for t in tasks]
                 ax.bar(x + i * width, vals, width, label=mid)
             ax.set_xticks(x + width * (len(model_ids) - 1) / 2)
-            ax.set_xticklabels(tasks, rotation=45, ha="right", fontsize=8)
+            # X축: 'IMG-1\ncaption'처럼 ID+영문명 2줄 → 그래프만 봐도 어떤 태스크인지 명확
+            xlabels = [f"{t}\n{_TASK_SHORT_EN.get(t, '')}" for t in tasks]
+            ax.set_xticklabels(xlabels, rotation=45, ha="right", fontsize=7)
             ax.set_ylabel("representative score (0-1)")
-            ax.set_title("Task performance by model")
+            ax.set_title("Task performance by model (higher=better)")
             ax.legend(title="model", fontsize=8)
             ax.set_ylim(0, 1)
             fig.tight_layout()
@@ -446,6 +467,65 @@ def _extract_question(prompt: str, task_id: str) -> str:
     return ""
 
 
+def _sample_correct(task_id: str, output: str, reference: Any) -> bool | None:
+    """갤러리 선택용 per-sample 정답 판정(대략적 — 정확 메트릭이 아니라 케이스 선별용).
+
+    태스크의 정답(reference) 형태로 분기한다:
+    - int(이진·다중분류: IMG-3/4/5, TXT-6/8): 출력에서 라벨을 뽑아 일치 여부.
+    - list(QA·캡션·태그·키워드: IMG-1/2, TXT-1/2/4/7): 정답 중 하나라도 출력에 포함되면 정답.
+    - str HTML(표구조: TXT-3, IMG-6): parse_html_table+cell_f1_score(재사용)로 F1≥0.5면 정답.
+    - str 그 외(요약 TXT-5): 명확한 정답 개념이 약함 → None(정답판정 불가, 동점 처리).
+    판정 불가/에러 출력은 None. 에러 출력('__ERROR__')은 항상 오답으로 본다.
+    """
+    if not isinstance(output, str) or output.startswith("__ERROR__"):
+        return False if isinstance(output, str) and output.startswith("__ERROR__") else None
+    low = output.strip().lower()
+
+    if isinstance(reference, bool):
+        reference = int(reference)
+    if isinstance(reference, int):
+        # 출력에서 이진/분류 라벨 추출. 단어 경계(\b)로 매칭해 'now'가 'no'로,
+        # 'cannot'이 오분류되는 것 방지. 부정 우선("no weapon"→0). 긍정 키워드는
+        # weapon/threat/nsfw 등 존재 신호(부정과 함께 나오면 부정 우선).
+        neg = bool(re.search(r"\b(no|not|none|negative|absent|아니|없)\b", low)) or low in ("no", "0")
+        pos_kw = bool(re.search(r"\b(yes|positive|present|긍정|있)\b", low)) or low in ("yes", "1")
+        pred = None
+        if neg:
+            pred = 0                       # 부정 표현 우선(존재 부정)
+        elif pos_kw:
+            pred = 1
+        elif re.search(r"\b1\b", low):
+            pred = 1
+        elif re.search(r"\b0\b", low):
+            pred = 0
+        return (pred == int(reference)) if pred is not None else None
+
+    if isinstance(reference, (list, tuple, set)):
+        refs = [str(x).strip().lower() for x in reference if str(x).strip()]
+        if not refs:
+            return None
+        # 짧은/숫자 정답은 단어 경계로(‘3’이 ‘30’에 오매칭 방지). 긴 문자열은 부분 포함.
+        for r in refs:
+            if len(r) <= 4 or r.replace(".", "").replace("-", "").isdigit():
+                if re.search(rf"(?<![\w.]){re.escape(r)}(?![\w.])", low):
+                    return True
+            elif r in low:
+                return True
+        return False
+
+    if isinstance(reference, str):
+        rs = reference.strip()
+        if "<t" in rs.lower() and _cell_f1 and _parse_html_table:  # HTML 표(TXT-3, IMG-6)
+            try:
+                wrap = output if "<table" in low else f"<table>{output}</table>"
+                gwrap = rs if "<table" in rs.lower() else f"<table>{rs}</table>"
+                return _cell_f1(_parse_html_table(wrap), _parse_html_table(gwrap)) >= 0.5
+            except Exception:
+                return None
+        return None  # 요약 등 자유형 정답 → 판정 불가
+    return None
+
+
 def _gallery_data(
     results: list[SampleResult],
     task_labels: dict[str, str],
@@ -453,39 +533,57 @@ def _gallery_data(
     per_task: int = 1,
     max_chars: int = 160,
 ) -> list[dict[str, Any]]:
-    """모델 간 출력이 갈린 샘플을 태스크별로 선택해 구조화 데이터로 반환.
+    """정성 비교 샘플을 태스크별로 선택. **모든 태스크에 최소 1개** 케이스를 보장한다.
 
-    반환: [{task_id, label, sample_id, reference, sensitive, rows:[(model, output)]}]
-    - (task, sample_id)로 그룹핑, 정규화 출력 고유값>1(모델 간 이견) 샘플만.
-    - 고유값 큰 것부터 per_task개. sensitive(IMG-4)는 입력 없이 판정값만(D3).
+    선택 우선순위(요구사항): 모델 간 출력이 갈린 샘플 > 하나라도 오답인 샘플 > 전부 정답인 샘플.
+    반환: [{task_id, label, sample_id, reference, sensitive, rows, correctness, tier}]
+    - (task, sample_id)로 그룹핑. 에러 행도 '오답'으로 취급해 후보에 남긴다(그래야 IMG-6처럼
+      한 모델만 성공한 태스크도 케이스가 생긴다).
+    - tier: 'disagree' | 'some_wrong' | 'all_correct' | 'undetermined'(정답 판정 불가 태스크).
     """
     grouped: dict[tuple[str, int], dict[str, tuple[str, Any]]] = {}
     prompts: dict[tuple[str, int], str] = {}
     for r in results:
-        if r.finish_reason == "error":
-            continue
+        # 에러 행도 포함(모델 간 차이·오답 케이스의 근거). prompt는 모델 간 동일.
         grouped.setdefault((r.task_id, r.sample_id), {})[r.model_id] = (r.model_output, r.reference)
-        prompts.setdefault((r.task_id, r.sample_id), r.prompt)  # 입력(텍스트) — 모델 간 동일
+        prompts.setdefault((r.task_id, r.sample_id), r.prompt)
 
+    # 태스크별 후보에 tier 점수를 매겨 최선의 per_task개를 고른다.
     by_task: dict[str, list] = {}
     for (task_id, sid), model_out in grouped.items():
-        if len(model_out) < 2:
-            continue
-        uniq = len({_norm(o) for o, _ in model_out.values()})
-        if uniq < 2:
-            continue
-        by_task.setdefault(task_id, []).append((uniq, sid, model_out))
+        outputs = [o for o, _ in model_out.values()]
+        ref = next(iter(model_out.values()))[1]
+        uniq = len({_norm(o) for o in outputs})
+        # per-sample 정답 판정(모델별). None은 판정 불가.
+        corr = {mid: _sample_correct(task_id, o, rf) for mid, (o, rf) in model_out.items()}
+        judged = [v for v in corr.values() if v is not None]
+        any_wrong = any(v is False for v in judged)
+        all_correct = bool(judged) and all(v is True for v in judged)
+        disagree = uniq >= 2 and len(model_out) >= 2
+        # tier 우선순위 점수(높을수록 우선): 이견 > 오답 > 전부정답 > 판정불가
+        if disagree:
+            tier, prio = "disagree", 3
+        elif any_wrong:
+            tier, prio = "some_wrong", 2
+        elif all_correct:
+            tier, prio = "all_correct", 1
+        else:
+            tier, prio = "undetermined", 0
+        by_task.setdefault(task_id, []).append((prio, uniq, sid, model_out, corr, tier))
 
     slides: list[dict[str, Any]] = []
     for task_id in sorted(by_task):
-        cands = sorted(by_task[task_id], key=lambda x: -x[0])[:per_task]
+        # 우선순위(tier) 내림차순, 동순위면 모델 간 고유값 많은 것 우선
+        cands = sorted(by_task[task_id], key=lambda x: (-x[0], -x[1]))[:per_task]
         is_image = task_id.startswith("IMG-")
-        for uniq, sid, model_out in cands:
+        for prio, uniq, sid, model_out, corr, tier in cands:
             ref = next(iter(model_out.values()))[1]
             rows = [
                 (mid, _truncate(str(model_out[mid][0]).replace("\n", " "), max_chars))
                 for mid in sorted(model_out)
             ]
+            # 모델별 정답 여부(True/False/None) — 표에 ✅/❌로 병기
+            correctness = {mid: corr.get(mid) for mid in sorted(model_out)}
             prompt_full = prompts.get((task_id, sid), "")
             slides.append({
                 "task_id": task_id,
@@ -494,6 +592,8 @@ def _gallery_data(
                 "reference": _truncate(str(ref), max_chars),
                 "sensitive": task_id in sensitive,
                 "is_image": is_image,
+                "tier": tier,               # disagree | some_wrong | all_correct | undetermined
+                "correctness": correctness,  # {model: True/False/None}
                 # 질문/지시: 컨텍스트(표·문서)에 묻히거나 잘려 안 보이는 실제 물음을 별도로 뽑아 항상 표시.
                 #            텍스트·이미지 태스크 모두(이미지도 "Describe…"/"Extract…" 지시가 있음).
                 "question": _extract_question(prompt_full, task_id),
@@ -548,10 +648,17 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
             ref = str(g["reference"])
             # 정답: 여러 줄·HTML(예: TXT-3 <table>)은 인라인 코드가 깨지므로 코드펜스로.
             # 코드펜스 안에서는 raw HTML 태그가 렌더되지 않아 안전(GitHub GFM).
+            # tier 라벨: 왜 이 샘플을 골랐는지(요구사항: 이견>오답>전부정답 우선)
+            tier_label = {
+                "disagree": "모델 간 판정이 갈린 케이스",
+                "some_wrong": "일부 모델 오답 케이스",
+                "all_correct": "전부 정답 케이스(이견·오답 없음)",
+                "undetermined": "예시 케이스(자동 정답판정 불가 태스크)",
+            }.get(g.get("tier", ""), "")
             if "\n" in ref or "<" in ref:
-                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답:\n\n{_fence(ref)}\n")
+                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · _{tier_label}_ · 정답:\n\n{_fence(ref)}\n")
             else:
-                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · 정답: `{ref}`\n")
+                blocks.append(f"**샘플 #{g['sample_id']}**{tag} · _{tier_label}_ · 정답: `{ref}`\n")
             # 질문/지시를 별도로 명확히 표시 (컨텍스트에 묻히거나 잘려 안 보이는 문제 해결).
             q = g.get("question")
             if q:
@@ -575,10 +682,13 @@ def _gallery_markdown(slides: list[dict[str, Any]], reports_dir: Path | None = N
             elif g.get("is_image") and not g.get("sensitive"):
                 blocks.append("_(입력 이미지 없음 — 아래 출력만 참고)_\n")
             # 모델 출력: 표 셀 안이라 개행 제거 + | 이스케이프 + 백틱으로 감싸 HTML 태그 렌더 방지.
-            blocks.append("| 모델 | 출력/판정 |")
-            blocks.append("|---|---|")
+            # 정답? 열: 자동 판정 결과(✅정답/❌오답/— 판정불가).
+            corr = g.get("correctness", {})
+            blocks.append("| 모델 | 정답? | 출력/판정 |")
+            blocks.append("|---|:--:|---|")
             for mid, out in g["rows"]:
-                blocks.append(f"| {mid} | `{_cell(out)}` |")
+                mark = {True: "✅", False: "❌"}.get(corr.get(mid), "—")
+                blocks.append(f"| {mid} | {mark} | `{_cell(out)}` |")
             blocks.append("")
     return "\n".join(blocks)
 

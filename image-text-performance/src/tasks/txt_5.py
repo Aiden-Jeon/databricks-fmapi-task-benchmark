@@ -311,11 +311,14 @@ Summary:"""
             )
 
             # 판사 모델 호출
+            # judge(gemini)는 reasoning 모델 — 256토큰은 사고 도중 잘려("finish_reason: length")
+            # "Score: N"을 못 뱉고 파싱 실패→폴백3으로 전부 3점이 되는 버그가 있었다.
+            # 요약 판정은 근거 서술이 길어 넉넉히 준다(1024).
             messages = build_text_message(judge_prompt)
             judge_response = judge_client.chat(
                 endpoint=judge_endpoint,
                 messages=messages,
-                max_tokens=256,
+                max_tokens=1024,
             )
 
             # 스코어 파싱

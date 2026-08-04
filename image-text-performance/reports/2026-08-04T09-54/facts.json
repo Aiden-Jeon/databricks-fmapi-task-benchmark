@@ -1,0 +1,120 @@
+{
+  "per_task_scores": {
+    "IMG-1/minimal": {
+      "opus": 0.3372,
+      "sol": 0.4274
+    },
+    "IMG-2/minimal": {
+      "opus": 0.2054,
+      "sol": 0.2472
+    },
+    "IMG-3/minimal": {
+      "opus": 0.6667,
+      "sol": 0.6333
+    },
+    "IMG-4/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9333
+    },
+    "IMG-5/minimal": {
+      "opus": 0.9667,
+      "sol": 0.9667
+    },
+    "IMG-6/minimal": {
+      "opus": 0.8948,
+      "sol": 0.7871
+    },
+    "TXT-3/minimal": {
+      "opus": 0.0,
+      "sol": 0.0,
+      "glm": 0.0
+    },
+    "TXT-6/minimal": {
+      "opus": 0.0,
+      "sol": 0.0,
+      "glm": 0.0
+    },
+    "TXT-7/minimal": {
+      "opus": 0.0,
+      "sol": 0.0,
+      "glm": 0.0
+    },
+    "TXT-8/minimal": {
+      "opus": 0.0,
+      "sol": 0.0,
+      "glm": 0.0
+    },
+    "TXT-1/minimal": {
+      "opus": 0.0064,
+      "sol": 0.0416,
+      "glm": 0.0044
+    },
+    "TXT-2/minimal": {
+      "opus": 0.1,
+      "sol": 0.0,
+      "glm": 0.3
+    },
+    "TXT-4/minimal": {
+      "opus": 0.8082,
+      "sol": 0.8862,
+      "glm": 0.9473
+    },
+    "TXT-5/minimal": {
+      "opus": 0.3192,
+      "sol": 0.3035,
+      "glm": 0.3064
+    }
+  },
+  "task_winners": {
+    "IMG-1/minimal": "sol",
+    "IMG-2/minimal": "sol",
+    "IMG-3/minimal": "opus",
+    "IMG-4/minimal": "opus",
+    "IMG-5/minimal": "opus",
+    "IMG-6/minimal": "opus",
+    "TXT-3/minimal": "opus",
+    "TXT-6/minimal": "opus",
+    "TXT-7/minimal": "opus",
+    "TXT-8/minimal": "opus",
+    "TXT-1/minimal": "sol",
+    "TXT-2/minimal": "glm",
+    "TXT-4/minimal": "glm",
+    "TXT-5/minimal": "opus"
+  },
+  "win_counts": {
+    "sol": 3,
+    "opus": 9,
+    "glm": 2
+  },
+  "cheapest_model": "glm",
+  "fastest_model": "glm",
+  "perf": {
+    "opus": {
+      "n_calls": 400,
+      "errors": 120,
+      "latency_ms_median": 2757.3,
+      "latency_ms_p95": 9391.4,
+      "total_usd": 1.674914,
+      "in_tokens": 133907,
+      "out_tokens": 40215
+    },
+    "sol": {
+      "n_calls": 400,
+      "errors": 123,
+      "latency_ms_median": 2150.5,
+      "latency_ms_p95": 8293.5,
+      "total_usd": 1.203887,
+      "in_tokens": 100683,
+      "out_tokens": 23349
+    },
+    "glm": {
+      "n_calls": 220,
+      "errors": 120,
+      "latency_ms_median": 1291.8,
+      "latency_ms_p95": 4216.5,
+      "total_usd": 0.086734,
+      "in_tokens": 47877,
+      "out_tokens": 7574
+    }
+  }
+}
