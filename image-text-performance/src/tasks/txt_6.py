@@ -12,6 +12,7 @@ from typing import Any
 
 from src.adapters.fmapi import build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MulticlassAccumulator
 from src.scoring.metrics import classification_metrics
 from src.tasks.base import Task, Sample, register
 
@@ -189,6 +190,10 @@ Respond with exactly one word: positive or negative"""
             "per_language": lang_stats,
         }
 
+    def make_accumulator(self) -> "_Txt6Accumulator":
+        """스트리밍 O(1) 채점기. score()와 동일(전체 accuracy/macro_f1 + per_language)."""
+        return _Txt6Accumulator()
+
     def _compute_per_language_stats(
         self,
         parsed: list[int | None],
@@ -219,6 +224,45 @@ Respond with exactly one word: positive or negative"""
                 }
 
         return lang_data
+
+class _Txt6Accumulator:
+    """전체 다중클래스(accuracy/macro_f1) + per_language(accuracy만) 스트리밍. score()와 동일.
+
+    per_language 각 언어는 {n_evaluated, n_unparsed, accuracy}(유효 없으면 accuracy=None).
+    """
+
+    def __init__(self) -> None:
+        self._overall = MulticlassAccumulator()
+        self._lang = {"en": MulticlassAccumulator(), "ko": MulticlassAccumulator()}
+        self._lang_unparsed = {"en": 0, "ko": 0}
+
+    def add(self, parsed: Any, sample: Sample) -> None:
+        lang = getattr(sample, "lang", "en")
+        if parsed is None and lang in self._lang_unparsed:
+            self._lang_unparsed[lang] += 1
+        self._overall.add(parsed, sample)
+        sub = self._lang.get(lang)
+        if sub is not None:
+            sub.add(parsed, sample)
+
+    def finalize(self) -> dict[str, Any]:
+        o = self._overall.finalize()
+        per_language = {}
+        for lang, sub in self._lang.items():
+            f = sub.finalize()
+            has = f["n_evaluated"] > 0
+            per_language[lang] = {
+                "n_evaluated": f["n_evaluated"],
+                "n_unparsed": self._lang_unparsed[lang],
+                "accuracy": f["accuracy"] if has else None,
+            }
+        return {
+            "accuracy": o["accuracy"],
+            "macro_f1": o["macro_f1"],
+            "n_evaluated": o["n_evaluated"],
+            "n_unparsed": o["n_unparsed"],
+            "per_language": per_language,
+        }
 
 
 if __name__ == "__main__":

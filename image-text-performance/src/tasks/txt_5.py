@@ -258,6 +258,10 @@ Summary:"""
             "korean_backend": korean_tokenizer_backend(),
         }
 
+    def make_accumulator(self) -> "_Txt5Accumulator":
+        """스트리밍 O(1) 채점기. score()와 동일(overall rouge1/2/L + per_language + bertscore + korean_backend)."""
+        return _Txt5Accumulator()
+
     def judge_scores(
         self,
         parsed: list[str],
@@ -342,6 +346,57 @@ Summary:"""
             "judge_scores": scores,
             "n_evaluated": len(scores),
             "per_language": per_language,
+        }
+
+class _Txt5Accumulator:
+    """요약 ROUGE 스트리밍 누적. score()와 동일 dict.
+
+    per_language는 항상 en/ko 둘 다 포함(유효 없으면 rouge*=None, n_evaluated=0).
+    overall rouge는 전체 샘플 평균(= 언어 구분 없이 합산), n_evaluated=전체 개수.
+    개별 rouge 점수를 저장하지 않고 언어별 sum+count만 유지 → O(1).
+    """
+
+    def __init__(self) -> None:
+        self._sum = {"en": {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0},
+                     "ko": {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}}
+        self._n = {"en": 0, "ko": 0}
+
+    def add(self, parsed: Any, sample: Sample) -> None:
+        lang = sample.lang if sample.lang in self._sum else "en"
+        rouge = _compute_rouge(parsed, sample.reference, lang)
+        for k in ("rouge1", "rouge2", "rougeL"):
+            self._sum[lang][k] += rouge[k]
+        self._n[lang] += 1
+
+    def finalize(self) -> dict[str, Any]:
+        per_language = {}
+        for lang in ("en", "ko"):
+            n = self._n[lang]
+            if n:
+                per_language[lang] = {
+                    "rouge1": self._sum[lang]["rouge1"] / n,
+                    "rouge2": self._sum[lang]["rouge2"] / n,
+                    "rougeL": self._sum[lang]["rougeL"] / n,
+                    "n_evaluated": n,
+                }
+            else:
+                per_language[lang] = {"rouge1": None, "rouge2": None, "rougeL": None, "n_evaluated": 0}
+
+        total_n = self._n["en"] + self._n["ko"]
+        if total_n:
+            overall = {k: (self._sum["en"][k] + self._sum["ko"][k]) / total_n
+                       for k in ("rouge1", "rouge2", "rougeL")}
+        else:
+            overall = {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}
+
+        return {
+            "rouge1": overall["rouge1"],
+            "rouge2": overall["rouge2"],
+            "rougeL": overall["rougeL"],
+            "n_evaluated": total_n,
+            "per_language": per_language,
+            "bertscore": "deferred (torch 미설치)",
+            "korean_backend": korean_tokenizer_backend(),
         }
 
 

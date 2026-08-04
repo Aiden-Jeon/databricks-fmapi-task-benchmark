@@ -147,19 +147,24 @@ def build_judge_prompt(
         question: Question or context (e.g., "What is in this image?").
         reference: Ground truth / reference output.
         candidate: Model's candidate output to be scored.
-        rubric: Dict with keys {name, description, anchors},
-                where anchors is a dict {1: "...", 2: "...", ..., 5: "..."}.
+        rubric: Rubric dict. Two schemas are accepted:
+                - config/judge_rubrics.yaml: {task, language, scale}
+                - 태스크 인라인 fallback: {name, description, anchors}
+                where the anchor map is {1: "...", 2: "...", ..., 5: "..."}.
 
     Returns:
         Formatted prompt string ready to send to judge model.
     """
-    rubric_name = rubric.get("name", task_id)
+    # rubric 스키마 2종 모두 허용(YAML의 task/scale ↔ 인라인 fallback의 name/anchors).
+    # 예전엔 name/anchors만 읽어 YAML 루브릭의 scale이 조용히 무시되고(빈 앵커) judge
+    # 프롬프트에 채점 기준이 빠지는 버그가 있었다.
+    rubric_name = rubric.get("name") or rubric.get("task") or task_id
     rubric_desc = rubric.get("description", "")
-    anchors = rubric.get("anchors", {})
+    anchors = rubric.get("anchors") or rubric.get("scale") or {}
 
-    # Build anchor text
+    # Build anchor text (키가 int/str 섞여도 안전하게 문자열 기준 정렬)
     anchor_text = "\n".join(
-        f"  {score}: {desc}" for score, desc in sorted(anchors.items())
+        f"  {score}: {desc}" for score, desc in sorted(anchors.items(), key=lambda kv: str(kv[0]))
     )
 
     prompt = f"""You are an expert evaluator for the following task:

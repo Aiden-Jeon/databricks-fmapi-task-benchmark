@@ -1,0 +1,115 @@
+{
+  "per_task_scores": {
+    "IMG-1/minimal": {
+      "opus": 0.3269,
+      "sol": 0.4109
+    },
+    "IMG-2/minimal": {
+      "opus": 0.1814,
+      "sol": 0.2222
+    },
+    "IMG-3/minimal": {
+      "opus": 0.6333,
+      "sol": 0.6333
+    },
+    "IMG-4/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9333
+    },
+    "IMG-5/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9667
+    },
+    "TXT-1/minimal": {
+      "opus": 0.0058,
+      "sol": 0.0356,
+      "glm": 0.008
+    },
+    "TXT-2/minimal": {
+      "opus": 0.1,
+      "sol": 0.0,
+      "glm": 0.3
+    },
+    "TXT-3/minimal": {
+      "opus": 0.9432,
+      "sol": 0.9791,
+      "glm": 0.9725
+    },
+    "TXT-4/minimal": {
+      "opus": 0.8577,
+      "sol": 0.8549,
+      "glm": 0.9584
+    },
+    "TXT-5/minimal": {
+      "opus": 0.3236,
+      "sol": 0.334,
+      "glm": 0.2818
+    },
+    "TXT-6/minimal": {
+      "opus": 0.8667,
+      "sol": 0.8333,
+      "glm": 0.8333
+    },
+    "TXT-7/minimal": {
+      "opus": 0.3849,
+      "sol": 0.403,
+      "glm": 0.5015
+    },
+    "TXT-8/minimal": {
+      "opus": 0.8333,
+      "sol": 0.9,
+      "glm": 0.8667
+    }
+  },
+  "task_winners": {
+    "IMG-1/minimal": "sol",
+    "IMG-2/minimal": "sol",
+    "IMG-3/minimal": "opus",
+    "IMG-4/minimal": "opus",
+    "IMG-5/minimal": "sol",
+    "TXT-1/minimal": "sol",
+    "TXT-2/minimal": "glm",
+    "TXT-3/minimal": "sol",
+    "TXT-4/minimal": "glm",
+    "TXT-5/minimal": "sol",
+    "TXT-6/minimal": "opus",
+    "TXT-7/minimal": "glm",
+    "TXT-8/minimal": "sol"
+  },
+  "win_counts": {
+    "sol": 7,
+    "opus": 3,
+    "glm": 3
+  },
+  "cheapest_model": "glm",
+  "fastest_model": "glm",
+  "perf": {
+    "opus": {
+      "n_calls": 370,
+      "errors": 1,
+      "latency_ms_median": 2185.7,
+      "latency_ms_p95": 6739.6,
+      "total_usd": 1.83665,
+      "in_tokens": 161119,
+      "out_tokens": 41242
+    },
+    "sol": {
+      "n_calls": 370,
+      "errors": 0,
+      "latency_ms_median": 1802.7,
+      "latency_ms_p95": 6601.4,
+      "total_usd": 1.357868,
+      "in_tokens": 119179,
+      "out_tokens": 25399
+    },
+    "glm": {
+      "n_calls": 220,
+      "errors": 0,
+      "latency_ms_median": 999.3,
+      "latency_ms_p95": 5795.6,
+      "total_usd": 0.22185,
+      "in_tokens": 71850,
+      "out_tokens": 27885
+    }
+  }
+}

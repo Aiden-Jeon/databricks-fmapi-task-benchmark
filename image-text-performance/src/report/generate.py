@@ -358,7 +358,7 @@ def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
         m = e["metrics"]
         if isinstance(m, dict) and "error" not in m:
             disp = {k: v for k, v in m.items() if isinstance(v, (int, float))}
-            cell = ", ".join(f"{k}={round(v, 3)}" for k, v in list(disp.items())[:4]) or "—"
+            cell = ", ".join(f"{k}={round(v, 3)}" for k, v in list(disp.items())[:6]) or "—"
         else:
             cell = f"오류: {m.get('error', '?')}" if isinstance(m, dict) else "—"
         tid = e["task_id"]

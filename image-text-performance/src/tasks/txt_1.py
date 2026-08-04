@@ -19,6 +19,7 @@ from typing import Any
 
 from src.adapters.fmapi import build_text_message, FMAPIClient
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MultiMeanAccumulator
 from src.scoring.metrics import token_f1, exact_match
 from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
 from src.tasks.base import Task, Sample, register
@@ -180,6 +181,24 @@ Answer:"""
             "exact_match": sum(exact_match_scores) / len(exact_match_scores) if exact_match_scores else 0.0,
             "n_evaluated": len(parsed),
         }
+
+    def make_accumulator(self) -> MultiMeanAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일(token_f1, exact_match, n_evaluated).
+
+        빈 예측 → 0.0(평균에 포함), n_evaluated=len(parsed) → 기본 count_all.
+        각 값은 reference_list 중 최고값.
+        """
+        def _f1(pred, sample):
+            if not pred:
+                return 0.0
+            return max((token_f1(pred, g, "en") for g in sample.reference), default=0.0)
+
+        def _em(pred, sample):
+            if not pred:
+                return 0.0
+            return max((exact_match(pred, g) for g in sample.reference), default=0.0)
+
+        return MultiMeanAccumulator({"token_f1": _f1, "exact_match": _em})
 
     def judge_scores(
         self,

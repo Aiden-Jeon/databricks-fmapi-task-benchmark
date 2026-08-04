@@ -13,6 +13,7 @@ from typing import Any
 from src.adapters.fmapi import build_image_message, FMAPIClient
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry, get_label_names
+from src.scoring.accumulators import MultilabelAccumulator
 from src.scoring.metrics import multilabel_prf
 from src.tasks.base import Task, Sample, register
 
@@ -217,6 +218,13 @@ class Img2Task(Task):
 
         metrics["n_evaluated"] = len(valid_indices)
         return metrics
+
+    def make_accumulator(self) -> MultilabelAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일(micro/macro PRF + n_evaluated).
+
+        유효 샘플: pred is not None and sample.reference (score()의 valid_indices와 동일).
+        """
+        return MultilabelAccumulator(valid_fn=lambda p, s: p is not None and bool(s.reference))
 
 
 if __name__ == "__main__":

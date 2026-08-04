@@ -11,6 +11,7 @@ from typing import Any
 
 from src.adapters.fmapi import build_text_message, FMAPIClient
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MultiMeanAccumulator
 from src.scoring.metrics import token_f1
 from src.scoring.tokenizers import korean_tokenizer_backend
 from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
@@ -149,6 +150,27 @@ class Txt4Task(Task):
             "n_evaluated": len(parsed),
             "korean_backend": korean_tokenizer_backend(),
         }
+
+    def make_accumulator(self) -> MultiMeanAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일(token_f1[ko], exact_match, n_evaluated, korean_backend).
+
+        빈 예측 → 0.0, n_evaluated=len(parsed). exact_match는 strip+lower 후 완전일치.
+        """
+        def _f1(pred, sample):
+            if not pred:
+                return 0.0
+            return max((token_f1(pred, g, "ko") for g in sample.reference), default=0.0)
+
+        def _em(pred, sample):
+            if not pred:
+                return 0.0
+            pn = pred.strip().lower()
+            return max((1.0 if pn == g.strip().lower() else 0.0 for g in sample.reference), default=0.0)
+
+        return MultiMeanAccumulator(
+            {"token_f1": _f1, "exact_match": _em},
+            static={"korean_backend": korean_tokenizer_backend()},
+        )
 
     def judge_scores(
         self,

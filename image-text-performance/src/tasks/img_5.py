@@ -21,6 +21,7 @@ from typing import Any
 from src.adapters.fmapi import build_image_message, FMAPIClient
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import BinaryAccumulator
 from src.scoring.metrics import binary_metrics
 from src.tasks.base import Task, Sample, register
 
@@ -184,6 +185,10 @@ class Img5Task(Task):
             "n_unparsed": len(parsed) - len(valid_indices),
             "class_balance": class_balance,
         }
+
+    def make_accumulator(self) -> BinaryAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일한 accuracy/f1/confusion/class_balance 반환."""
+        return BinaryAccumulator(class_balance_keys=("class_0", "class_1"), include_confusion=True)
 
 
 if __name__ == "__main__":

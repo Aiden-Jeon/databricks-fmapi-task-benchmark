@@ -13,6 +13,7 @@ from typing import Any
 
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MultilabelAccumulator
 from src.scoring.metrics import multilabel_prf
 from src.tasks.base import Task, Sample, register
 
@@ -251,6 +252,10 @@ Key phrases (comma-separated):"""
 
         return keyphrases_set
 
+    def make_accumulator(self) -> "_Txt7Accumulator":
+        """스트리밍 O(1) 채점기. score()와 동일(micro PRF + macro + per_language)."""
+        return _Txt7Accumulator()
+
     def score(self, parsed: list[set[str]], samples: list[Sample]) -> dict[str, Any]:
         """파싱된 예측 키프레이즈 집합에 대해 precision/recall/F1 계산.
 
@@ -290,6 +295,50 @@ Key phrases (comma-separated):"""
             "macro_precision": metrics["macro_precision"],
             "macro_recall": metrics["macro_recall"],
             "macro_f1": metrics["macro_f1"],
+        }
+
+class _Txt7Accumulator:
+    """전체 + 언어별 멀티라벨 PRF 스트리밍. score()와 동일 dict.
+
+    전체: precision/recall/f1(=micro) + macro_* + n_evaluated(전체 개수).
+    per_language[lang]: {precision,recall,f1(=micro), n_evaluated}.
+    TXT-7의 score()는 유효성 필터 없이 모든 샘플을 채점(pred_sets=parsed) → valid_fn=항상 True.
+    """
+
+    def __init__(self) -> None:
+        vf = lambda p, s: True
+        self._overall = MultilabelAccumulator(valid_fn=vf)
+        self._lang = {"en": MultilabelAccumulator(valid_fn=vf), "ko": MultilabelAccumulator(valid_fn=vf)}
+        self._n_total = 0
+
+    def add(self, parsed: Any, sample: Sample) -> None:
+        self._n_total += 1
+        self._overall.add(parsed, sample)
+        sub = self._lang.get(getattr(sample, "lang", "en"))
+        if sub is not None:
+            sub.add(parsed, sample)
+
+    def finalize(self) -> dict[str, Any]:
+        o = self._overall.finalize()
+        per_language = {}
+        for lang, sub in self._lang.items():
+            if sub.n > 0:  # score()는 lang_indices가 있을 때만 per_language 항목 생성
+                f = sub.finalize()
+                per_language[lang] = {
+                    "precision": f["micro_precision"],
+                    "recall": f["micro_recall"],
+                    "f1": f["micro_f1"],
+                    "n_evaluated": f["n_evaluated"],
+                }
+        return {
+            "precision": o["micro_precision"],
+            "recall": o["micro_recall"],
+            "f1": o["micro_f1"],
+            "n_evaluated": self._n_total,
+            "per_language": per_language,
+            "macro_precision": o["macro_precision"],
+            "macro_recall": o["macro_recall"],
+            "macro_f1": o["macro_f1"],
         }
 
 

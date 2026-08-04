@@ -17,6 +17,7 @@ from PIL import Image
 from src.adapters.fmapi import build_image_message, FMAPIClient
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MeanAccumulator
 from src.scoring.metrics import token_f1
 from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
 from src.tasks.base import Task, Sample, register
@@ -145,6 +146,28 @@ class Img1Task(Task):
             "n_evaluated": valid_count,
             "notes": "bertscore deferred (torch 미설치)",
         }
+
+    def make_accumulator(self) -> MeanAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일(caption_token_f1 + n_evaluated).
+
+        빈 예측은 None 반환 → 평균·개수 모두에서 제외(score()의 valid_count 의미와 동일).
+        n_evaluated = 유효(비어있지 않은) 예측 수 → count_all=False.
+        """
+        def value_fn(pred, sample):
+            if not pred:
+                return None
+            refs = sample.reference if isinstance(sample.reference, list) else [sample.reference]
+            best = 0.0
+            for ref in refs:
+                best = max(best, token_f1(pred, ref, lang=sample.lang))
+            return best
+
+        return MeanAccumulator(
+            out_key="caption_token_f1",
+            value_fn=value_fn,
+            count_all=False,
+            static={"notes": "bertscore deferred (torch 미설치)"},
+        )
 
     def judge_scores(
         self,

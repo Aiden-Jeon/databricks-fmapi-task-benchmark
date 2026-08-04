@@ -5,18 +5,15 @@ This module provides metrics for evaluating model outputs across tasks:
 - Token-level string similarity (Token-F1, exact match)
 - Classification metrics (accuracy, F1, confusion matrix)
 - Multi-label set metrics (precision/recall/F1 over label sets)
-- Reference-based generation metrics (ROUGE, BERTScore with language awareness)
-- Structured extraction (Cell-F1 for table parsing)
 
-Heavy dependencies (rouge_score, bert_score) are imported lazily inside stubs
-to avoid installation requirements for modules that don't use them yet.
+Reference-based generation metrics (ROUGE, BERTScore) and structured
+extraction (Cell-F1 for table parsing) live in their respective task modules.
 
 See plan.md §3 for task-metric alignment and appendix "채점 방법론 상세"
 for Korean tokenization and metric design choices.
 """
 
 from collections import Counter
-from typing import Optional
 
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
@@ -230,97 +227,3 @@ def classification_metrics(preds: list[int], golds: list[int]) -> dict:
         "accuracy": float(acc),
         "macro_f1": float(macro_f1),
     }
-
-
-def rouge_ko_en(pred: str, gold: str, lang: str) -> dict:
-    """
-    ROUGE score with Korean morpheme pre-tokenization.
-
-    **Phase 1 stub**: This function will wrap rouge_score library with
-    language-aware pre-tokenization:
-    - For Korean (ko): tokenize via Mecab morphemes, re-join with spaces,
-      then compute ROUGE (L, 1, 2).
-    - For English (en): pass through to rouge_score directly.
-
-    Implementation will follow plan.md appendix "채점 방법론 상세" (P0) on
-    Korean tokenization necessity.
-
-    Args:
-        pred: Predicted text.
-        gold: Gold reference text.
-        lang: Language code ('ko' or 'en').
-
-    Returns:
-        Dictionary with keys:
-        - rouge1: dict with {precision, recall, fmeasure}
-        - rouge2: dict with {precision, recall, fmeasure}
-        - rougeL: dict with {precision, recall, fmeasure}
-
-    Raises:
-        NotImplementedError: Phase 1 implementation pending.
-    """
-    raise NotImplementedError(
-        "Phase 1: rouge-score + Mecab 전처리 구현 필요"
-    )
-
-
-def bertscore(
-    preds: list[str], golds: list[str], lang: str
-) -> dict:
-    """
-    BERTScore semantic similarity with multilingual model.
-
-    **Phase 1 stub**: This function will compute BERTScore using a
-    multilingual model:
-    - For Korean (ko): `bert-base-multilingual-cased` or `klue/roberta-base`.
-    - For English (en): same multilingual model for consistency.
-
-    Model hash will be pinned for reproducibility. First run downloads
-    the model for offline reproducibility.
-
-    Args:
-        preds: List of predicted texts.
-        golds: List of gold reference texts.
-        lang: Language code ('ko' or 'en').
-
-    Returns:
-        Dictionary with keys:
-        - precision: list of float, one per sample
-        - recall: list of float, one per sample
-        - f1: list of float, one per sample
-
-    Raises:
-        NotImplementedError: Phase 1 implementation pending.
-    """
-    raise NotImplementedError(
-        "Phase 1: BERTScore 다국어 모델 + 해시 고정 구현 필요"
-    )
-
-
-def cell_f1(pred_html: str, gold_html: str) -> float:
-    """
-    Cell-level F1 for table structure extraction (TXT-3).
-
-    **Phase 1 stub**: This function will replace TEDS (which has no maintained
-    package) with Cell-F1, which performs cell-by-cell fuzzy matching:
-    1. Parse HTML tables (pred and gold) to extract cells.
-    2. Build a bipartite matching between predicted and gold cells by
-       position and text (fuzzy match threshold ~0.8).
-    3. Return F1 over matched cells.
-
-    See plan.md (D12, appendix) for rationale: TEDS package is unmaintained,
-    so Cell-F1 is a practical substitute for v1.
-
-    Args:
-        pred_html: Predicted HTML table structure.
-        gold_html: Gold HTML table structure.
-
-    Returns:
-        Cell-F1 score in [0, 1].
-
-    Raises:
-        NotImplementedError: Phase 1 implementation pending.
-    """
-    raise NotImplementedError(
-        "Phase 1: Cell-F1 파싱 + 퍼지 매칭 구현 필요"
-    )

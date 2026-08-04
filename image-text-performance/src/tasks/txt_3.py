@@ -18,6 +18,7 @@ from fuzzywuzzy import fuzz
 
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import MeanAccumulator
 from src.tasks.base import Task, Sample, register
 
 
@@ -307,6 +308,23 @@ Generate the HTML table structure. Respond with ONLY the HTML code, no explanati
             "n_evaluated": len(f1_scores),
             "notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정.",
         }
+
+    def make_accumulator(self) -> MeanAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일(cell_f1 평균 + n_evaluated + notes).
+
+        모든 샘플 채점(빈 예측도 낮은 F1로 포함) → count_all, n_evaluated=len(parsed).
+        """
+        def value_fn(pred_html, sample):
+            pred_cells = parse_html_table(pred_html)
+            gold_cells = parse_html_table(sample.reference)
+            return cell_f1_score(pred_cells, gold_cells)
+
+        return MeanAccumulator(
+            out_key="cell_f1",
+            value_fn=value_fn,
+            count_all=True,
+            static={"notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정."},
+        )
 
 
 if __name__ == "__main__":

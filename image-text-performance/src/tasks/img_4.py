@@ -19,6 +19,7 @@ from typing import Any
 from src.adapters.fmapi import FMAPIClient, build_image_message
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
+from src.scoring.accumulators import BinaryAccumulator
 from src.scoring.metrics import binary_metrics
 from src.tasks.base import Task, Sample, register
 
@@ -239,6 +240,10 @@ class Img4Task(Task):
                 "nsfw_count": n_nsfw,
             },
         }
+
+    def make_accumulator(self) -> BinaryAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일 (class_balance는 sfw/nsfw 카운트)."""
+        return BinaryAccumulator(class_balance_keys=("sfw_count", "nsfw_count"), include_confusion=True)
 
 
 if __name__ == "__main__":

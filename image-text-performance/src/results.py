@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -87,11 +87,14 @@ class RunManifest:
         return asdict(self)
 
 
-def write_sample_results(run_dir: str | Path, results: list[SampleResult]) -> Path:
-    """샘플 결과를 results/<run_id>/samples.jsonl에 저장.
+def append_sample_results(run_dir: str | Path, results: list[SampleResult]) -> Path:
+    """샘플 결과를 samples.jsonl에 **append**한다(스트리밍 저장용).
 
-    각 줄은 하나의 SampleResult (JSON).
-    run_dir이 없으면 생성.
+    전체를 한 번에 truncate-쓰기 하는 대신, "a" 모드로 열어 이미 있는 줄을 보존하고
+    새 줄만 이어 쓴다(각 셀 완료 시 호출). 매 호출마다 flush해, 도중에 프로세스가 죽어도
+    이미 쓴 줄은 디스크에 남는다(crash-resume의 기반). run_dir이 없으면 생성.
+
+    빈 리스트면 아무것도 쓰지 않고 경로만 돌려준다.
 
     Returns: samples.jsonl 파일 경로.
     """
@@ -99,13 +102,51 @@ def write_sample_results(run_dir: str | Path, results: list[SampleResult]) -> Pa
     run_dir.mkdir(parents=True, exist_ok=True)
 
     samples_file = run_dir / "samples.jsonl"
-    with open(samples_file, "w", encoding="utf-8") as f:
+    if not results:
+        return samples_file
+
+    with open(samples_file, "a", encoding="utf-8") as f:
         for result in results:
             # set(태그셋·키프레이즈 reference 등)은 JSON 미지원 → list로 변환
             line = json.dumps(asdict(result), ensure_ascii=False, default=_json_default)
             f.write(line + "\n")
+        f.flush()
 
     return samples_file
+
+
+def load_sample_results(run_dir: str | Path) -> list[SampleResult]:
+    """samples.jsonl을 읽어 SampleResult 리스트로 복원(리포트 생성용, resume 검사용).
+
+    - 파일이 없으면 빈 리스트.
+    - JSON으로 저장하며 set→list 변환이 일어났으므로, 복원되는 reference는 list일 수 있다
+      (리포트는 model_output·reference·finish_reason 등 스칼라/문자열만 읽으므로 무해).
+    - SampleResult 필드 이외의 잉여 키는 방어적으로 무시(포맷 진화 대비).
+    - 깨진 줄(부분 기록 등)은 조용히 건너뛴다.
+    """
+    run_dir = Path(run_dir)
+    samples_file = run_dir / "samples.jsonl"
+    if not samples_file.exists():
+        return []
+
+    valid_keys = {f.name for f in fields(SampleResult)}
+    out: list[SampleResult] = []
+    with open(samples_file, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # 부분 기록·손상 줄 스킵
+            if not isinstance(d, dict):
+                continue
+            try:
+                out.append(SampleResult(**{k: v for k, v in d.items() if k in valid_keys}))
+            except TypeError:
+                continue  # 필드 누락 등 스키마 불일치 줄 스킵
+    return out
 
 
 def _json_default(o: Any) -> Any:
