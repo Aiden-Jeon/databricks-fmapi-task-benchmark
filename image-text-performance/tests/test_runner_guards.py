@@ -749,3 +749,126 @@ def test_all_load_paths_survive_valid_json_non_object_rows(tmp_path, bad):
 
     progress = runner._partial_progress(samples, set(), drop_keys=set())
     assert progress.get("opus::IMG-1::minimal") == {0, 1}
+
+
+# ---------------------------------------------------------------------------
+# 롤백은 콜백의 **부작용**까지 되돌린다
+# (3차 재검토) 실제 rebuild_index는 index.md를 새로 쓴다. 콜백이 파일을 쓴 뒤 실패하면
+# 복원 조건(not src.exists())이 거짓이 되어 원본 index를 조용히 못 되살렸다.
+# ---------------------------------------------------------------------------
+
+def test_rollback_undoes_callback_side_effects(tmp_path, monkeypatch, capsys):
+    """콜백이 index를 덮어쓴 뒤 실패해도 원본 index가 되살아난다."""
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    (results / "옛run").mkdir(parents=True)
+    (results / "새run").mkdir()
+    (reports / "옛run").mkdir(parents=True)
+    (reports / "새run").mkdir()
+    index = reports / "index.md"
+    index.write_text("OLD INDEX", encoding="utf-8")
+
+    def rebuild_then_fail():
+        # 실제 rebuild_index처럼 먼저 index를 새로 쓴 뒤 실패한다.
+        index.write_text("NEW PARTIAL INDEX", encoding="utf-8")
+        (reports / "새로만든부산물").mkdir()
+        raise RuntimeError("index 재생성 중 디스크 오류")
+
+    with pytest.raises(RuntimeError):
+        runner._purge_previous_runs(
+            results, reports, keep_run_id="새run", post_move_verify=rebuild_then_fail
+        )
+
+    assert index.read_text(encoding="utf-8") == "OLD INDEX", \
+        "콜백이 덮어쓴 index를 원본으로 되돌려야 한다"
+    assert not (reports / "새로만든부산물").exists(), "콜백이 만든 잔여물은 걷어낸다"
+    assert (results / "옛run").is_dir() and (reports / "옛run").is_dir()
+    out = capsys.readouterr().out
+    assert "롤백 불완전" not in out, f"완전 복원인데 불완전으로 보고했다:\n{out}"
+
+
+def test_rollback_reports_incomplete_restore_loudly(tmp_path, monkeypatch, capsys):
+    """복원하지 못한 것이 있으면 보관본 경로와 함께 명시적으로 알린다(조용한 유실 금지)."""
+    import shutil
+
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    (results / "옛run").mkdir(parents=True)
+    (results / "새run").mkdir()
+    reports.mkdir()
+
+    real_move = shutil.move
+    state = {"phase": "forward"}
+
+    def selective(src, dst):
+        if state["phase"] == "rollback":
+            raise OSError("복원 불가(권한)")
+        return real_move(src, dst)
+
+    def fail_after_move():
+        state["phase"] = "rollback"
+        raise RuntimeError("정리 후 단계 실패")
+
+    monkeypatch.setattr(shutil, "move", selective)
+    with pytest.raises(RuntimeError):
+        runner._purge_previous_runs(
+            results, reports, keep_run_id="새run", post_move_verify=fail_after_move
+        )
+    monkeypatch.setattr(shutil, "move", real_move)
+
+    out = capsys.readouterr().out
+    assert "롤백 불완전" in out, f"복원 실패를 조용히 넘겼다:\n{out}"
+    assert ".trash" in out, "보관본 경로를 알려야 사람이 복구할 수 있다"
+
+
+# ---------------------------------------------------------------------------
+# manifest 축 검증: 0/false/잘못된 타입도 거부
+# ---------------------------------------------------------------------------
+
+def _full_manifest(**over):
+    m = {"models": [{"id": "opus"}], "task_ids": ["IMG-1"],
+         "reasoning_modes": ["minimal"], "samples_per_task": 30,
+         "profile": "ai_devtools"}
+    m.update(over)
+    return m
+
+
+@pytest.mark.parametrize("prev,axis", [
+    # 다섯 축을 전부 0으로 둔 manifest: emptiness 비교만으로는 통과했다(재검토 실측).
+    ({a: 0 for a in runner.RESUME_REQUIRED_AXES}, "models"),
+    (_full_manifest(samples_per_task=0), "samples_per_task"),
+    (_full_manifest(samples_per_task=False), "samples_per_task"),
+    (_full_manifest(samples_per_task=True), "samples_per_task"),   # bool은 int 서브클래스
+    (_full_manifest(samples_per_task=-5), "samples_per_task"),
+    (_full_manifest(samples_per_task="30"), "samples_per_task"),   # 문자열 숫자
+    (_full_manifest(models=[{"name": "opus"}]), "models"),         # id 키 없음
+    (_full_manifest(models=["opus"]), "models"),                   # dict 아님
+    (_full_manifest(models=[{"id": ""}]), "models"),               # 빈 id
+    (_full_manifest(task_ids="IMG-1"), "task_ids"),                # list 아닌 문자열
+    (_full_manifest(task_ids=[1, 2]), "task_ids"),                 # str 아닌 원소
+    (_full_manifest(reasoning_modes=[""]), "reasoning_modes"),
+    (_full_manifest(profile=0), "profile"),
+    (_full_manifest(profile="   "), "profile"),                    # 공백만
+])
+def test_manifest_axis_validation_rejects_bad_values(prev, axis):
+    """0·false·잘못된 타입은 fail-closed를 우회하지 못한다."""
+    bad = runner._missing_manifest_axes(prev)
+    assert axis in bad, f"{axis}를 거부해야 하는데 통과했다(bad={bad})"
+
+
+def test_manifest_axis_validation_accepts_real_manifest():
+    """정상 manifest는 그대로 통과 — 멀쩡한 resume 워크플로를 깨지 않는다."""
+    assert runner._missing_manifest_axes(_full_manifest()) == []
+
+
+def test_manifest_axis_validation_matches_real_committed_manifest():
+    """실제 커밋된 manifest로도 통과하는지 확인(하위호환 회귀 방지)."""
+    import glob
+
+    paths = sorted(glob.glob("results/*/manifest.json"))
+    if not paths:
+        pytest.skip("검사할 manifest가 없음")
+    for p in paths:
+        with open(p, encoding="utf-8") as f:
+            bad = runner._missing_manifest_axes(json.load(f))
+        assert bad == [], f"{p}가 축 검증에 걸린다: {bad}"

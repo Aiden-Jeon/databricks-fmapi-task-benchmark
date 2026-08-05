@@ -1021,6 +1021,11 @@ def _purge_previous_runs(
 
     moved: list[str] = []
     done: list[tuple[Path, Path]] = []      # (원래 위치, 보관 위치) — 롤백용
+    # 콜백 직전의 디렉터리 스냅샷. 콜백(index 재생성 등)이 **새로 만든 경로**를 롤백 때
+    # 걷어내기 위한 기준이다. 이게 없으면 콜백이 index.md를 다시 쓴 뒤 실패했을 때,
+    # 복원 조건(`not src.exists()`)이 거짓이 되어 원본 index를 조용히 못 되살린다
+    # (실측: old report는 복원됐는데 live index.md는 반쪽, 원본은 .trash에 남았다).
+    snapshot: dict[Path, set[str]] = {}
     try:
         for base in (results_dir, reports_dir):
             if not base.exists():
@@ -1034,22 +1039,46 @@ def _purge_previous_runs(
                 done.append((item, dest))
                 moved.append(f"{base.name}/{item.name}")
         if post_move_verify is not None:
+            snapshot = {
+                base: {p.name for p in base.iterdir()}
+                for base in (results_dir, reports_dir) if base.exists()
+            }
             post_move_verify()
     except Exception:
-        # 되돌린다. 롤백 자체가 실패하면 그 사실을 크게 알린다 — 보관본 경로만 알면
+        # 되돌린다. 롤백이 완전하지 않으면 그 사실을 크게 알린다 — 보관본 경로만 알면
         # 사람이 복구할 수 있으므로, 조용히 삼켜서 "사라진 것처럼" 보이게 하지 않는다.
+        # ① 콜백이 만든 잔여물을 먼저 걷어낸다(원본을 덮어쓸 자리를 비운다).
+        for base, before in snapshot.items():
+            if not base.exists():
+                continue
+            for p in base.iterdir():
+                if p.name in before:
+                    continue                  # 콜백 전에도 있던 것 — 건드리지 않는다
+                try:
+                    shutil.rmtree(p) if p.is_dir() else p.unlink()
+                except OSError as ce:
+                    print(f"  ❗ 콜백 잔여물 제거 실패: {p} ({type(ce).__name__}: {ce})")
+
+        # ② 옮긴 것을 제자리로. 자리가 차 있으면(콜백이 같은 경로를 다시 썼으면) 그 잔여물을
+        #    치우고 원본을 복원한다 — 옮겨둔 원본이 더 신뢰할 수 있는 상태다.
         restored = 0
         for src, dest in reversed(done):
             try:
-                if dest.exists() and not src.exists():
-                    src.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(dest), str(src))
-                    restored += 1
+                if not dest.exists():
+                    continue
+                if src.exists():
+                    shutil.rmtree(src) if src.is_dir() else src.unlink()
+                src.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(dest), str(src))
+                restored += 1
             except OSError as re:
-                print(f"  ❗ 롤백 실패: {dest} → {src} ({type(re).__name__}: {re}) — "
-                      f"보관본에 남아 있으니 수동으로 옮기세요")
-        if done:
-            print(f"  [--fresh 롤백] 이동한 {len(done)}개 중 {restored}개를 제자리로 되돌렸습니다.")
+                print(f"  ❗ 롤백 실패: {dest} → {src} ({type(re).__name__}: {re})")
+
+        if restored != len(done):
+            print(f"  ❗❗ [--fresh 롤백 불완전] {len(done)}개 중 {restored}개만 복원했습니다. "
+                  f"복원되지 않은 것은 **{trash}/** 에 그대로 있으니 수동으로 되돌리세요.")
+        elif done:
+            print(f"  [--fresh 롤백] 이동한 {len(done)}개를 모두 제자리로 되돌렸습니다.")
         raise
 
     if moved:
@@ -1124,12 +1153,43 @@ RESUME_REQUIRED_AXES = ("models", "task_ids", "reasoning_modes", "samples_per_ta
 
 
 def _missing_manifest_axes(prev: dict[str, Any]) -> list[str]:
-    """resume 대상 manifest에서 비어 있는 핵심 축 목록(없으면 빈 리스트).
+    """resume 대상 manifest에서 **쓸 수 없는** 핵심 축 목록(문제 없으면 빈 리스트).
 
     유효 JSON인 `{}`도 파싱은 되지만 드리프트 검사를 전부 통과해버린다 —
-    모델·태스크·샘플 수가 달라도 옛 scores와 섞이게 된다. 그래서 값 존재를 따로 본다.
+    모델·태스크·샘플 수가 달라도 옛 scores와 섞이게 된다.
+
+    단순 emptiness 비교로는 부족하다: 다섯 축을 모두 `0`으로 둔 manifest는
+    `0 in (None, [], {}, "")`이 거짓이라 통과하고, 드리프트 검사도 타입이 안 맞아 비교를
+    건너뛰므로 **구성이 다른 run도 resume이 된다**(재검토 실측). 그래서 축마다 타입·값까지 본다.
     """
-    return [axis for axis in RESUME_REQUIRED_AXES if prev.get(axis) in (None, [], {}, "")]
+    bad: list[str] = []
+
+    def _nonempty_str_list(v: Any) -> bool:
+        return isinstance(v, list) and bool(v) and all(
+            isinstance(x, str) and x.strip() for x in v
+        )
+
+    # models: [{"id": "..."}] 형태여야 한다 — 드리프트가 id 집합을 비교하기 때문이다.
+    models = prev.get("models")
+    if not (isinstance(models, list) and models and all(
+            isinstance(m, dict) and isinstance(m.get("id"), str) and m["id"].strip()
+            for m in models)):
+        bad.append("models")
+
+    for axis in ("task_ids", "reasoning_modes"):
+        if not _nonempty_str_list(prev.get(axis)):
+            bad.append(axis)
+
+    # samples_per_task: 양의 정수. bool은 int의 서브클래스라 True가 1로 통과하므로 배제한다.
+    spt = prev.get("samples_per_task")
+    if isinstance(spt, bool) or not isinstance(spt, int) or spt <= 0:
+        bad.append("samples_per_task")
+
+    profile = prev.get("profile")
+    if not (isinstance(profile, str) and profile.strip()):
+        bad.append("profile")
+
+    return bad
 
 
 def _cell_key(model_id: str, task_id: str, mode: str) -> str:
