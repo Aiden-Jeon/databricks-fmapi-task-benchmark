@@ -96,9 +96,19 @@ class MultiMeanAccumulator:
     (모델이 응답은 했지만 형식을 못 맞춘 '파싱 실패'는 여전히 0점이다 — 그건 실제 능력 문제다.)
     """
 
-    def __init__(self, value_fns: dict[str, Any], *, static: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        value_fns: dict[str, Any],
+        *,
+        static: dict[str, Any] | None = None,
+        dynamic: dict[str, Any] | None = None,
+    ) -> None:
         self.value_fns = value_fns
         self.static = static or {}
+        # dynamic: {out_key: 인자 없는 callable}. **finalize 시점에** 호출해 값을 얻는다.
+        # 생성 시점에 확정되지 않는 값(예: 한국어 토큰화 백엔드는 tokenize(ko) 최초 호출
+        # 때 정해진다)을 static에 넣으면 항상 초기값("unknown")이 박힌다.
+        self.dynamic = dynamic or {}
         self._sums = {k: 0.0 for k in value_fns}
         self._n = 0
         self._skipped = 0
@@ -119,6 +129,11 @@ class MultiMeanAccumulator:
         if self._skipped:
             out["n_skipped"] = self._skipped
         out.update(self.static)
+        for k, fn in self.dynamic.items():
+            try:
+                out[k] = fn()
+            except Exception:
+                pass   # 부가 정보라 실패해도 채점 결과를 버리지 않는다
         return out
 
 

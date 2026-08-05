@@ -169,9 +169,13 @@ class Txt4Task(Task):
             pn = pred.strip().lower()
             return max((1.0 if pn == g.strip().lower() else 0.0 for g in sample.reference), default=0.0)
 
+        # ⚠️ static=에 korean_tokenizer_backend()를 **호출해서** 넣으면 안 된다.
+        # 백엔드는 tokenize(ko) 최초 호출 때 확정되는데(지연 초기화), 누적기 생성은 그 전이라
+        # 항상 "unknown"이 박힌다(2026-08-05 실측: TXT-4 리포트에 backend=unknown).
+        # 대신 finalize 시점에 읽도록 dynamic으로 넘긴다.
         return MultiMeanAccumulator(
             {"token_f1": _f1, "exact_match": _em},
-            static={"korean_backend": korean_tokenizer_backend()},
+            dynamic={"korean_backend": korean_tokenizer_backend},
         )
 
     def judge_scores(

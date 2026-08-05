@@ -63,3 +63,38 @@ def test_syllable_fallback_shape_when_no_mecab():
 def test_empty_input_safe():
     assert tokenize("", "ko") == []
     assert tokenize("", "en") == []
+
+
+def test_accumulator_reports_backend_not_unknown():
+    """누적기가 리포트에 내는 korean_backend가 'unknown'이 아니어야 한다.
+
+    백엔드는 tokenize(ko) 최초 호출 때 확정되는데(지연 초기화), 예전 TXT-4는
+    `static={"korean_backend": korean_tokenizer_backend()}`로 **누적기 생성 시점**에
+    값을 박아 항상 "unknown"이 리포트에 실렸다(2026-08-05 실측). finalize 시점에
+    읽도록 dynamic으로 바꿨다 — 리포트 독자가 형태소/음절 기준을 구분할 수 있어야 한다.
+    """
+    from src.datasets_loader import load_registry
+    from src.tasks.base import Sample
+    from src.tasks.loader import discover_tasks
+
+    inst = discover_tasks()["TXT-4"]({}, load_registry())
+    acc = inst.make_accumulator()
+    acc.add("베토벤의 합창교향곡", Sample(sample_id=0, inputs={}, reference=["합창교향곡"], lang="ko"))
+    out = acc.finalize()
+
+    assert out.get("korean_backend") in {"mecab", "syllable"}, (
+        f"backend={out.get('korean_backend')!r} — 리포트에서 채점 기준을 알 수 없다"
+    )
+
+
+def test_score_and_accumulator_agree_on_backend():
+    """score()와 누적기가 같은 backend를 보고한다(수치 동치와 같은 계약)."""
+    from src.datasets_loader import load_registry
+    from src.tasks.base import Sample
+    from src.tasks.loader import discover_tasks
+
+    inst = discover_tasks()["TXT-4"]({}, load_registry())
+    s = Sample(sample_id=0, inputs={}, reference=["합창교향곡"], lang="ko")
+    acc = inst.make_accumulator()
+    acc.add("베토벤의 합창교향곡", s)
+    assert acc.finalize()["korean_backend"] == inst.score(["베토벤의 합창교향곡"], [s])["korean_backend"]
