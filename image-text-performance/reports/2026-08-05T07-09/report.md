@@ -1,6 +1,6 @@
-# 벤치마크 리포트 — 2026-08-04T09-54
+# 벤치마크 리포트 — 2026-08-05T07-09
 
-> 📊 고객 설명용 프레젠테이션: **[▶ 브라우저로 바로 보기](https://htmlpreview.github.io/?https://github.com/Aiden-Jeon/databricks-fmapi-task-benchmark/blob/main/image-text-performance/reports/2026-08-04T09-54/presentation.html)** · [HTML 소스](./presentation.html) — 이 리포트 결과를 슬라이드로 정리
+> 📊 고객 설명용 프레젠테이션: **[▶ 브라우저로 바로 보기](https://htmlpreview.github.io/?https://github.com/Aiden-Jeon/databricks-fmapi-task-benchmark/blob/main/image-text-performance/reports/2026-08-05T07-09/presentation.html)** · [HTML 소스](./presentation.html) — 이 리포트 결과를 슬라이드로 정리
 
 ## 평가 대상 모델 (Databricks hosted)
 
@@ -14,11 +14,9 @@
 
 ## Executive Summary
 
-제공된 데이터에 기반한 요약은 다음과 같습니다.
+'opus'는 총 7개 작업에서 1위를 차지하며 이미지와 텍스트 전반에서 가장 우수한 성능을 보였고, 'sol'은 일부 이미지(IMG-1, 2, 5) 및 텍스트(TXT-3) 작업에서 두각을 나타냈습니다. 반면 'glm'은 텍스트 작업(TXT-4, 7, 8)에서만 1위를 기록하며 특정 분야에서만 강점을 보였습니다. 속도와 비용 측면에서는 'glm'이 가장 빠르고(중앙값 779.4ms) 저렴($0.25)한 반면, 종합 성능이 가장 높은 'opus'는 비용($2.53)이 가장 비싸고 처리 속도(3222.3ms)도 가장 느려 뚜렷한 트레이드오프를 보여줍니다.
 
-총 14개 태스크 중 Opus가 6개(주로 이미지)에서 1위를 차지해 가장 많은 우위를 점했고, Sol과 GLM은 각각 4개 항목에서 1위를 기록했습니다. GLM은 텍스트(TXT) 태스크에서만 평가되었으나 해당 분야에서 강세를 보였으며, Sol은 텍스트와 이미지 모두에서 고른 성과를 냈지만 3번의 에러가 발생해 안정성이 다소 떨어졌습니다. 속도와 비용 측면에서 GLM은 지연시간 중간값 933.6ms 및 총비용 0.209달러로 가장 빠르고 저렴합니다. 반면 종합 성능이 가장 좋은 Opus는 2592.2ms의 가장 느린 속도와 2.406달러의 최고 비용이 발생하여 성능과 비용·속도 간의 뚜렷한 트레이드오프를 보여줍니다.
-
-<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 6회, sol 4회, glm 4회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 933.6ms). 비용은 **glm**가 가장 낮다($0.209093).</sub>
+<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 opus 7회, sol 4회, glm 3회로 **opus**가 가장 많다. 응답 속도는 **glm**가 가장 빠르다(median 779.4ms). 비용은 **glm**가 가장 낮다($0.257848).</sub>
 
 ## 비교 그래프
 
@@ -36,50 +34,50 @@
 
 | 태스크 | 모델 | reasoning | 대표 메트릭 |
 |---|---|---|---|
-| TXT-1 · 문서(PDF) 이해 QA | glm | minimal | token_f1=0.004, exact_match=0.0, n_evaluated=30, judge_mean=1.6 |
-| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.3, token_f1=0.421, n_evaluated=10, judge_mean=4.5 |
+| TXT-1 · 문서(PDF) 이해 QA | glm | minimal | anls=0.863, token_f1=0.827, exact_match=0.8, n_evaluated=30, judge_mean=4.433 |
+| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.1, token_f1=0.114, n_evaluated=30, judge_mean=4.067 |
 | TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.972, n_evaluated=30 |
-| TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.947, exact_match=0.833, n_evaluated=30, judge_mean=4.433 |
-| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.306, rouge2=0.127, rougeL=0.244, n_evaluated=30, judge_mean=4.567 |
+| TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.951, exact_match=0.833, n_evaluated=30, judge_mean=5.0 |
+| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.272, rouge2=0.115, rougeL=0.215, n_evaluated=30, judge_mean=4.448 |
 | TXT-6 · 감정 분석 | glm | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | glm | minimal | precision=0.491, recall=0.502, f1=0.496, n_evaluated=30, macro_precision=0.472, macro_recall=0.497 |
+| TXT-7 · 키워드 추출 | glm | minimal | precision=0.5, recall=0.533, f1=0.516, n_evaluated=30, macro_precision=0.483, macro_recall=0.52 |
 | TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.9, f1=0.824, n_evaluated=30, n_unparsed=0 |
-| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.337, n_evaluated=30, judge_mean=0.0 |
-| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.13, micro_recall=0.494, micro_f1=0.205, macro_precision=0.151, macro_recall=0.511, macro_f1=0.227 |
-| IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.667, f1=0.792, n_evaluated=30, n_unparsed=0 |
+| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.327, n_evaluated=30, judge_mean=4.267 |
+| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.13, micro_recall=0.447, micro_f1=0.202, macro_precision=0.143, macro_recall=0.48, macro_f1=0.213 |
+| IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.7, f1=0.809, n_evaluated=30, n_unparsed=0 |
 | IMG-4 · 성인/NSFW 이미지 판별 | opus | minimal | accuracy=0.933, f1=0.929, n_evaluated=30, n_unparsed=0 |
-| IMG-5 · 사람 포함 여부 판별 | opus | minimal | accuracy=0.967, f1=0.971, n_evaluated=30, n_unparsed=0 |
-| IMG-6 · 표 이미지 구조 추출 | opus | minimal | cell_f1=0.895, n_evaluated=30 |
-| TXT-1 · 문서(PDF) 이해 QA | opus | minimal | token_f1=0.006, exact_match=0.0, n_evaluated=30, judge_mean=1.733 |
-| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.1, token_f1=0.197, n_evaluated=10, judge_mean=4.2 |
-| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.943, n_evaluated=30 |
-| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.808, exact_match=0.567, n_evaluated=30, judge_mean=4.133 |
-| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.319, rouge2=0.163, rougeL=0.261, n_evaluated=30, judge_mean=4.8 |
-| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | opus | minimal | precision=0.333, recall=0.476, f1=0.392, n_evaluated=30, macro_precision=0.33, macro_recall=0.495 |
-| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 |
-| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.427, n_evaluated=30, judge_mean=3.0 |
-| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.181, micro_recall=0.388, micro_f1=0.247, macro_precision=0.203, macro_recall=0.423, macro_f1=0.268 |
+| IMG-5 · 사람 포함 여부 판별 | opus | minimal | accuracy=0.933, f1=0.941, n_evaluated=30, n_unparsed=0 |
+| IMG-6 · 표 이미지 구조 추출 | opus | minimal | cell_f1=0.841, n_evaluated=30 |
+| TXT-1 · 문서(PDF) 이해 QA | opus | minimal | anls=0.913, token_f1=0.893, exact_match=0.867, n_evaluated=30, judge_mean=4.7 |
+| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.1, token_f1=0.167, n_evaluated=30, judge_mean=4.433 |
+| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.942, n_evaluated=30 |
+| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.837, exact_match=0.6, n_evaluated=30, judge_mean=5.0 |
+| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.325, rouge2=0.159, rougeL=0.26, n_evaluated=30, judge_mean=4.897 |
+| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.867, macro_f1=0.861, n_evaluated=30, n_unparsed=0 |
+| TXT-7 · 키워드 추출 | opus | minimal | precision=0.303, recall=0.451, f1=0.362, n_evaluated=30, macro_precision=0.302, macro_recall=0.449 |
+| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.8, f1=0.667, n_evaluated=30, n_unparsed=0 |
+| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.444, n_evaluated=30, judge_mean=3.733 |
+| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.18, micro_recall=0.4, micro_f1=0.248, macro_precision=0.201, macro_recall=0.431, macro_f1=0.266 |
 | IMG-3 · 무기/위협 존재 판별 | sol | minimal | accuracy=0.633, f1=0.776, n_evaluated=30, n_unparsed=0 |
 | IMG-4 · 성인/NSFW 이미지 판별 | sol | minimal | accuracy=0.933, f1=0.929, n_evaluated=30, n_unparsed=0 |
 | IMG-5 · 사람 포함 여부 판별 | sol | minimal | accuracy=0.967, f1=0.971, n_evaluated=30, n_unparsed=0 |
-| IMG-6 · 표 이미지 구조 추출 | sol | minimal | cell_f1=0.787, n_evaluated=30 |
-| TXT-1 · 문서(PDF) 이해 QA | sol | minimal | token_f1=0.042, exact_match=0.0, n_evaluated=30, judge_mean=1.467 |
-| TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.0, token_f1=0.263, n_evaluated=10, judge_mean=3.6 |
+| IMG-6 · 표 이미지 구조 추출 | sol | minimal | cell_f1=0.786, n_evaluated=30 |
+| TXT-1 · 문서(PDF) 이해 QA | sol | minimal | anls=0.881, token_f1=0.824, exact_match=0.833, n_evaluated=30, judge_mean=4.467 |
+| TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.0, token_f1=0.189, n_evaluated=30, judge_mean=3.7 |
 | TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.979, n_evaluated=30 |
-| TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.886, exact_match=0.667, n_evaluated=30, judge_mean=4.6 |
-| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.303, rouge2=0.127, rougeL=0.248, n_evaluated=30, judge_mean=4.733 |
+| TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.881, exact_match=0.667, n_evaluated=30, judge_mean=5.0 |
+| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.315, rouge2=0.138, rougeL=0.254, n_evaluated=30, judge_mean=4.767 |
 | TXT-6 · 감정 분석 | sol | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 |
-| TXT-7 · 키워드 추출 | sol | minimal | precision=0.383, recall=0.416, f1=0.399, n_evaluated=30, macro_precision=0.396, macro_recall=0.437 |
-| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 |
+| TXT-7 · 키워드 추출 | sol | minimal | precision=0.37, recall=0.397, f1=0.383, n_evaluated=30, macro_precision=0.375, macro_recall=0.409 |
+| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.833, f1=0.737, n_evaluated=30, n_unparsed=0 |
 
 ## 성능: 수행시간·비용 (모델별)
 
 | 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |
 |---|---|---|---|---|---|---|---|
-| glm | 220 | 0 | 933.6 | 6528.9 | 71850 | 27755 | 0.209093 |
-| opus | 400 | 1 | 2592.2 | 9145.7 | 168364 | 62568 | 2.406026 |
-| sol | 400 | 3 | 2095.3 | 8795.8 | 124158 | 43638 | 1.929932 |
+| glm | 240 | 0 | 779.4 | 7009.5 | 101364 | 26757 | 0.257848 |
+| opus | 420 | 4 | 3222.3 | 13139.8 | 209397 | 59329 | 2.530217 |
+| sol | 420 | 0 | 2698.9 | 9448.3 | 153498 | 44701 | 2.108523 |
 
 > 비용은 `config/pricing.yaml` DBU 단가 기반 추정(usd_per_dbu 가정값). 정밀 비용은 `system.ai_gateway.usage` 조인 필요(§10).
 
@@ -99,8 +97,8 @@
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ❌ | `A warmly lit bathroom with golden faux-finish walls features a black and white clawfoot slipper tub with brass fixtures, a white pedestal sink beneath a framed …` |
-| sol | ❌ | `An elegant bathroom features a pedestal sink, framed mirror, and vintage clawfoot bathtub against textured beige walls.` |
+| opus | ❌ | `A warmly lit bathroom with golden-textured walls features a vintage black-and-white clawfoot tub with brass fixtures, a white pedestal sink beneath a framed mir…` |
+| sol | ❌ | `An elegant beige bathroom features a pedestal sink, framed mirror, and ornate clawfoot bathtub.` |
 
 ### IMG-2 · 이미지 태그(객체) 추출
 
@@ -114,23 +112,23 @@
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ✅ | `Cruise ships, ocean, sky, pier, umbrellas, palm tree, pool, lounge chairs, people, sand, rocks, waves, planter` |
+| opus | ✅ | `Cruise ships, ocean, sky, pier, palm tree, umbrellas, lounge chairs, people, pool, beach, rocks, railing, planter` |
 | sol | ✅ | `ships, pier, ocean, pool, umbrellas, chairs, people, palm tree` |
 
 ### IMG-3 · 무기/위협 존재 판별
 
-**샘플 #22** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
+**샘플 #2** · _모델 간 판정이 갈린 케이스_ · 정답: `1`
 
 **질문/지시:** Does this image contain a weapon or threat (gun, knife, pistol, rifle, blood, etc.)? Answer exactly yes or no.
 
 **입력 이미지:**
 
-![IMG-3 sample 22](gallery_IMG-3_s22.png)
+![IMG-3 sample 2](gallery_IMG-3_s2.png)
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ✅ | `no` |
-| sol | ❌ | `yes` |
+| opus | ✅ | `**Yes**` |
+| sol | ✅ | `yes` |
 
 ### IMG-4 · 성인/NSFW 이미지 판별
 
@@ -155,7 +153,7 @@
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ❌ | `The question asks whether there is a person visible in the image. Looking at the image, I can see framed photographs and artwork on the wall that depict people …` |
+| opus | ❌ | `The question asks whether a person is visible. There are photographs and framed portraits on the wall showing people, and there appear to be figurines. But actu…` |
 | sol | ❌ | `no` |
 
 ### IMG-6 · 표 이미지 구조 추출
@@ -186,58 +184,57 @@
 
 ### TXT-1 · 문서(PDF) 이해 QA
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `['-0.124']`
+**샘플 #23** · _모델 간 판정이 갈린 케이스_ · 정답: `['Dream Cream', 'Dream cream']`
 
-**질문/지시:** What is Thorax size?
+**질문/지시:** Which is the Sunfeast biscuIt sub brand, placed first at the bottom?
 
 **입력:**
-> Answer the following question:
+> Based on the following document text, answer the question.
 > 
-> Question: What is Thorax size?
+> Document text:
+> ITC Limited REPORT AND ACCOUNTS 2013 Sunfeast straddles all segments in the biscuit Sunfeast category and offers high quality products in exciting and innovative formats, which reinforces ITC's commitment to delivering a world-class product experience to the discerning consumer. Snacky snacky sunday Snacky Sunday NICE Quan Delishus Delishus MARIE LIGHT MARIE LICHIST Sunfeast sweet'n Dark Forcosy Dark Fantasy A Dark Fantasy Chaco file Dream Dream Cream Cream Dream Cream 223
+> 
+> Question: Which is the Sunfeast biscuIt sub brand, placed first at the bottom?
+> 
+> Answer with only the exact value from the document — no explanation, no full sentence.
 > 
 > Answer:
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ❌ | `The size of the thorax (commonly known as the chest) varies significantly depending on a person's age, sex, body composition, and height. Because it is a dynami…` |
-| opus | ❌ | `Assuming you mean the thorax of an insect (or other arthropod), its "size" isn't a single fixed number — it varies enormously with the species and even between …` |
-| sol | ❌ | `Thorax size refers to the dimensions or circumference of the chest—the part of the body between the neck and abdomen. Its normal size varies by age, sex, body s…` |
+| glm | ❌ | `Snacky Sunday` |
+| opus | ✅ | `Dream Cream` |
+| sol | ❌ | `Dark Fantasy` |
 
 ### TXT-2 · 표(엑셀) 이해 QA
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `['Lake Palas Tuzla']`
+**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `['4']`
 
-**질문/지시:** which is deeper, lake tuz or lake palas tuzla?
+**질문/지시:** what's the number of parishes founded in the 1800s?
 
 **입력:**
 > Based on the following table, answer the question accurately.
 > 
 > Table:
-> | Name in English | Name in Turkish | Area (km2) | Depth | Location (districts and/or provinces) |
+> | Parish | Locality | Parish Priest | Founded | Closed |
 > | --- | --- | --- | --- | --- |
-> | Lake Van | Van Gölü | 3755 km2 | 451 m | Van, Bitlis |
-> | Lake Tuz | Tuz Gölü | 1500 km2 | 2 m | Aksaray, Ankara, Konya |
-> | Lake Beyşehir | Beyşehir Gölü | 656 km2 | 10 m | Beyşehir in Konya, Isparta |
-> | Lake Eğirdir | Eğirdir Gölü | 482 km2 |  | Isparta |
-> | Lake İznik | İznik Gölü | 308 km2 |  | İznik in Bursa, Yalova |
-> | Lake Burdur | Burdur Gölü | 200 km2 |  | Burdur, Isparta |
-> | Lake Manyas | Manyas Gölü | 166 km2 |  | Balıkesir |
-> | Lake Acıgöl | Acıgöl | 153 km2 |  | Denizli, Afyonkarahisar |
-> | Lake Uluabat | Uluabat Gölü | 134 km2 | 1–2 m | Bursa |
-> | Lake Çıldır | Çıldır Gölü | 115 km2 |  | Ardahan, Kars |
-> | Lake Palas Tuzla | Palas Tuzla Gölü | 106 km2 | 15 m | Palas/Kayseri |
-> | Lake Akşehir | Akşehir Gölü | 105 km2 |  | Akşehir in Konya, Afyonkarahisar |
-> | Lake Eber | Eber Gölü | 104 km2 |  | Afyonkarahisar |
-> | Lake Erçek | Erçek Gölü | 98 km2 |  | Van |
-> | Lake Hazar | Hazar Gölü | 86 km2 |  | Elazığ |
-> | Lake Bafa | Bafa Gölü | 60 km2 |  | Aydın, Muğla |
-> | Lake Köyceğiz | Köy…
+> | St Mary | Bacup | Fr Frank Thorpe | 1852 | ---- |
+> | Our Immaculate Mother & St Anselm | Whitworth | Fr Frank Thorpe | 1860 | ---- |
+> | St Joseph | Stacksteads | ---- | 1947 | 2005 |
+> | St Joseph & St Peter | Newchurch-In-Rossendale | Fr Philip Boast | 1915 | ---- |
+> | The Immaculate Conception | Haslingden | Fr Canon John Mackie | 1854 | ---- |
+> | St Veronica (Chapel of Ease) | Helmshore | Served from The Immaculate Conception | 1959 | ---- |
+> | St James the Less | Rawtenstall | Fr David Lupton, Rural Dean | 1828 | ---- |
+> 
+> Question: what's the number of parishes founded in the 1800s?
+> 
+> Answer:
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ✅ | `Based on the table, Lake Palas Tuzla is deeper. Lake Palas Tuzla has a depth of 15 m, while Lake Tuz has a depth of 2 m.` |
-| opus | ✅ | `Lake Palas Tuzla is deeper. It has a depth of 15 m, whereas Lake Tuz is only 2 m deep.` |
-| sol | ✅ | `Lake Palas Tuzla is deeper at **15 m**, compared with Lake Tuz at **2 m**.` |
+| glm | ✅ | `Based on the table provided, there are **6** parishes founded in the 1800s:  1. St Mary (1852) 2. Our Immaculate Mother & St Anselm (1860) 3. St Joseph & St Pet…` |
+| opus | ✅ | `Looking at the table, the parishes founded in the 1800s are:  1. **St Mary** (Bacup) – 1852 2. **Our Immaculate Mother & St Anselm** (Whitworth) – 1860 3. **The…` |
+| sol | ✅ | `4 parishes.` |
 
 ### TXT-3 · 표 구조 추출
 
@@ -283,25 +280,25 @@ Generate the HTML table structure. Respond…
 
 ### TXT-4 · 한국어 독해 QA
 
-**샘플 #2** · _모델 간 판정이 갈린 케이스_ · 정답: `['8량']`
+**샘플 #11** · _모델 간 판정이 갈린 케이스_ · 정답: `['교바시']`
 
-**질문/지시:** 히네노 역 이북에 증편된 쾌속 열차는 모두 몇 량인가?
+**질문/지시:** 기슈지 쾌속의 시발지은 대부분 어느 곳인가?
 
 **입력:**
 > 다음 지문을 읽고 질문에 답하세요. 답변은 지문에서 나타나는 정답만 간결하게 기술하세요.
 > 
 > 지문:
-> 덴노지 역 구내에서는 야마토지 선과 평면 교차하여 단선으로 운전하는 한와 선과의 단락선을 복선화하는 공사가 이루어져 2008년 3월 15일 시간표 개정시부터 사용을 개시하였다. 대낮 시간대의 덴노지 역 ~ 와카야마 역 간의 쾌속과 JR 난바 역 발착의 간쿠 쾌속이 오사카 순환선과 직통 운전하는 간쿠·기슈지 쾌속에 통합되어 같은 시간대의 간쿠·기슈지 쾌속이 매시 3편으로 증발되었다. 이 복선화는 야마토지 선의 시간표 혼란이 큰 영향을 끼치는 것을 막는 효과를 가지고 있다. 또 아침 출근 시간대에 오사카 순환선 내 각역에 정차하는 직통 쾌속도 운전이 개시되었다. 전반적으로 히네노 역 이북에서는 8량 편성의 쾌속 열차가 대폭 증가되었기 때문에 난카이 전기 철도 본선과 수송력에서 차이가 나게 되었다.
+> 한편 기슈지 쾌속(일본어: 紀州路快速 키슈우지카이소쿠)은 오사카 방면에서 와카야마 방면에의 관광객 및 통근객의 증대를 도모하고자 이 때까지 교토 역 ~ 신오사카 역 방면에서 와카야마 방면으로 운행하는 특급 열차에 더하여 1999년 5월부터 신설된 쾌속 열차이다. 오사카 순환선에서 발착하여 덴노지 역에서 교바시, 오사카, 니시쿠조를 경유하여 (다만 대부분은 교바시 시발) 운전되고 있다. 간쿠 쾌속과 같이 223계 전동차 0번대와 2500번대가 운용된다. 히네노 역 이북에서는 전 열차가 8량 편성으로 기본적으로 히네노 역까지는 간쿠 쾌속과 병결 운전을 행하여 히네노 역에서 분할과 병결이 이루어진다. 이전에는 출퇴근 시간대에 1~5호차의 5량이 기슈지 쾌속이었으며, 나머지 시간대에는 그 반대였으나 2008년 3월 15일의 시간표 개정에 따라 8량 편성을 간쿠와 기슈지 쾌속이 4량씩 차지하는 형태로 통일되어 시간대에 따라 기슈지 쾌속과 간쿠 쾌속의 연결 순서가 바뀌는 경우도 있다. 휴일 시간표에서 아침의 상행 열차에는 간쿠 쾌속이 병결되지 않은 채 기세이 본선 고보 역에서 시발하여 와카야마 역에서 8량으로 증결하여 운행하는 특별한 형태도 있다. 오사카 방면으로 가는 열차의 와카야마 역 ~ 히네노 역 간에는 4량 편성으로 운전되기 때문에 시발역인 와카야마 역에서부터 혼잡해지는 경우가 많다.
 > 
-> 질문: 히네노 역 이북에 증편된 쾌속 열차는 모두 몇 량인가?
+> 질문: 기슈지 쾌속의 시발지은 대부분 어느 곳인가?
 > 
 > 답변:
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ✅ | `8량` |
-| opus | ✅ | `8량 편성` |
-| sol | ✅ | `8량 편성입니다.` |
+| glm | ✅ | `교바시` |
+| opus | ✅ | `교바시(교바시 역)` |
+| sol | ❌ | `교바시역` |
 
 ### TXT-5 · 텍스트 요약
 
@@ -322,13 +319,13 @@ Police, family, volunteers search for eighth-grader .
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | — | `A Pennsylvania community has rallied with hundreds of volunteers and advanced tracking technology to search for 13-year-old Cayman Naib, who impulsively went mi…` |
+| glm | — | `A Pennsylvania community has mobilized hundreds of volunteers to search for 13-year-old Cayman Naib, who went missing after impulsively leaving his home due to …` |
 | opus | — | `Thirteen-year-old Cayman Naib, an eighth-grader at Pennsylvania's Shipley School, has been missing since Wednesday, when his parents believe he impulsively left…` |
-| sol | — | `Hundreds of volunteers are searching Pennsylvania’s Radnor-Wayne area for 13-year-old Cayman Naib, who disappeared after receiving a school email about overdue …` |
+| sol | — | `Hundreds of volunteers are searching for 13-year-old Cayman Naib, who disappeared from his Pennsylvania home after receiving an email about overdue homework. De…` |
 
 ### TXT-6 · 감정 분석
 
-**샘플 #20** · _일부 모델 오답 케이스_ · 정답: `1`
+**샘플 #20** · _모델 간 판정이 갈린 케이스_ · 정답: `1`
 
 **질문/지시:** Classify the sentiment of the following text as exactly one word: "positive" or "negative".
 
@@ -342,7 +339,7 @@ Police, family, volunteers search for eighth-grader .
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | ❌ | `negative` |
-| opus | ❌ | `negative` |
+| opus | ✅ | `positive` |
 | sol | ❌ | `negative` |
 
 ### TXT-7 · 키워드 추출
@@ -364,8 +361,8 @@ Police, family, volunteers search for eighth-grader .
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | ✅ | `Nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
-| opus | ✅ | `nonlinear extrapolation algorithm, scalar random process, mixed central moment functions, canonical decomposition, V. S. Pugachev canonical decomposition appara…` |
-| sol | ✅ | `nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
+| opus | ✅ | `nonlinear extrapolation, scalar random process, canonical decomposition, V. S. Pugachev canonical decomposition apparatus, mixed central moment functions, nonli…` |
+| sol | ✅ | `nonlinear extrapolation algorithm, scalar random process, nonlinear random dependence, mixed central moment functions, V. S. Pugachev canonical decomposition, t…` |
 
 ### TXT-8 · 비속어/유해성 판별
 
@@ -383,7 +380,7 @@ Police, family, volunteers search for eighth-grader .
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | — | `clean` |
-| opus | — | `clean` |
+| opus | — | `toxic` |
 | sol | — | `toxic` |
 
 
@@ -397,15 +394,15 @@ Police, family, volunteers search for eighth-grader .
 {
   "per_task_scores": {
     "IMG-1/minimal": {
-      "opus": 0.3372,
-      "sol": 0.4274
+      "opus": 0.3267,
+      "sol": 0.4438
     },
     "IMG-2/minimal": {
-      "opus": 0.2054,
-      "sol": 0.2472
+      "opus": 0.2016,
+      "sol": 0.2482
     },
     "IMG-3/minimal": {
-      "opus": 0.6667,
+      "opus": 0.7,
       "sol": 0.6333
     },
     "IMG-4/minimal": {
@@ -413,52 +410,52 @@ Police, family, volunteers search for eighth-grader .
       "sol": 0.9333
     },
     "IMG-5/minimal": {
-      "opus": 0.9667,
+      "opus": 0.9333,
       "sol": 0.9667
     },
-    "IMG-6/minimal": {
-      "opus": 0.8948,
-      "sol": 0.7871
-    },
     "TXT-1/minimal": {
-      "opus": 0.0064,
-      "sol": 0.0416,
-      "glm": 0.0044
+      "opus": 0.9132,
+      "sol": 0.8806,
+      "glm": 0.8632
     },
     "TXT-2/minimal": {
       "opus": 0.1,
       "sol": 0.0,
-      "glm": 0.3
-    },
-    "TXT-4/minimal": {
-      "opus": 0.8082,
-      "sol": 0.8862,
-      "glm": 0.9473
-    },
-    "TXT-5/minimal": {
-      "opus": 0.3192,
-      "sol": 0.3035,
-      "glm": 0.3064
+      "glm": 0.1
     },
     "TXT-3/minimal": {
-      "opus": 0.9432,
+      "opus": 0.9424,
       "sol": 0.9791,
       "glm": 0.9725
     },
+    "TXT-4/minimal": {
+      "opus": 0.8371,
+      "sol": 0.881,
+      "glm": 0.9507
+    },
+    "TXT-5/minimal": {
+      "opus": 0.3249,
+      "sol": 0.315,
+      "glm": 0.2716
+    },
     "TXT-6/minimal": {
-      "opus": 0.8333,
+      "opus": 0.8667,
       "sol": 0.8333,
       "glm": 0.8333
     },
     "TXT-7/minimal": {
-      "opus": 0.3917,
-      "sol": 0.3988,
-      "glm": 0.4961
+      "opus": 0.3625,
+      "sol": 0.383,
+      "glm": 0.516
     },
     "TXT-8/minimal": {
-      "opus": 0.8667,
-      "sol": 0.8667,
+      "opus": 0.8,
+      "sol": 0.8333,
       "glm": 0.9
+    },
+    "IMG-6/minimal": {
+      "opus": 0.841,
+      "sol": 0.7864
     }
   },
   "task_winners": {
@@ -466,51 +463,51 @@ Police, family, volunteers search for eighth-grader .
     "IMG-2/minimal": "sol",
     "IMG-3/minimal": "opus",
     "IMG-4/minimal": "opus",
-    "IMG-5/minimal": "opus",
-    "IMG-6/minimal": "opus",
-    "TXT-1/minimal": "sol",
-    "TXT-2/minimal": "glm",
+    "IMG-5/minimal": "sol",
+    "TXT-1/minimal": "opus",
+    "TXT-2/minimal": "opus",
+    "TXT-3/minimal": "sol",
     "TXT-4/minimal": "glm",
     "TXT-5/minimal": "opus",
-    "TXT-3/minimal": "sol",
     "TXT-6/minimal": "opus",
     "TXT-7/minimal": "glm",
-    "TXT-8/minimal": "glm"
+    "TXT-8/minimal": "glm",
+    "IMG-6/minimal": "opus"
   },
   "win_counts": {
     "sol": 4,
-    "opus": 6,
-    "glm": 4
+    "opus": 7,
+    "glm": 3
   },
   "cheapest_model": "glm",
   "fastest_model": "glm",
   "perf": {
     "opus": {
-      "n_calls": 400,
-      "errors": 1,
-      "latency_ms_median": 2592.2,
-      "latency_ms_p95": 9145.7,
-      "total_usd": 2.406026,
-      "in_tokens": 168364,
-      "out_tokens": 62568
+      "n_calls": 420,
+      "errors": 4,
+      "latency_ms_median": 3222.3,
+      "latency_ms_p95": 13139.8,
+      "total_usd": 2.530217,
+      "in_tokens": 209397,
+      "out_tokens": 59329
     },
     "sol": {
-      "n_calls": 400,
-      "errors": 3,
-      "latency_ms_median": 2095.3,
-      "latency_ms_p95": 8795.8,
-      "total_usd": 1.929932,
-      "in_tokens": 124158,
-      "out_tokens": 43638
+      "n_calls": 420,
+      "errors": 0,
+      "latency_ms_median": 2698.9,
+      "latency_ms_p95": 9448.3,
+      "total_usd": 2.108523,
+      "in_tokens": 153498,
+      "out_tokens": 44701
     },
     "glm": {
-      "n_calls": 220,
+      "n_calls": 240,
       "errors": 0,
-      "latency_ms_median": 933.6,
-      "latency_ms_p95": 6528.9,
-      "total_usd": 0.209093,
-      "in_tokens": 71850,
-      "out_tokens": 27755
+      "latency_ms_median": 779.4,
+      "latency_ms_p95": 7009.5,
+      "total_usd": 0.257848,
+      "in_tokens": 101364,
+      "out_tokens": 26757
     }
   }
 }

@@ -15,7 +15,10 @@ reasoning_modes: [minimal]
 
 # 호출 정책 (실측 기반, plan §11)
 runtime:
-  timeout_seconds: 15                   # per-request. glm은 3~5배 느림
+  timeout_seconds: 60                   # per-request. glm은 3~5배 느림.
+                                        # 2026-08-05: 15초로는 IMG-6(표이미지→HTML 전체 생성)이
+                                        # opus 19/30, sol 5/30 타임아웃/503 실패 → 실패가 0점으로
+                                        # 채점돼 "성능 낮음"처럼 보였다. 긴 출력 태스크 여유분으로 60s.
   max_retries: 3                        # 지수 backoff
   backoff_initial_seconds: 0.5
   max_concurrency: 8                    # rate limit 넉넉(429 미관측), 5~10 안전
