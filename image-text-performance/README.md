@@ -28,6 +28,12 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 
 - **언어**: 한국어 + 영어 병행(TXT-7은 한국어 표준셋 부재로 영어 한정, 이미지 태스크는 영어/시각 기반).
 - **채점**: 하이브리드(정량 + LLM-judge) + 정성 갤러리. 한국어는 형태소(Mecab) 토큰화로 채점.
+- **judge 실패는 점수로 메우지 않는다**: judge(gemini)가 응답을 잘리거나 형식을 벗어나면 그 샘플을
+  평균에서 **제외**하고 실패 건수를 리포트(`judge_detail.n_failed`)에 남긴다. 예전에는 실패를 중간값
+  3점으로 채워 judge 평균이 조용히 오염됐다(2026-08-05 수정 — 자세한 내용은 `CLAUDE.md`의 "judge 함정").
+- **TXT-1은 ANLS**(DocVQA 공식 메트릭)를 대표 지표로 쓴다. 정답이 문서에 적힌 짧은 문자열이라
+  exact_match는 한 글자 오타에도 0점, Token-F1은 표기 차이(`485` vs `$485`)에 과민하다.
+  ANLS는 정규화 편집거리 기반(τ=0.5, 다중정답 max)으로 그 중간을 취한다.
 
 ---
 
@@ -116,7 +122,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 > "image-text-performance 벤치마크를 10샘플로 돌려서 리포트를 새로 뽑아줘."
 
-- 3모델(opus·sol·glm) × 13태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다.
+- 3모델(opus·sol·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **36셀**.
 - 빠른 확인만 원하면: > "opus와 sol만 텍스트 태스크로 3샘플만 빠르게 돌려줘."
 - 대규모(정확도 우선): > "HF 토큰 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플로 백그라운드 실행해줘." (전체는 HF rate limit·glm 지연으로 수 시간+ 걸린다.)
 
@@ -180,7 +186,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 | IMG-4 NSFW | NSFW Image Classification | [DarkyMan/nsfw-image-classification](https://huggingface.co/datasets/DarkyMan/nsfw-image-classification) | en | CC(variant 미상) · **민감** |
 | IMG-5 사람 포함 | COCO (person 파생 binary) | [detection-datasets/coco](https://huggingface.co/datasets/detection-datasets/coco) | en | CC-BY-4.0(주석) |
 | IMG-6 표이미지 구조추출 | PubTabNet (image+HTML) | [apoidea/pubtabnet-html](https://huggingface.co/datasets/apoidea/pubtabnet-html) | en | CDLA-Permissive-1.0 |
-| TXT-1 문서QA | DocumentVQA | [HuggingFaceM4/DocumentVQA](https://huggingface.co/datasets/HuggingFaceM4/DocumentVQA) | en | mirror apache-2.0 / 원본 research-use |
+| TXT-1 문서QA | DocVQA (OCR 텍스트 포함 1200건 서브셋) | [nielsr/docvqa_1200_examples](https://huggingface.co/datasets/nielsr/docvqa_1200_examples) | en | 미러 미표기 / 원본 research-use |
 | TXT-2 표QA | WikiTableQuestions | [lighteval/wikitablequestions](https://huggingface.co/datasets/lighteval/wikitablequestions) | en | CC-BY-4.0 (mirror) |
 | TXT-3 표구조추출 | PubTabNet (HTML) | [apoidea/pubtabnet-html](https://huggingface.co/datasets/apoidea/pubtabnet-html) | en | CDLA-Permissive-1.0 |
 | TXT-4 한국어QA | KorQuAD v1 | [KorQuAD/squad_kor_v1](https://huggingface.co/datasets/KorQuAD/squad_kor_v1) | ko | CC-BY-ND-4.0 |
@@ -190,6 +196,8 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 | TXT-8 비속어 | Jigsaw Toxic Comment(en) · APEACH(ko) | [thesofakillers/jigsaw-toxic-comment-classification-challenge](https://huggingface.co/datasets/thesofakillers/jigsaw-toxic-comment-classification-challenge) · [jason9693/APEACH](https://huggingface.co/datasets/jason9693/APEACH) | en·ko | CC-BY-SA / CC0 · CC-BY-SA-4.0 |
 
 - **mirror 주의**: script-based 원본이 로드 불가하면 parquet mirror를 쓴다. mirror의 라이선스 태그가 원본과 다를 수 있어 registry에 **원본 라이선스를 함께 기록**한다(WikiTableQuestions·NSMC·Jigsaw·DocVQA 등).
+- **TXT-1 데이터셋 교체 (2026-08-05)**: 이전에 쓴 `HuggingFaceM4/DocumentVQA`에는 **OCR 텍스트 컬럼이 없어**(제공: `questionId/question/question_types/image/docId/ucsf_*/answers`) 문서 컨텍스트 없이 질문만 모델에 전달됐다 — TXT-1이 문서 이해력이 아니라 **무문맥 QA**를 측정하고 있었다(실측: 30/30 샘플). full-size 미러(`lmms-lab/DocVQA` 등)도 페이지 이미지만 주고 OCR은 없어, OCR(`words`)을 가진 **1200건 서브셋**으로 교체했다. 대가로 모집단이 작아졌다(test 200 / train 1000). 자세한 경위는 `src/tasks/txt_1.py` 모듈 docstring.
+- **TXT-2 split 수정 (2026-08-05)**: `lighteval/wikitablequestions` 미러는 split이 뒤집혀 **train이 10행뿐이고 실데이터 18486행은 test**에 있다. registry에 split이 `default`(=config 이름이지 split이 아님)로 적혀 있고 코드가 그걸 `train`으로 치환해, 30샘플을 요청해도 **항상 10샘플만** 채점됐다. split을 `test`로 고치고, 요청보다 적게 로드되면 예외를 던지게 했다.
 - **비상업 라이선스 주의**: KorQuAD(CC-BY-ND) · DocVQA 원본(research-use) · INSPEC(research-use) 등은 **연구·평가 용도 한정**이다. 상업 활용 전 각 데이터셋 원 라이선스를 확인한다.
 - **시간·비용 데이터 소스**는 데이터셋이 아니라 `system.ai_gateway.usage`(FMAPI 호출 실측) — 아래 "비용·시간 측정" 참고. judge 채점도 데이터셋과 무관한 별도 모델(`databricks-gemini-3-1-pro`)이다.
 
@@ -216,11 +224,24 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 ## 상태
 
-**구현 완료 — 13개 태스크 전체가 end-to-end 동작** (데이터 로딩 → FMAPI 실행 → 채점 → 시간·비용·Executive Summary 리포트). 로드맵 Phase 0~4 완료:
+**구현 완료 — 14개 태스크 전체가 end-to-end 동작** (데이터 로딩 → FMAPI 실행 → 채점 → 시간·비용·Executive Summary 리포트). 로드맵 Phase 0~4 완료:
 - Phase 0 기반 구조(FMAPI 어댑터·설정·채점/비용 모듈)
 - Phase 1 텍스트 안전 태스크(TXT-4/5/6/8)
 - Phase 2 이미지 태스크(IMG-1~5)
 - Phase 3 문서·표 태스크(TXT-1/2/3/7)
 - Phase 4 시점별 리포트 축적·재현성 메타·인덱스
+- 이후 추가: IMG-6(표이미지 구조추출)
 
 세부 설계·의사결정은 [`plan.md`](./plan.md), 결정 이력은 §2(D1–D14) 참고.
+
+### 알려진 한계 (다음 작업 대상)
+
+리포트 수치를 읽을 때 알고 있어야 하는 항목:
+
+- **IMG-2 어휘 불일치**: 정답이 COCO 80클래스인데 모델은 자유 명사로 답해(`umbrellas`≠`umbrella`) F1이 낮게 나온다. "태그 추출 능력"보다 "COCO 어휘 맞히기"에 가깝다.
+- **시간·비용은 추정치**: `system.ai_gateway.usage` 조인은 미구현(`src/cost/usage.py`)이고, 현재는 클라이언트 벽시계 지연 + 응답 `usage` 토큰 × `pricing.yaml` 단가로 계산한다.
+- **통계 유의성 미표기**: Wilcoxon 검정은 구현돼 있으나(`src/scoring/stats.py`) 리포트에서 호출하지 않는다.
+- **BERTScore 미계산**: `torch` 설치 여부와 무관하게 `deferred`로 표기된다.
+- **한국어 토큰화**: Mecab 미설치 환경에서는 음절 단위로 자동 폴백한다(리포트의 `korean_backend`로 확인).
+- **재현성**: `datasets/registry.yaml`의 `expected_sha256`가 전부 null이고 HF revision을 고정하지 않는다(로더가 revision 인자를 받지 않음).
+- **동점 처리**: 태스크 1위 집계가 동점일 때 한 모델에만 승리를 준다(`src/report/generate.py`).

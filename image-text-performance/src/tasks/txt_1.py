@@ -1,16 +1,23 @@
 """TXT-1 문서(PDF) 이해 QA (Document QA).
 
-이 태스크는 DocumentVQA 데이터셋을 사용하여 문서 이미지 기반 질의응답을 평가한다.
-TXT-1은 텍스트 태스크(is_vision=False)이므로, 이미지는 사용하지 않고,
-대신 문서의 OCR 텍스트 컨텍스트(있으면)를 활용하여 텍스트 기반 QA 프롬프트를 구성한다.
+DocVQA로 **문서 텍스트를 읽고 답하는 능력**을 평가한다. TXT-1은 텍스트 태스크
+(is_vision=False)라 페이지 이미지는 쓰지 않고, 데이터셋이 제공하는 **OCR 텍스트**를
+문서 컨텍스트로 프롬프트에 넣는다.
 
-실제 DocumentVQA 데이터셋에서:
-- question: 문서에 대한 질문
-- answers: 정답 문자열 리스트
-- image: PIL Image (사용 안 함, is_vision=False)
-- 텍스트 신호: 'words'/'ocr' 필드가 있으면 문서의 OCR 텍스트 이용, 없으면 질문만으로 평가
+데이터셋(`nielsr/docvqa_1200_examples`, registry의 `doc_vqa`) 구조:
+- query: 질문. **dict**(de/en/es/fr/it) — en만 사용
+- words: 페이지 OCR 토큰 list → 공백 결합해 문서 컨텍스트로
+- answers: 정답 문자열 리스트(표기 변형 포함, 예: ['485', '$485'])
+- image: PIL Image (사용 안 함)
 
-Token-level F1과 정확도 매칭을 계산하며, LLM 판사(judge)를 통한 정성적 평가도 지원한다.
+**회귀 주의 (2026-08-05 수정)**: 이전에는 `HuggingFaceM4/DocumentVQA`를 썼는데 그 미러엔
+OCR 컬럼이 **없어** `row.get("words")`가 항상 None이 되고, 코드가 조용히 "질문만" 프롬프트로
+폴백했다. 그 결과 30/30 샘플이 문서 없이 전송돼 TXT-1이 문서 이해력이 아니라 **무문맥 QA**를
+측정했다(token_f1 0.006 등 바닥 점수의 원인). 그래서 지금은 OCR 컨텍스트가 없으면
+**조용히 폴백하지 않고 명확히 실패**한다(CLAUDE.md의 "합성/조용한 폴백 금지" 원칙과 동일).
+
+채점: ANLS(DocVQA 공식) + Token-F1 + exact_match + LLM-judge.
+ANLS는 편집거리 기반이라 표기 차이('485' vs '$485')에 관용적이면서 무관한 답은 τ=0.5로 절단한다.
 """
 
 from __future__ import annotations
@@ -20,9 +27,13 @@ from typing import Any
 from src.adapters.fmapi import build_text_message, FMAPIClient
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MultiMeanAccumulator
-from src.scoring.metrics import token_f1, exact_match
-from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
+from src.scoring.metrics import anls, token_f1, exact_match
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
+
+# OCR 컨텍스트 상한(문자). DocVQA 페이지 OCR은 실측 median ~1.0k, max ~3.7k라 대개
+# 그대로 들어간다. 이상치가 프롬프트·비용을 폭증시키지 않도록만 잘라 둔다(TXT-5와 같은 방식).
+MAX_CONTEXT_CHARS = 8000
 
 
 @register
@@ -34,15 +45,15 @@ class Txt1Task(Task):
     is_vision: bool = False
 
     def load_samples(self, n: int, seed: int) -> list[Sample]:
-        """DocumentVQA 데이터셋에서 seed 고정 subset을 로드.
+        """DocVQA 데이터셋에서 seed 고정 subset을 로드.
 
-        DocumentVQA는 다음 구조:
-        - question: 문서에 대한 질문 (str)
-        - answers: 정답 리스트 (list[str])
-        - words: OCR 토큰 리스트 (dict 또는 list, 선택적)
-        - image: PIL Image (is_vision=False이므로 사용 안 함)
+        각 샘플:
+        - inputs: {"question": 영어 질문, "context": 페이지 OCR 텍스트}
+        - reference: 정답 문자열 리스트(표기 변형 포함)
 
-        텍스트 신호: 'words' 필드가 있으면 OCR 텍스트로 활용, 없으면 질문만으로 평가.
+        컨텍스트가 만들어지지 않으면 **예외를 던진다**. 문서 없이 질문만 보내면
+        태스크가 측정하려는 것(문서 이해력)이 아닌 것을 재게 되므로, 조용한 폴백보다
+        실패가 낫다(모듈 docstring의 회귀 주의 참고).
         """
         registry = load_registry()
         config = self.config
@@ -54,77 +65,121 @@ class Txt1Task(Task):
         dataset_entry = resolve_dataset_entry(registry, dataset_key)
 
         hf_id = dataset_entry["hf_id"]
-        split = dataset_entry.get("split", "validation")
+        split = dataset_entry.get("split", "test")
         config_name = dataset_entry.get("config")
 
         # HF 데이터셋 로드 (seed 고정)
         hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        if not hf_ds:
+            raise ValueError(f"TXT-1: {hf_id}[{split}]에서 샘플을 로드하지 못했습니다")
 
         samples = []
-        for sample_id, row in enumerate(hf_ds):
-            question = row.get("question", "")
-            answers_raw = row.get("answers", [])
+        skipped = 0
+        for row in hf_ds:
+            question = self._extract_question(row)
+            ocr_context = self._extract_ocr_context(row)
+            answers_list = self._extract_answers(row)
 
-            # answers 정규화: 문자열 리스트로
-            if isinstance(answers_raw, list):
-                answers_list = [str(a) for a in answers_raw]
-            else:
-                answers_list = [str(answers_raw)]
+            # 세 요소 중 하나라도 없으면 채점이 무의미 → 이 행은 건너뛰고 아래에서 집계 검증
+            if not question or not ocr_context or not answers_list:
+                skipped += 1
+                continue
 
-            # OCR 텍스트 추출 시도
-            # DocumentVQA 구조: 'words'는 dict {coord: token} 또는 list of tokens
-            words_raw = row.get("words", None)
-            ocr_context = None
+            if len(ocr_context) > MAX_CONTEXT_CHARS:
+                ocr_context = ocr_context[:MAX_CONTEXT_CHARS]
 
-            if words_raw:
-                if isinstance(words_raw, dict):
-                    # {coord: token, ...} 형태 → 토큰 추출
-                    ocr_context = " ".join(words_raw.values())
-                elif isinstance(words_raw, list):
-                    # [token, ...] 형태
-                    ocr_context = " ".join(str(w) for w in words_raw if w)
-
-            sample = Sample(
-                sample_id=sample_id,
-                inputs={
-                    "question": question,
-                    "context": ocr_context,  # OCR 텍스트 또는 None
-                },
-                reference=answers_list,  # 여러 정답 리스트
-                lang="en",
-                meta={
-                    "dataset": dataset_key,
-                    "has_ocr": ocr_context is not None,
-                },
+            samples.append(
+                Sample(
+                    sample_id=len(samples),
+                    inputs={
+                        "question": question,
+                        "context": ocr_context,
+                    },
+                    reference=answers_list,
+                    lang="en",
+                    meta={
+                        "dataset": dataset_key,
+                        "context_chars": len(ocr_context),
+                    },
+                )
             )
-            samples.append(sample)
+
+        if not samples:
+            raise ValueError(
+                f"TXT-1: {hf_id}[{split}] {len(hf_ds)}행에서 유효 샘플이 0개입니다"
+                f"(질문·OCR·정답 중 누락으로 {skipped}행 스킵). "
+                f"컬럼 스키마가 바뀌었을 수 있습니다: {sorted(hf_ds[0].keys())}"
+            )
+        if skipped:
+            print(f"  [TXT-1] {skipped}행 스킵(질문·OCR·정답 누락), {len(samples)}샘플 사용")
 
         return samples
 
-    def build_prompt(self, sample: Sample) -> list[dict[str, Any]]:
-        """문서 QA 프롬프트 구성.
+    @staticmethod
+    def _extract_question(row: dict[str, Any]) -> str:
+        """질문 추출. `query`가 언어별 dict(de/en/es/fr/it)면 en을 쓴다.
 
-        OCR 텍스트가 있으면 문맥으로 함께 제시, 없으면 질문만 제시.
-        모델이 문서 텍스트에서 정답을 추출하도록 지시.
+        예전 미러는 `question`(str)이었고 현재 미러는 `query`(dict)라 둘 다 받는다.
+        dict를 문자열로 잘못 쓰면 질문이 통째로 깨지므로 명시적으로 분기한다.
+        """
+        raw = row.get("question") or row.get("query")
+        if isinstance(raw, dict):
+            return str(raw.get("en") or "").strip()
+        return str(raw or "").strip()
+
+    @staticmethod
+    def _extract_ocr_context(row: dict[str, Any]) -> str:
+        """페이지 OCR 텍스트를 문서 컨텍스트 문자열로 결합.
+
+        `words`는 토큰 list(현 미러) 또는 {좌표: 토큰} dict일 수 있다. 레이아웃은
+        보존되지 않으므로 공백으로 이어 평문 문서로 만든다.
+        """
+        for col in ("words", "ocr_text", "ocr", "text", "context"):
+            raw = row.get(col)
+            if not raw:
+                continue
+            if isinstance(raw, str):
+                return " ".join(raw.split())
+            if isinstance(raw, dict):
+                return " ".join(str(v) for v in raw.values() if v)
+            if isinstance(raw, list):
+                return " ".join(str(w) for w in raw if w)
+        return ""
+
+    @staticmethod
+    def _extract_answers(row: dict[str, Any]) -> list[str]:
+        """정답 리스트 정규화. 빈 문자열은 제외."""
+        raw = row.get("answers")
+        if raw is None:
+            raw = row.get("answer")
+            # 이 미러의 `answer`는 {'text': ..., 'match_score': ...} dict
+            if isinstance(raw, dict):
+                raw = raw.get("text")
+        if raw is None:
+            return []
+        items = raw if isinstance(raw, (list, tuple)) else [raw]
+        return [str(a).strip() for a in items if str(a).strip()]
+
+    def build_prompt(self, sample: Sample) -> list[dict[str, Any]]:
+        """문서 QA 프롬프트 구성: 문서 OCR 텍스트 + 질문.
+
+        load_samples가 컨텍스트를 보장하므로 "질문만" 분기는 없다(그 폴백이 무문맥 QA
+        버그의 원인이었다 — 모듈 docstring 참고).
+
+        정답이 문서에 적힌 짧은 문자열이라, 서술형 답변이 나오면 ANLS·exact_match가
+        표기 차이로 과소평가된다. 그래서 "짧게, 문서 표기 그대로"를 명시한다.
         """
         question = sample.inputs["question"]
         context = sample.inputs["context"]
 
-        if context:
-            # OCR 텍스트가 있는 경우
-            prompt = f"""Based on the following document text, answer the question accurately and concisely.
+        prompt = f"""Based on the following document text, answer the question.
 
 Document text:
 {context}
 
 Question: {question}
 
-Answer:"""
-        else:
-            # OCR 텍스트가 없는 경우 (텍스트 신호 부재)
-            prompt = f"""Answer the following question:
-
-Question: {question}
+Answer with only the exact value from the document — no explanation, no full sentence.
 
 Answer:"""
 
@@ -137,68 +192,57 @@ Answer:"""
         """
         return raw_text.strip()
 
-    def score(self, parsed: list[str], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측 결과를 집계해 Token-F1과 정확도 계산.
+    # per-sample 채점 함수. score()와 make_accumulator()가 **같은 함수를 공유**해
+    # 두 경로의 수치가 어긋날 수 없게 한다(누적기는 score()와 bit-identical해야 함).
+    # 각 값은 정답 리스트 중 최고값이고, 빈 예측은 0.0(평균 분모에는 포함).
+    @staticmethod
+    def _score_anls(pred: str, sample: Sample) -> float:
+        """DocVQA 공식 메트릭. 다중정답 max·τ 절단은 anls()가 처리."""
+        return anls(pred, sample.reference) if pred else 0.0
 
-        각 샘플별로 여러 정답 중 최고 점수를 취한다.
-        """
-        if not parsed or not samples:
-            return {
-                "token_f1": 0.0,
-                "exact_match": 0.0,
-                "n_evaluated": 0,
-            }
+    @staticmethod
+    def _score_token_f1(pred: str, sample: Sample) -> float:
+        if not pred:
+            return 0.0
+        return max((token_f1(pred, g, "en") for g in sample.reference), default=0.0)
 
-        token_f1_scores = []
-        exact_match_scores = []
+    @staticmethod
+    def _score_exact_match(pred: str, sample: Sample) -> float:
+        if not pred:
+            return 0.0
+        return max((exact_match(pred, g) for g in sample.reference), default=0.0)
 
-        for pred, sample in zip(parsed, samples):
-            if not pred:
-                # 빈 예측
-                token_f1_scores.append(0.0)
-                exact_match_scores.append(0.0)
-                continue
-
-            # 여러 정답 중 최고 점수
-            reference_list = sample.reference  # list[str]
-            max_f1 = 0.0
-            max_em = 0.0
-
-            for gold in reference_list:
-                # Token-F1 (영어 토크나이제이션)
-                f1 = token_f1(pred, gold, "en")
-                max_f1 = max(max_f1, f1)
-
-                # Exact match (정규화: strip + lowercase)
-                em = exact_match(pred, gold)
-                max_em = max(max_em, em)
-
-            token_f1_scores.append(max_f1)
-            exact_match_scores.append(max_em)
-
+    def _metric_fns(self) -> dict[str, Any]:
+        """대표 메트릭 우선순위대로: anls(공식) → token_f1 → exact_match."""
         return {
-            "token_f1": sum(token_f1_scores) / len(token_f1_scores) if token_f1_scores else 0.0,
-            "exact_match": sum(exact_match_scores) / len(exact_match_scores) if exact_match_scores else 0.0,
-            "n_evaluated": len(parsed),
+            "anls": self._score_anls,
+            "token_f1": self._score_token_f1,
+            "exact_match": self._score_exact_match,
         }
 
-    def make_accumulator(self) -> MultiMeanAccumulator:
-        """스트리밍 O(1) 채점기. score()와 동일(token_f1, exact_match, n_evaluated).
+    def score(self, parsed: list[str], samples: list[Sample]) -> dict[str, Any]:
+        """파싱된 예측을 집계해 ANLS·Token-F1·exact_match 계산.
 
-        빈 예측 → 0.0(평균에 포함), n_evaluated=len(parsed) → 기본 count_all.
-        각 값은 reference_list 중 최고값.
+        각 샘플별로 여러 정답 중 최고 점수를 취한 뒤 전체 평균.
         """
-        def _f1(pred, sample):
-            if not pred:
-                return 0.0
-            return max((token_f1(pred, g, "en") for g in sample.reference), default=0.0)
+        fns = self._metric_fns()
+        if not parsed or not samples:
+            return {k: 0.0 for k in fns} | {"n_evaluated": 0}
 
-        def _em(pred, sample):
-            if not pred:
-                return 0.0
-            return max((exact_match(pred, g) for g in sample.reference), default=0.0)
+        sums = {k: 0.0 for k in fns}
+        n = 0
+        for pred, sample in zip(parsed, samples):
+            for k, fn in fns.items():
+                sums[k] += fn(pred, sample)
+            n += 1
 
-        return MultiMeanAccumulator({"token_f1": _f1, "exact_match": _em})
+        out: dict[str, Any] = {k: (sums[k] / n if n else 0.0) for k in fns}
+        out["n_evaluated"] = n
+        return out
+
+    def make_accumulator(self) -> MultiMeanAccumulator:
+        """스트리밍 O(1) 채점기. score()와 동일 키·수치(같은 per-sample 함수 공유)."""
+        return MultiMeanAccumulator(self._metric_fns())
 
     def judge_scores(
         self,
@@ -248,50 +292,24 @@ Answer:"""
             # reference_list 중 첫 번째를 참고정답으로 사용
             reference = sample.reference[0] if sample.reference else ""
 
-            # Judge prompt 구성
-            if context:
-                judge_prompt = build_judge_prompt(
-                    task_id="TXT-1",
-                    question=f"Document text: {context}\n\nQuestion: {question}",
-                    reference=reference,
-                    candidate=pred,
-                    rubric=rubric,
-                )
-            else:
-                judge_prompt = build_judge_prompt(
-                    task_id="TXT-1",
-                    question=f"Question: {question}",
-                    reference=reference,
-                    candidate=pred,
-                    rubric=rubric,
-                )
+            # Judge prompt 구성. 문서 컨텍스트는 load_samples가 보장하지만, judge가
+            # 재구성 경로(러너의 _run_judge_streaming)로 들어올 때를 대비해 방어적으로 조립.
+            q_for_judge = f"Document text: {context}\n\nQuestion: {question}" if context else f"Question: {question}"
+            judge_prompt = build_judge_prompt(
+                task_id="TXT-1",
+                question=q_for_judge,
+                reference=reference,
+                candidate=pred,
+                rubric=rubric,
+            )
 
-            try:
-                # Judge 호출
-                response = judge_client.chat(
-                    endpoint=judge_endpoint,
-                    messages=build_text_message(judge_prompt),
-                    max_tokens=256,
-                    extra_params={},
-                )
+            # 호출·파싱·실패로그는 run_judge가 담당. 실패는 None(집계 제외) — 옛 코드의
+            # "3점으로 메우기"는 judge 평균을 조용히 오염시켰다.
+            judge_scores.append(
+                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
+            )
 
-                # 점수 파싱
-                score = parse_judge_score(response.text)
-                if score is not None:
-                    judge_scores.append(score)
-                else:
-                    judge_scores.append(3)  # 파싱 실패 시 중간값
-            except Exception as e:
-                print(f"Judge 호출 실패 (샘플 {sample.sample_id}): {e}")
-                judge_scores.append(3)  # 오류 시 중간값
-
-        mean_score = sum(judge_scores) / len(judge_scores) if judge_scores else 0.0
-
-        return {
-            "judge_scores": judge_scores,
-            "judge_mean": mean_score,
-            "n_judged": len(judge_scores),
-        }
+        return summarize_judge_scores(judge_scores)
 
 
 if __name__ == "__main__":
@@ -318,15 +336,11 @@ if __name__ == "__main__":
 
     for sample in samples:
         q_preview = sample.inputs["question"][:60]
-        ocr_preview = (
-            (sample.inputs["context"][:60] if sample.inputs["context"] else "(no OCR)")
-            .replace("\n", " ")
-        )
-        ref_preview = sample.reference[0][:40] if sample.reference else "(no ref)"
+        ocr_preview = sample.inputs["context"][:60].replace("\n", " ")
         print(f"[샘플 {sample.sample_id}]")
         print(f"  질문: {q_preview}...")
-        print(f"  OCR 텍스트: {ocr_preview}...")
-        print(f"  정답(첫번째): {ref_preview}...")
+        print(f"  OCR 텍스트({sample.meta['context_chars']}자): {ocr_preview}...")
+        print(f"  정답: {sample.reference}")
         print()
 
     # 프롬프트 생성 및 모델 호출
@@ -362,16 +376,27 @@ if __name__ == "__main__":
                     print(f"  정답(첫번째): {sample.reference[0]}")
                 print(f"  파싱된 예측: {parsed}")
 
-            # 수치 채점 (Token-F1, Exact Match)
+            # 수치 채점 (ANLS, Token-F1, Exact Match)
             print("\n" + "=" * 70)
-            print("Computing Token-F1 and Exact Match...")
+            print("Computing ANLS / Token-F1 / Exact Match...")
             print("=" * 70)
             scores = task.score(parsed_outputs, samples)
 
             print(f"\n=== 수치 점수 ===")
+            print(f"ANLS (DocVQA 공식): {scores['anls']:.4f}")
             print(f"Token-F1: {scores['token_f1']:.4f}")
             print(f"Exact Match: {scores['exact_match']:.4f}")
             print(f"평가 샘플 수: {scores['n_evaluated']}")
+
+            # 누적기(스트리밍 경로)가 score()와 같은 수치를 내는지 확인 — 러너는 누적기를 쓴다
+            acc = task.make_accumulator()
+            for pred, sample in zip(parsed_outputs, samples):
+                acc.add(pred, sample)
+            acc_scores = acc.finalize()
+            same = all(
+                abs(acc_scores[k] - scores[k]) < 1e-12 for k in ("anls", "token_f1", "exact_match")
+            )
+            print(f"누적기 일치: {'✓' if same else '✗ 불일치! ' + str(acc_scores)}")
 
             # Judge 호출
             print("\n" + "=" * 70)

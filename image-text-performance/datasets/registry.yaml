@@ -48,12 +48,21 @@ nsfw:
   expected_sha256: null
 
 doc_vqa:
-  hf_id: "HuggingFaceM4/DocumentVQA"
-  license: "mirror apache-2.0 / original research-use"
+  hf_id: "nielsr/docvqa_1200_examples"
+  license: "unspecified on mirror / original DocVQA research-use"
   commercial_ok: false
   languages: [en]
-  split: "validation"
-  mirror_of: "Original script-based dataset; parquet mirror enabled. Record original license (research-use)."
+  split: "test"
+  question_column: "query.en"   # query는 dict(de/en/es/fr/it) → en만 사용
+  ocr_column: "words"           # OCR 토큰 list → 문서 컨텍스트로 결합(TXT-1은 텍스트 태스크)
+  revision: "dc77ab0c3d98855d0f3cb3a00832f2423fbe7528"   # 기록용(로더 미사용 — 이슈 J)
+  mirror_of: >-
+    DocVQA(Biten et al., ICCV 2019) 1200건 서브셋. 이전에 쓴 HuggingFaceM4/DocumentVQA는
+    OCR 텍스트 컬럼이 없어(features: questionId/question/question_types/image/docId/ucsf_*/answers)
+    TXT-1이 문서 없이 질문만 보내는 무문맥 QA가 되고 있었다(2026-08-05 실측: 30/30행 컨텍스트 없음).
+    full-size 미러(lmms-lab/DocVQA 등)도 페이지 이미지만 제공하고 OCR은 없어, OCR(words)을
+    가진 이 서브셋으로 교체했다. 원본 라이선스는 research-use.
+  note: "splits: train 1000 / test 200. 평가는 test 사용. words는 페이지 OCR 토큰이라 원문 레이아웃은 소실됨."
   expected_sha256: null
 
 table_struct:
@@ -83,8 +92,13 @@ table_qa:
   license: "mirror CC-BY-4.0 / original CC-BY-4.0"
   commercial_ok: unknown
   languages: [en]
-  split: "default"
+  split: "test"
   mirror_of: "Original stanfordnlp/wikitablequestions script-based; parquet mirror enabled."
+  note: >-
+    이 미러는 split이 뒤집혀 있다 — train은 10행뿐이고 실데이터 18486행이 test에 있다
+    (load_dataset_builder().info.splits 실측: train 10 / test 18486). 이전에는 split이
+    "default"(=config 이름이지 split이 아님)로 적혀 있고 txt_2.py가 그걸 train으로 치환해,
+    30샘플을 요청해도 항상 10샘플만 채점됐다(2026-08-05 수정). 유효 split은 train/test뿐.
   expected_sha256: null
 
 korquad:

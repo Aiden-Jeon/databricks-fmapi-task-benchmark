@@ -15,7 +15,7 @@ from typing import Any
 
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
-from src.scoring.judge import build_judge_prompt, load_rubrics, parse_judge_score
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.scoring.tokenizers import korean_tokenizer_backend, tokenize
 from src.tasks.base import Task, Sample, register
 
@@ -310,44 +310,30 @@ Summary:"""
                 rubric=rubric,
             )
 
-            # 판사 모델 호출
-            # judge(gemini)는 reasoning 모델 — 256토큰은 사고 도중 잘려("finish_reason: length")
-            # "Score: N"을 못 뱉고 파싱 실패→폴백3으로 전부 3점이 되는 버그가 있었다.
-            # 요약 판정은 근거 서술이 길어 넉넉히 준다(1024).
-            messages = build_text_message(judge_prompt)
-            judge_response = judge_client.chat(
-                endpoint=judge_endpoint,
-                messages=messages,
-                max_tokens=1024,
+            # 호출·파싱·실패로그는 run_judge가 담당(max_tokens는 JUDGE_MAX_TOKENS 공용).
+            # 실패는 None으로 남겨 집계에서 제외한다 — 옛 코드는 3점으로 메워 평균을 오염시켰다.
+            judge_score = run_judge(
+                judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id
             )
-
-            # 스코어 파싱
-            judge_score = parse_judge_score(judge_response.text)
-            if judge_score is None:
-                judge_score = 3  # 파싱 실패 시 중간값
-
             scores.append(judge_score)
             scores_per_lang[lang].append(judge_score)
 
-        # 언어별 평균
+        # 언어별 평균 — None(실패) 제외
         per_language = {}
         for lang in ["en", "ko"]:
-            if scores_per_lang[lang]:
-                mean_score = sum(scores_per_lang[lang]) / len(scores_per_lang[lang])
-                per_language[lang] = {
-                    "mean": mean_score,
-                    "n": len(scores_per_lang[lang]),
-                }
-            else:
-                per_language[lang] = {"mean": None, "n": 0}
+            valid = [s for s in scores_per_lang[lang] if s is not None]
+            per_language[lang] = {
+                "mean": (sum(valid) / len(valid)) if valid else None,
+                "n": len(valid),
+            }
 
-        # 전체 평균
-        mean_score = sum(scores) / len(scores) if scores else 3.0
-
+        # 전체 집계(judge_score_mean 키는 이 태스크의 기존 계약 유지 — 러너가 흡수)
+        agg = summarize_judge_scores(scores)
         return {
-            "judge_score_mean": mean_score,
+            "judge_score_mean": agg["judge_mean"],
             "judge_scores": scores,
-            "n_evaluated": len(scores),
+            "n_evaluated": agg["n_judged"],
+            "n_judge_failed": agg["n_judge_failed"],
             "per_language": per_language,
         }
 

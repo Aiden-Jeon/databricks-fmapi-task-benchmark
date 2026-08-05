@@ -19,7 +19,7 @@ from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MeanAccumulator
 from src.scoring.metrics import token_f1
-from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
 
 
@@ -228,28 +228,20 @@ class Img1Task(Task):
                 rubric=rubric,
             )
 
-            # Judge 모델 호출
-            try:
-                response = judge_client.chat(
-                    endpoint=judge_endpoint,
-                    messages=[{"role": "user", "content": judge_prompt}],
-                    max_tokens=256,
-                    extra_params=None,
-                )
-                score = parse_judge_score(response.text)
-                judge_scores.append(score)
-            except Exception as e:
-                print(f"Warning: 샘플 {sample.sample_id} judge 호출 실패: {e}")
-                judge_scores.append(None)
+            # 호출·파싱·실패로그는 run_judge가 담당(max_tokens=JUDGE_MAX_TOKENS 공용).
+            # 이 태스크가 max_tokens=256을 쓰던 동안 캡션 판정 근거가 길어 30/30 파싱 실패 →
+            # 리포트에 judge_mean=0.0이 찍혔다(정량 caption_token_f1은 정상이었음).
+            judge_scores.append(
+                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
+            )
 
-        # 유효한 점수만 평균 계산
-        valid_scores = [s for s in judge_scores if s is not None]
-        mean_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0.0
-
+        # 유효 점수만 평균. 전부 실패면 mean=None(0.0으로 채우면 "최악 판정"처럼 오독된다).
+        agg = summarize_judge_scores(judge_scores)
         return {
-            "judge_score_mean": float(mean_score),
+            "judge_score_mean": agg["judge_mean"],
             "judge_scores": judge_scores,
-            "n_evaluated": len(valid_scores),
+            "n_evaluated": agg["n_judged"],
+            "n_judge_failed": agg["n_judge_failed"],
         }
 
 

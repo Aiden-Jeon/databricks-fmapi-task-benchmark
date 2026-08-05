@@ -14,7 +14,7 @@ from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_en
 from src.scoring.accumulators import MultiMeanAccumulator
 from src.scoring.metrics import token_f1
 from src.scoring.tokenizers import korean_tokenizer_backend
-from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
 
 
@@ -230,32 +230,13 @@ class Txt4Task(Task):
                 rubric=rubric,
             )
 
-            try:
-                # Judge 호출
-                response = judge_client.chat(
-                    endpoint=judge_endpoint,
-                    messages=build_text_message(judge_prompt),
-                    max_tokens=256,
-                    extra_params={},
-                )
+            # 호출·파싱·실패로그는 run_judge가 담당. 실패는 None(집계 제외) — 옛 코드의
+            # "3점으로 메우기"는 judge 평균을 조용히 오염시켰다.
+            judge_scores.append(
+                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
+            )
 
-                # 점수 파싱
-                score = parse_judge_score(response.text)
-                if score is not None:
-                    judge_scores.append(score)
-                else:
-                    judge_scores.append(3)  # 파싱 실패 시 중간값
-            except Exception as e:
-                print(f"Judge 호출 실패 (샘플 {sample.sample_id}): {e}")
-                judge_scores.append(3)  # 오류 시 중간값
-
-        mean_score = sum(judge_scores) / len(judge_scores) if judge_scores else 0.0
-
-        return {
-            "judge_scores": judge_scores,
-            "judge_mean": mean_score,
-            "n_judged": len(judge_scores),
-        }
+        return summarize_judge_scores(judge_scores)
 
 
 if __name__ == "__main__":

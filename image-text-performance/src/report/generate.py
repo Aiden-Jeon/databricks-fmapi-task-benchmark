@@ -26,10 +26,12 @@ except Exception:  # pragma: no cover - 의존성 없으면 HTML 정답판정만
     _parse_html_table = None
 
 # 태스크별 "대표 메트릭" 우선순위 (그래프·Executive Summary 공용).
-# 각 태스크 유형의 핵심 지표가 앞에 오도록: 분류 accuracy/f1, QA token_f1, 표 cell_f1,
-# 캡션 caption_token_f1, 태그·키워드 micro_f1/f1, 요약 rouge1, judge.
+# 각 태스크 유형의 핵심 지표가 앞에 오도록: 분류 accuracy/f1, 문서QA anls(DocVQA 공식),
+# QA token_f1, 표 cell_f1, 캡션 caption_token_f1, 태그·키워드 micro_f1/f1, 요약 rouge1, judge.
+# anls는 TXT-1만 내보내므로 token_f1보다 앞에 두면 TXT-1의 대표값이 공식 메트릭이 된다
+# (다른 태스크는 anls 키가 없어 영향 없음).
 _METRIC_PRIORITY = [
-    "accuracy", "f1", "token_f1", "cell_f1", "caption_token_f1",
+    "accuracy", "f1", "anls", "token_f1", "cell_f1", "caption_token_f1",
     "micro_f1", "rouge1", "precision", "judge_mean", "judge_score_mean",
 ]
 

@@ -6,7 +6,8 @@
 
 ## 한 줄 요약
 Databricks FMAPI 모델(opus·sol·glm)의 이미지·텍스트 성능을 표준 데이터셋으로 측정해
-수치·그래프·정성 갤러리·고객용 HTML 프레젠테이션 리포트를 자동 생성하는 벤치마크. 13개 태스크.
+수치·그래프·정성 갤러리·고객용 HTML 프레젠테이션 리포트를 자동 생성하는 벤치마크.
+**14개 태스크**(IMG-1~6, TXT-1~8) → glm vision 미지원으로 이미지 6태스크 N/A → 실행 **36셀**.
 
 ## 전제
 - Databricks CLI 프로파일 필요(기본 `ai_devtools`). FMAPI 호출 + `system.ai_gateway.usage` 조회용.
@@ -22,7 +23,7 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 - **`--fresh`**: 실행 전 `results/`·`reports/` 전부 삭제하고 index부터 새로 생성.
 - **`--samples N`**: 태스크당 N개(생략 시 config 기본 50). seed 고정이라 재현 가능.
 - reasoning은 config에서 **OFF(minimal) 고정** → 옵션 불필요. ON까지 비교하려면 `--reasoning-modes minimal,full`(실행 배증·glm 타임아웃 주의).
-- **오래 걸림**: 34셀 × N샘플 + judge. 10샘플 ≈ 20~30분, 30샘플 ≈ 1시간+, 50샘플 수 시간+.
+- **오래 걸림**: 36셀 × N샘플 + judge. 10샘플 ≈ 20~30분, 30샘플 ≈ 1시간+, 50샘플 수 시간+.
   → 반드시 백그라운드 실행(`nohup python3 -u -m src.runner ... &`) 후 프로세스 종료까지 대기.
   "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지 처리)이 수 분 더 걸림.
 
@@ -47,6 +48,39 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 - **`system.billing.*`는 워크스페이스 권한 없음**(USE SCHEMA 거부). 재시도 무의미.
 - **`system.ai_gateway.usage`가 접근 가능** — request_id로 조인해 `latency_ms`·토큰 실측.
   USD 단가 컬럼은 없음 → 토큰→USD는 `config/pricing.yaml`(DBU 단가 × usd_per_dbu=0.07 표준). SQL warehouse 필요.
+- **단, 이 조인은 아직 미구현**(`src/cost/usage.py:fetch_usage`가 NotImplementedError).
+  현재 리포트의 시간은 **클라이언트 벽시계**(`latency_ms_local`), 비용은 **응답 `usage` 토큰** × pricing이다. 추정치임을 유의.
+
+### judge 함정 — 조용히 오염된다 (2026-08-05 수정)
+judge(gemini)는 **reasoning을 완전히 끌 수 없어** 사고 토큰을 먼저 쓴다. 세 겹의 버그가 있었다:
+1. **max_tokens 부족**: 태스크가 각자 `256`을 하드코딩(TXT-5만 1024). 실측 IMG-1 캡션 판정:
+   256 → `reasoning 240 / completion 12 / finish=length`로 문장 중간 잘림 → 점수 파싱 실패 30/30.
+   1024 → `finish=stop`, 정상. **짧은 판정은 256에서도 통과해 길이에 따라 조용히 갈렸다.**
+   → 지금은 `src/scoring/judge.py:JUDGE_MAX_TOKENS`(1024) **하나만** 쓴다. 태스크에 하드코딩 금지.
+2. **파싱 오탐**: 옛 `parse_judge_score`가 폴백으로 아무 숫자나 주워 점수로 썼다. 잘린 산문의
+   **본문 숫자**가 점수가 됐다(실측: `"captures 1 of the 5 key elements"`→5, `"2 sinks and 3 mirrors"`→3).
+   → 지금은 **명시적 점수 표현만** 인정(`Score: N`, `N/5`, 숫자 단독). 못 찾으면 None.
+3. **조용한 3점 폴백**: 실패 시 `judge_scores.append(3)`. 실제 판정과 섞여 사후 구분 불가였다
+   (정황: 3점 비율이 sol TXT-2 70% vs 1024를 쓴 TXT-5는 0%).
+   → 지금은 실패=None으로 **평균에서 제외**하고 `judge_detail.n_failed`로 노출.
+- 전 태스크가 `run_judge()` + `summarize_judge_scores()`를 공유한다(복붙으로 갈라지던 원인 제거).
+- **judge_mean이 없으면 0.0으로 채우지 말 것**: 정량표에서 "judge가 최악 평가"로 오독된다
+  (옛 IMG-1 `judge_mean=0.0`이 실제로는 "전부 파싱 실패"였다).
+
+### 데이터셋 함정 — 컬럼이 있는지 실제로 확인할 것
+- **DocVQA 미러 대부분에 OCR 텍스트가 없다.** `HuggingFaceM4/DocumentVQA`·`lmms-lab/DocVQA`·
+  `lmms-lab-encoder/DocVQA`는 페이지 **이미지만** 준다(`words` 컬럼 없음). TXT-1은 텍스트 태스크라
+  이미지를 못 써서, 2026-08-05까지 **문서 없이 질문만 보내는 무문맥 QA**를 측정하고 있었다.
+  → OCR(`words`)을 가진 `nielsr/docvqa_1200_examples`(test 200/train 1000)로 교체. `query`는
+  언어별 **dict**(de/en/es/fr/it)라 `query["en"]`을 써야 한다(문자열로 착각하면 질문이 깨진다).
+- **미러는 split도 뒤집어 놓는다.** `lighteval/wikitablequestions`(TXT-2)는 **train이 10행뿐**이고
+  실데이터 18486행이 **test**에 있다. registry에 `split: "default"`(=config 이름이지 split이 아님)로
+  적혀 있고 `txt_2.py`가 그걸 `train`으로 치환해, 30샘플을 요청해도 **항상 n=10**으로 채점됐다
+  (2026-08-05 수정: split=test + 부족하면 예외). 확인: `load_dataset_builder(hf).info.splits`로
+  **split별 행 수**를 본다 — 이름만 보고 train이 크다고 가정하지 말 것.
+- 교훈: 새 데이터셋을 붙일 때 `load_dataset_builder(hf_id).info.features`로 **컬럼 존재를 먼저 확인**하고,
+  `.info.splits`로 **행 수**까지 확인한다. `row.get("없는컬럼")`이 None을 돌려주고 코드가 폴백하면,
+  또는 split이 작아 요청보다 적게 로드되면 실패가 조용히 숨는다.
 
 ## 리포트 구조 (섹션 순서 확정)
 평가 대상 모델 → **Executive Summary**(모델 바로 뒤) → 비교 그래프 → 정량 결과 → 성능(시간·비용)
@@ -62,6 +96,9 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
    검증: `gh api /markdown`으로 렌더 후 `<table>` 열림/닫힘 균형·각 태스크 `<h3>` 확인.
 3. **YAML의 reasoning 모드 키는 `minimal`/`full`** (on/off는 예약어라 boolean 파싱됨).
 4. **데이터셋에 합성/더미 fallback 금지** — 실제 로드 실패 시 조용히 가짜 데이터 만들지 말고 명확히 실패(표준 데이터셋 원칙).
+   **입력 일부가 비어도 마찬가지다**: TXT-1이 OCR 컨텍스트 부재 시 "질문만" 프롬프트로 폴백해
+   측정 대상이 통째로 바뀐 버그가 있었다(위 "데이터셋 함정"). 지금은 컨텍스트가 없으면 예외를 던진다.
+   새 태스크도 **필수 입력이 없으면 실패**하게 쓴다 — 0점은 모델 탓처럼 보여 원인 파악이 늦어진다.
 5. **IMG-4 NSFW**: `DarkyMan/nsfw-image-classification`은 단일 클래스(nsfw만)라 SFW는 COCO에서 가져와 이진 구성.
    NSFW 이미지는 repo 커밋 금지(cache-only), 갤러리에서 입력 숨김·판정값만(D3).
 

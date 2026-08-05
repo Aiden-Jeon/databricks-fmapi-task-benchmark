@@ -3,6 +3,7 @@ Quantitative metric functions for LLM benchmark scoring.
 
 This module provides metrics for evaluating model outputs across tasks:
 - Token-level string similarity (Token-F1, exact match)
+- ANLS (DocVQA official metric — edit-distance based, typo tolerant)
 - Classification metrics (accuracy, F1, confusion matrix)
 - Multi-label set metrics (precision/recall/F1 over label sets)
 
@@ -77,6 +78,60 @@ def exact_match(pred: str, gold: str) -> float:
     pred_norm = pred.strip().lower()
     gold_norm = gold.strip().lower()
     return 1.0 if pred_norm == gold_norm else 0.0
+
+
+# ANLS 임계값. DocVQA 공식 정의(Biten et al., ICCV 2019)의 τ=0.5:
+# 정규화 편집거리가 0.5를 넘으면(= 유사도 0.5 미만) 0점으로 떨어뜨려, 우연한 부분일치에
+# 점수를 주지 않는다. OCR/표기 오타(1~2글자)는 관용하되 다른 답은 통과시키지 않는 균형점.
+ANLS_THRESHOLD = 0.5
+
+
+def anls(pred: str, golds: list[str] | str, threshold: float = ANLS_THRESHOLD) -> float:
+    """
+    ANLS (Average Normalized Levenshtein Similarity) — DocVQA 공식 메트릭.
+
+    문서 QA는 정답이 문서에 적힌 짧은 문자열("March 27, 1979", "$485")이라
+    Token-F1은 표기 차이(쉼표·통화기호·대소문자)에 과하게 민감하고, exact_match는
+    한 글자 오타도 0점으로 만든다. ANLS는 편집거리 기반이라 그 중간을 취한다.
+
+    per-sample 계산:
+        NL(pred, gold) = levenshtein(pred, gold) / max(len(pred), len(gold))
+        s = 1 - NL  (문자열 유사도)
+        ANLS = max over golds of (s if s >= threshold else 0.0)
+
+    여러 정답(answers 리스트)이 주어지면 **최고 점수**를 취한다(공식 정의).
+    문자열은 비교 전에 strip + lowercase로 정규화한다(공식 구현과 동일).
+
+    Args:
+        pred: 모델 예측 문자열.
+        golds: 정답 문자열 리스트(또는 단일 문자열).
+        threshold: τ. 이 값 미만의 유사도는 0으로 절단(기본 0.5).
+
+    Returns:
+        [0, 1] 범위 float. pred와 gold가 모두 비면 1.0, 한쪽만 비면 0.0.
+    """
+    import Levenshtein
+
+    if isinstance(golds, str):
+        golds = [golds]
+
+    pred_norm = str(pred).strip().lower()
+
+    best = 0.0
+    for gold in golds:
+        gold_norm = str(gold).strip().lower()
+
+        if not pred_norm and not gold_norm:
+            return 1.0
+        if not pred_norm or not gold_norm:
+            continue  # 한쪽만 비면 이 정답에 대해 0점
+
+        dist = Levenshtein.distance(pred_norm, gold_norm)
+        similarity = 1.0 - dist / max(len(pred_norm), len(gold_norm))
+        if similarity >= threshold:
+            best = max(best, similarity)
+
+    return best
 
 
 def binary_metrics(preds: list[int], golds: list[int]) -> dict:

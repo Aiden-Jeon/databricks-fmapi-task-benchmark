@@ -22,7 +22,7 @@ from src.adapters.fmapi import build_text_message, FMAPIClient
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MultiMeanAccumulator
 from src.scoring.metrics import token_f1
-from src.scoring.judge import load_rubrics, build_judge_prompt, parse_judge_score
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
 
 
@@ -67,6 +67,10 @@ class Txt2Task(Task):
         - table: 구조화된 테이블 (header, rows)
 
         마크다운 테이블을 입력으로 사용.
+
+        **split 주의**: 이 미러는 train이 10행뿐이고 실데이터는 test(18486행)에 있다.
+        registry의 `table_qa.split: test`가 정본이며, 요청 수보다 적게 로드되면 예외를 던진다
+        (조용히 작은 n으로 채점하지 않는다 — CLAUDE.md "조용한 폴백 금지").
         """
         registry = load_registry()
         config = self.config
@@ -78,15 +82,20 @@ class Txt2Task(Task):
         dataset_entry = resolve_dataset_entry(registry, dataset_key)
 
         hf_id = dataset_entry["hf_id"]
-        split = dataset_entry.get("split", "train")
+        split = dataset_entry.get("split", "test")
         config_name = dataset_entry.get("config")
-
-        # split이 "default"이면 "train"으로 치환 (일부 HF 데이터셋 호환성)
-        if split == "default":
-            split = "train"
 
         # HF 데이터셋 로드 (seed 고정)
         hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+
+        # 요청보다 적게 로드되면 실패시킨다. 이 미러는 train이 10행뿐이라(실데이터는 test)
+        # 예전엔 30샘플 요청에도 조용히 n=10으로 채점되고, 리포트에는 다른 태스크와 같은
+        # 무게로 표시됐다 — 표본이 작아진 걸 눈치챌 방법이 없었다.
+        if len(hf_ds) < n:
+            raise ValueError(
+                f"TXT-2: {hf_id}[{split}]에서 {n}개 요청에 {len(hf_ds)}개만 로드됨 "
+                f"(split 확인 필요 — 이 미러는 train 10행 / test 18486행)"
+            )
 
         samples = []
         for sample_id, row in enumerate(hf_ds):
@@ -313,32 +322,13 @@ Answer:"""
                 rubric=rubric,
             )
 
-            try:
-                # Judge 호출
-                response = judge_client.chat(
-                    endpoint=judge_endpoint,
-                    messages=build_text_message(judge_prompt),
-                    max_tokens=256,
-                    extra_params={},
-                )
+            # 호출·파싱·실패로그는 run_judge가 담당. 실패는 None(집계 제외) — 옛 코드의
+            # "3점으로 메우기"는 judge 평균을 조용히 오염시켰다.
+            judge_scores.append(
+                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
+            )
 
-                # 점수 파싱
-                score = parse_judge_score(response.text)
-                if score is not None:
-                    judge_scores.append(score)
-                else:
-                    judge_scores.append(3)  # 파싱 실패 시 중간값
-            except Exception as e:
-                print(f"Judge 호출 실패 (샘플 {sample.sample_id}): {e}")
-                judge_scores.append(3)  # 오류 시 중간값
-
-        mean_score = sum(judge_scores) / len(judge_scores) if judge_scores else 0.0
-
-        return {
-            "judge_scores": judge_scores,
-            "judge_mean": mean_score,
-            "n_judged": len(judge_scores),
-        }
+        return summarize_judge_scores(judge_scores)
 
 
 if __name__ == "__main__":

@@ -132,7 +132,7 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 | IMG-5 | `detection-datasets/coco` (person=class 0 파생) | CC-BY-4.0(주석) | EN | 사람 포함 이진 |
 | IMG-3 | `Subh775/WeaponDetection` (무기/위협 존재 binary) | **CC-BY-4.0** | EN | ungated·still-image·introspectable. **severity 라벨 부재 → binary("무기/위협 존재 여부")로 확정**. '폭력'이 아닌 '무기' 측정임을 리포트 명시 |
 | IMG-4 | `DarkyMan/nsfw-image-classification` (168MB) | `cc`(변이 미상, registry 기록) | EN | ungated. 라벨 스키마는 다운로드 후 폴더명으로 확인 전제. gated `deepghs`/`strangerguardhf` 회피 |
-| TXT-1 | `HuggingFaceM4/DocumentVQA` (alt `lmms-lab-encoder/DocVQA`) | mirror apache-2.0/원본 연구용 | EN | question+answers, ANLS 채점 |
+| TXT-1 | `nielsr/docvqa_1200_examples` (**OCR 텍스트 `words` 보유**) | 미러 미표기/원본 연구용 | EN | query(dict, en)+words(OCR)+answers, **ANLS 채점 구현 완료**. 2026-08-05 교체 — 아래 주석 참고 |
 | TXT-3 | `apoidea/pubtabnet-html` (`html_table` = 실제 HTML 구조 GT) | **CDLA-Permissive-1.0(상업 OK)** | EN | **TEDS-ready 확인**, PubLayNet은 부적합 |
 | TXT-2 | `lighteval/wikitablequestions` (parquet) | CC-BY-4.0 | EN | 원본 `stanfordnlp/…`는 script-based |
 | TXT-4 | `KorQuAD/squad_kor_v1` + `klue/klue`(mrc) | KorQuAD **CC-BY-ND-4.0**/KLUE CC-BY-SA | KO | ND=변형 재배포 금지(registry 기록) |
@@ -142,6 +142,8 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 | TXT-8 | EN `thesofakillers/jigsaw-…`(parquet) / KO `jason9693/APEACH`(CC-BY-SA-4.0) | CC-BY-SA | EN+KO | 원본 `google/jigsaw_…`는 script-based |
 
 > **IMG-3/4**: still-image ungated 셋으로 확정, Phase 2에 통합(D13). IMG-3는 severity 라벨이 어디에도 없어 **무기/위협 binary**로 측정('폭력'이 아닌 '무기'임을 리포트 명시), 일반 취급. **IMG-4(NSFW)만** 미디어 repo 커밋 금지·런타임 다운로드·판정값-only(D3). 두 셋 모두 라벨 스키마는 다운로드 후 폴더명으로 검증.
+
+> **TXT-1 데이터셋 교체 (2026-08-05, 실측)**: 최초 선택한 `HuggingFaceM4/DocumentVQA`와 대안으로 적어둔 `lmms-lab-encoder/DocVQA` 둘 다 **OCR 텍스트 컬럼이 없다**(제공: `questionId/question/question_types/image/docId/ucsf_*/answers`). TXT-1은 텍스트 태스크(is_vision=False)라 페이지 이미지를 못 쓰는데, 구현이 OCR 부재 시 "질문만" 프롬프트로 조용히 폴백해 **30/30 샘플이 문서 없이 전송**됐다(무문맥 QA 측정, token_f1 0.006). full-size 미러도 전부 이미지-only여서, OCR(`words`)을 가진 `nielsr/docvqa_1200_examples`(train 1000/test 200, 평가는 test)로 교체하고 **컨텍스트 부재 시 예외를 던지도록** 바꿨다(§부록 "합성/조용한 폴백 금지"와 동일 원칙). 트레이드오프: 모집단이 5349→200으로 작아졌다. 이 미러의 `query`는 언어별 dict(de/en/es/fr/it)라 en만 쓴다.
 
 ---
 
@@ -325,8 +327,10 @@ config 모드 키 `minimal`/`full`에 매핑되는 실제 파라미터(§6):
 - **한국어 토큰화 (P0)**: ROUGE·Token-F1은 공백 토큰화 시 한국어에서 조용히 왜곡(형태소 미분리). **KoNLPy Mecab** 형태소 토큰화 후 채점. 시스템 의존성(`mecab`, `mecab-ko-dic`) 설치 필요. Phase 1에서 **5샘플로 먼저 검증** 후 스케일업.
 - **BERTScore**: 한국어는 **다국어 모델**(`bert-base-multilingual-cased` 또는 `klue/roberta-base`) 지정. 첫 실행 시 모델 다운로드(오프라인 재현 위해 해시 고정).
 - **judge 응답 파싱 (P0)**: gemini는 `content`가 리스트(`[{type,text,thoughtSignature}]`) → 텍스트 추출 후 점수 파싱. 루브릭(1–5 앵커)을 프롬프트에 포함. 위치·장황함 편향 완화(후보 순서 셔플), 한국어 태스크는 10% 이중 judge 감사(v1은 config-gated).
+- **judge 잘림·오탐·폴백 (2026-08-05 수정, 실측)**: gemini는 reasoning을 못 꺼서 사고 토큰을 먼저 쓴다. `max_tokens=256`이면 IMG-1 캡션 판정에서 `reasoning 240 / completion 12 / finish=length`로 잘려 **30/30 파싱 실패**(리포트에 `judge_mean=0.0`으로 표시). 1024면 정상. 짧은 판정(TXT-4)은 256에서도 통과해 **길이에 따라 조용히 갈렸다**. 더해서 옛 `parse_judge_score`가 폴백으로 아무 숫자나 주워 **잘린 산문의 본문 숫자를 점수로** 오인했고(`"captures 1 of the 5 key elements"`→5), TXT-1/2/4/5는 파싱 실패를 **3점으로 메워** 실제 판정과 구분 불가였다(3점 비율: sol TXT-2 70% vs 1024를 쓴 TXT-5 0%). 조치: `JUDGE_MAX_TOKENS`(1024) 단일 상수, 명시적 점수 표현만 인정(못 찾으면 None), 실패는 평균에서 제외하고 `n_judge_failed`로 노출, 전 태스크가 `run_judge()`/`summarize_judge_scores()` 공유. 테스트: `tests/test_judge.py`.
 - **AUROC 제거(IMG-4)**: chat LLM이 logprobs·확률 미제공 → Accuracy+F1+혼동행렬로 대체.
 - **TEDS 대체(TXT-3)**: 유지보수 Python 패키지 부재 → v1은 **Cell-F1**(셀 위치+텍스트 fuzzy 매칭). GT는 `apoidea/pubtabnet-html`의 `html_table`.
+- **ANLS 구현(TXT-1, 2026-08-05)**: DocVQA 공식 메트릭을 `src/scoring/metrics.py:anls()`로 구현(정규화 편집거리, **τ=0.5**, 다중정답 max, strip+lowercase 정규화). 근거: 정답이 문서에 적힌 짧은 문자열이라 exact_match는 한 글자 오타에 0점, Token-F1은 표기 차이(`485` vs `$485`)에 과민하다. τ 미만 유사도를 0으로 절단해 우연한 부분일치를 배제한다. 리포트 대표 메트릭 우선순위에서 `token_f1`보다 앞(`_METRIC_PRIORITY`)이라 TXT-1의 대표값이 공식 메트릭이 된다. 테스트: `tests/test_metrics.py`.
 - **응답 스키마 정규화**: opus-5·gemini 리스트 / sol·glm 문자열 / glm은 `reasoning_content` 우선. 어댑터가 4종 모두 평문으로 정규화.
 - **과대해석 방지**: 생성 태스크는 참조기반 메트릭이 품질과 약상관 → 정성 갤러리 + Wilcoxon 유의성으로 보완, 요약 문장은 fact sheet에 고정(§7-0).
 - **로컬 의존성(설치 필요)**: `datasets huggingface_hub rouge_score bert_score sacrebleu evaluate konlpy transformers scipy fuzzywuzzy pdfplumber`. 이미 있음: matplotlib, pandas, openpyxl, jinja2, sklearn.

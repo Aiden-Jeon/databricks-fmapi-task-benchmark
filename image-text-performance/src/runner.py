@@ -789,6 +789,10 @@ def _normalize_judge(jr: dict[str, Any]) -> dict[str, Any]:
     {judge_score_mean, n_evaluated, per_language}(txt_5/img_1).
     반환: {judge_mean: float}(대표 수치, 1–5 스케일) + {judge_detail: {...}}(감사용, 비수치).
     judge_mean만 수치 top-level이라 정량표에 한 열로 노출된다.
+
+    **judge_mean이 None/비수치면 키를 아예 넣지 않는다** — 0.0으로 채우면 정량표에서
+    "judge가 최악으로 평가함"처럼 읽혀 성능 저하로 오독된다(옛 IMG-1 judge_mean=0.0 사례).
+    대신 실패 건수(n_judge_failed)를 detail에 남겨 왜 값이 없는지 추적 가능하게 한다.
     """
     if not isinstance(jr, dict):
         return {}
@@ -802,6 +806,9 @@ def _normalize_judge(jr: dict[str, Any]) -> dict[str, Any]:
     if isinstance(mean, (int, float)):
         out["judge_mean"] = round(float(mean), 4)
     detail: dict[str, Any] = {"n": n, "scores": jr.get("judge_scores")}
+    failed = jr.get("n_judge_failed")
+    if failed:
+        detail["n_failed"] = failed
     if jr.get("per_language"):
         detail["per_language"] = jr["per_language"]
     out["judge_detail"] = detail
