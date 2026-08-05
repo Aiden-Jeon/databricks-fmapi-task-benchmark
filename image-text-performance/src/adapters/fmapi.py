@@ -118,10 +118,17 @@ class FMAPIClient:
         *,
         max_tokens: int = 1024,
         extra_params: dict[str, Any] | None = None,
+        timeout_seconds: float | None = None,
+        max_retries: int | None = None,
     ) -> ChatResponse:
         """chat completion 호출 후 정규화된 응답을 돌려준다.
 
         extra_params에 reasoning 제어 딕셔너리(config의 minimal/full)를 그대로 넘긴다.
+
+        `timeout_seconds`·`max_retries`는 **이 호출만** 클라이언트 기본값을 덮어쓴다
+        (config의 모델별 runtime 오버라이드용). 모델마다 속도·출력 길이가 크게 달라
+        (glm은 3~5배 느리고, 표→HTML 생성은 출력이 길다) 공통값을 강요하면 느린 모델에서
+        타임아웃 실패가 쏟아지고 그 실패가 성능으로 오해된다.
         """
         url = f"{self._host}/serving-endpoints/{endpoint}/invocations"
         payload: dict[str, Any] = {"messages": messages, "max_tokens": max_tokens}
@@ -131,11 +138,13 @@ class FMAPIClient:
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
         }
+        attempts = max_retries if max_retries is not None else self.max_retries
+        req_timeout = timeout_seconds if timeout_seconds is not None else self.timeout_seconds
 
         last_err: Exception | None = None
-        for attempt in range(self.max_retries):
+        for attempt in range(attempts):
             try:
-                resp = self._client.post(url, json=payload, headers=headers)
+                resp = self._client.post(url, json=payload, headers=headers, timeout=req_timeout)
             except httpx.TimeoutException as e:
                 last_err = e
                 self._sleep_backoff(attempt)
@@ -152,7 +161,7 @@ class FMAPIClient:
             data = resp.json()
             return self._parse(data, resp)
 
-        raise FMAPIError(f"{endpoint} 재시도 {self.max_retries}회 모두 실패: {last_err}")
+        raise FMAPIError(f"{endpoint} 재시도 {attempts}회 모두 실패: {last_err}")
 
     def _parse(self, data: dict[str, Any], resp: httpx.Response) -> ChatResponse:
         try:

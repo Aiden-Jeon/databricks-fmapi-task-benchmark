@@ -34,7 +34,10 @@ runtime:
 models:
   - id: opus
     endpoint: databricks-claude-opus-5
-    family: claude                      # 응답 정규화·reasoning 제어 분기 키
+    # family는 **계열 표기용**이다(manifest·리포트 기록). 코드가 이 값으로 분기하지는 않는다 —
+    # 응답 정규화는 어댑터가 스키마를 보고 자동 처리하고, reasoning 파라미터는 아래 reasoning에
+    # 직접 쓴다. 새 모델을 추가할 때 family만 맞춰도 동작이 바뀌지 않으니 reasoning을 꼭 확인할 것.
+    family: claude
     capabilities: [text, vision]        # 실측 vision ✅
     reasoning:
       minimal: {thinking: {type: disabled}}
@@ -48,6 +51,16 @@ models:
       minimal: {reasoning_effort: none}
       full: {reasoning_effort: high}
 
+  - id: sonnet
+    endpoint: databricks-claude-sonnet-5
+    family: claude                      # opus와 같은 계열 → thinking 파라미터 사용
+    capabilities: [text, vision]        # 2026-08-06 실측: 이미지 입력 ✅(보라색 이미지 인식 확인)
+    reasoning:
+      # 2026-08-06 실측: `reasoning_effort`는 HTTP 400으로 거부(claude 계열),
+      # `thinking:{type:disabled}` 정상 동작 → opus와 동일 파라미터 체계.
+      minimal: {thinking: {type: disabled}}
+      full: {thinking: {type: adaptive}}
+
   - id: glm
     endpoint: databricks-glm-5-2
     family: openai                      # OpenAI 호환 스키마지만 reasoning_content 별도 (실측)
@@ -55,3 +68,24 @@ models:
     reasoning:
       minimal: {reasoning_effort: none}
       full: {}                          # 기본(reasoning on)
+    # 모델별 런타임 오버라이드(선택). 지정한 키만 위 runtime을 덮어쓴다.
+    # glm은 실측 3~5배 느리고 full reasoning에서 사고 토큰을 많이 써, reasoning ON으로 돌릴 때
+    # 전역값(60s)으로도 타임아웃이 날 수 있다. 여유를 둔다 — 타임아웃 실패는 0점이 아니라
+    # 채점 제외로 처리되지만, 표본이 줄어드는 것 자체가 손실이다.
+    runtime:
+      timeout_seconds: 120
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 모델 추가 체크리스트 (하나라도 빠지면 실행 전 검증이 막는다 — src/config.py)
+#   1. id: 고유해야 한다(중복 시 뒤 항목이 앞을 덮어써 한 모델이 사라짐)
+#   2. endpoint: Databricks serving endpoint 이름. `databricks serving-endpoints list`로 확인
+#   3. family: 계열 표기(claude|openai|gemini 등). 리포트·주석용
+#   4. capabilities: [text] 또는 [text, vision]. **실제 이미지 호출로 검증**할 것 —
+#      오타나 누락은 해당 태스크가 조용히 전부 N/A가 된다
+#   5. reasoning: 실행할 모든 모드(위 reasoning_modes)를 정의. 빈 dict는 "모델 기본값"이라
+#      reasoning이 켜진 채로 돌면서 리포트는 OFF로 표기해 측정 조건이 어긋난다
+#   6. config/pricing.yaml의 models:에 dbu_in/dbu_out 추가 — 없으면 비용이 계산되지 않고
+#      리포트가 '단가 미등록'으로 표기(0으로 두면 "가장 저렴한 모델"로 오선정된다)
+#   7. runtime: (선택) 느리거나 긴 출력을 내는 모델이면 timeout_seconds·max_tokens 상향
+# 추가 후: `python3 -m src.runner --dry-run`으로 검증 통과·셀 수를 확인한 뒤 실행.
+# ─────────────────────────────────────────────────────────────────────────────

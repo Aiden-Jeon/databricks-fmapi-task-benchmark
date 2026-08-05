@@ -93,9 +93,12 @@ def build_presentation(
     </section>""")
 
     # 성능(시간·비용) 슬라이드
+    # 단가 미등록 모델은 "$None"이 아니라 이유를 쓴다 — 고객용 슬라이드에 $0/None이 뜨면
+    # "무료" 또는 "누락"으로 오해된다(pricing.yaml에 endpoint를 안 넣은 경우).
     perf_rows = "".join(
         f"<tr><td>{_esc(m)}</td><td>{p.get('latency_ms_median')}</td>"
-        f"<td>{p.get('errors')}</td><td>${p.get('total_usd')}</td></tr>"
+        f"<td>{p.get('errors')}</td>"
+        f"<td>{'단가 미등록' if p.get('pricing_missing') else '$' + str(p.get('total_usd'))}</td></tr>"
         for m, p in sorted(perf.items())
     )
     slides.append(f"""

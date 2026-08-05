@@ -28,6 +28,15 @@ models:
     short: {dbu_in: 71.429, dbu_out: 428.571, dbu_cache_write: 89.286, dbu_cache_read: 7.143}
     long: {dbu_in: 142.857, dbu_out: 642.857, dbu_cache_write: 178.571, dbu_cache_read: 14.286}
 
+  databricks-claude-sonnet-5:
+    # 2026-08-06 확인(proprietary-foundation-model-serving, Global/All Lengths).
+    # ⚠️ Anthropic 도입기 프로모 단가로, **2026-08-31까지** 유효하다고 명시돼 있다.
+    # 그 이후 재실행 시 이 값을 다시 확인할 것(비용 비교가 틀어진다).
+    dbu_in: 28.571
+    dbu_out: 142.857
+    dbu_cache_write: 35.714
+    dbu_cache_read: 2.857
+
   databricks-glm-5-2:
     dbu_in: 20.000
     dbu_out: 62.857

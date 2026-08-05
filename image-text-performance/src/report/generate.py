@@ -61,13 +61,32 @@ def generate_report(
     md = []
     md.append(f"# 벤치마크 리포트 — {run_dir.name}\n")
 
-    # 평가 대상 모델 (Databricks model name 그대로 표기)
+    # 평가 대상 모델 — **이 run에서 실제로 실행된 모델만** 싣는다.
+    # 예전엔 config의 모든 모델을 나열해, `--models sol`처럼 일부만 돌려도 리포트에는
+    # 3개가 다 있는 것처럼 보였다(수치가 없는 모델이 표에 등장 → 실행 범위 오해).
+    ran_ids = {e.get("model_id") for e in scores.values() if e.get("model_id")}
+    ran_models = [m for m in models_cfg.models if m.id in ran_ids] or list(models_cfg.models)
     md.append("## 평가 대상 모델 (Databricks hosted)\n")
-    md.append("| 별칭 | Databricks model name | vision |")
-    md.append("|---|---|---|")
-    for m in models_cfg.models:
-        md.append(f"| {m.id} | `{m.endpoint}` | {'✅' if m.supports('vision') else '❌'} |")
+    md.append("| 별칭 | Databricks model name | vision | reasoning 파라미터 | timeout |")
+    md.append("|---|---|---|---|---|")
+    for m in ran_models:
+        rt = m.effective_runtime(models_cfg.runtime)
+        # 실제로 보낸 reasoning 파라미터를 그대로 싣는다 — "OFF"라는 서술만으로는 모델별로
+        # 무엇을 껐는지(혹은 못 껐는지) 알 수 없다. 빈 dict는 모델 기본값(=ON일 수 있음).
+        rp = ", ".join(
+            f"`{mode}`: `{m.reasoning_params(mode) or '기본값(모델 정의)'}`" for mode in modes
+        )
+        md.append(
+            f"| {m.id} | `{m.endpoint}` | {'✅' if m.supports('vision') else '❌'} | "
+            f"{rp} | {rt.timeout_seconds:g}s |"
+        )
+    skipped_ids = [m.id for m in models_cfg.models if m.id not in ran_ids]
     md.append(f"\n> Judge: `{models_cfg.judge}`\n")
+    if skipped_ids and ran_ids:
+        md.append(
+            f"> 이 run에서 실행되지 않은 설정상의 모델: {', '.join(f'`{i}`' for i in skipped_ids)} "
+            f"(`--models` 필터). 아래 수치는 위 표의 모델만 비교한 결과다.\n"
+        )
 
     # Executive Summary는 평가 대상 모델 바로 뒤 (사용자 요구)
     md.append("## Executive Summary\n")
@@ -237,6 +256,8 @@ def _make_charts(reports_dir: Path, scores: dict, perf: dict, ep: dict) -> list[
         try:
             models = sorted(perf)
             lat = [perf[m].get("latency_ms_median") or 0 for m in models]
+            # 단가 미등록(None)은 0으로 그린다 — 차트에서 막대가 없는 것이 "저렴"이 아니라
+            # "계산 불가"임은 표·요약이 명시한다(차트에 텍스트를 넣을 자리가 없다).
             usd = [perf[m].get("total_usd") or 0 for m in models]
             fig, ax1 = plt.subplots(figsize=(7, 4.5))
             x = range(len(models))
@@ -259,11 +280,21 @@ def _make_charts(reports_dir: Path, scores: dict, perf: dict, ep: dict) -> list[
 
 
 def _perf_by_model(results: list[SampleResult], endpoints: dict[str, str]) -> dict[str, dict]:
-    """모델별 latency(median/p95)·토큰·USD 비용 집계."""
+    """모델별 latency(median/p95)·토큰·USD 비용 집계.
+
+    **pricing 누락을 $0으로 두지 않는다.** `compute_usd`는 pricing.yaml에 엔드포인트가
+    없으면 None을 돌려주는데, 예전엔 `if usd:`로 조용히 건너뛰어 그 모델의 total_usd가
+    0이 됐다. 그러면 새로 추가한 모델이 단가를 안 채운 것만으로 **"가장 저렴한 모델"로
+    선정**돼 리포트가 정반대 결론을 낸다. 여기서는 누락 호출 수를 세고
+    `pricing_missing=True`로 표시해, 비용 비교·cheapest 선정에서 제외되게 한다.
+    """
     pricing = load_pricing()
     agg: dict[str, dict] = {}
     for r in results:
-        a = agg.setdefault(r.model_id, {"latencies": [], "usd": 0.0, "in_tok": 0, "out_tok": 0, "n": 0, "errors": 0})
+        a = agg.setdefault(r.model_id, {
+            "latencies": [], "usd": 0.0, "in_tok": 0, "out_tok": 0,
+            "n": 0, "errors": 0, "priced": 0, "unpriced": 0,
+        })
         a["n"] += 1
         if r.finish_reason == "error":
             a["errors"] += 1
@@ -271,23 +302,34 @@ def _perf_by_model(results: list[SampleResult], endpoints: dict[str, str]) -> di
         a["latencies"].append(r.latency_ms_local)
         ep = endpoints.get(r.model_id, "")
         usd = compute_usd(ep, r.usage or {}, pricing)
-        if usd:
+        if usd is None:
+            a["unpriced"] += 1        # pricing.yaml에 엔드포인트 없음
+        else:
             a["usd"] += usd
+            a["priced"] += 1
         a["in_tok"] += (r.usage or {}).get("prompt_tokens", 0) or 0
         a["out_tok"] += (r.usage or {}).get("completion_tokens", 0) or 0
 
     out = {}
     for mid, a in agg.items():
         lat = a["latencies"]
-        out[mid] = {
+        # 단가를 못 찾은 호출이 하나라도 있으면 비용을 신뢰할 수 없다(부분 합계는 과소계상).
+        pricing_missing = a["unpriced"] > 0
+        entry = {
             "n_calls": a["n"],
             "errors": a["errors"],
             "latency_ms_median": round(statistics.median(lat), 1) if lat else None,
             "latency_ms_p95": round(_p95(lat), 1) if lat else None,
-            "total_usd": round(a["usd"], 6),
+            # 누락이면 None — 0으로 두면 "가장 저렴"으로 오선정된다.
+            "total_usd": None if pricing_missing else round(a["usd"], 6),
             "in_tokens": a["in_tok"],
             "out_tokens": a["out_tok"],
         }
+        if pricing_missing:
+            entry["pricing_missing"] = True
+            entry["unpriced_calls"] = a["unpriced"]
+            entry["endpoint"] = endpoints.get(mid, "")
+        out[mid] = entry
     return out
 
 
@@ -339,8 +381,12 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
         for w in ws:
             win_counts[w] = win_counts.get(w, 0) + 1
 
-    # 비용·속도 최고/최저
-    cheapest = min(perf, key=lambda k: perf[k]["total_usd"]) if perf else None
+    # 비용·속도 최고/최저. **단가 누락 모델은 cheapest 후보에서 제외**한다 —
+    # total_usd=None(=pricing.yaml 미등록)을 0으로 취급하면 단가를 안 채운 새 모델이
+    # 자동으로 "가장 저렴한 모델"이 돼 리포트가 정반대 결론을 낸다.
+    priced = [k for k in perf if isinstance(perf[k].get("total_usd"), (int, float))]
+    cheapest = min(priced, key=lambda k: perf[k]["total_usd"]) if priced else None
+    unpriced_models = sorted(k for k in perf if perf[k].get("pricing_missing"))
     fastest = min(
         (k for k in perf if perf[k]["latency_ms_median"] is not None),
         key=lambda k: perf[k]["latency_ms_median"],
@@ -354,6 +400,7 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
         "excluded_unreliable": excluded,  # 실패율 과다로 순위에서 뺀 셀
         "cheapest_model": cheapest,
         "fastest_model": fastest,
+        "unpriced_models": unpriced_models,   # pricing.yaml 미등록 → 비용 비교 불가
         "perf": perf,
     }
 
@@ -408,6 +455,12 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
     if facts.get("cheapest_model"):
         ch = facts["cheapest_model"]
         parts.append(f"비용은 **{ch}**가 가장 낮다(${facts['perf'][ch]['total_usd']}).")
+    if facts.get("unpriced_models"):
+        # 단가 누락을 요약에 명시한다 — 조용히 빼면 "왜 이 모델이 비용 비교에 없나"를 알 수 없다.
+        parts.append(
+            f"단, {', '.join(facts['unpriced_models'])}는 `pricing.yaml`에 단가가 없어 "
+            f"비용을 계산하지 못했고 비용 비교에서 제외했다."
+        )
     return " ".join(parts) if parts else "집계할 결과가 없습니다."
 
 
@@ -506,6 +559,19 @@ def _scoring_notes(scores: dict[str, Any]) -> str:
                 f"형태소 기준이 아니다(점수가 관대해질 수 있음)."
             )
 
+    # 표본 부족(요청보다 적게 로드된 태스크)
+    short = {
+        e["task_id"]: (e.get("n"), e.get("n_requested"))
+        for e in scores.values()
+        if e.get("n_requested") and (e.get("n") or 0) < e["n_requested"]
+    }
+    if short:
+        detail = ", ".join(f"{t} {got}/{want}" for t, (got, want) in sorted(short.items()))
+        notes.append(
+            f"> - ⚠️ 표본 부족: {detail}. 데이터셋이 요청 수만큼 주지 못한 태스크로, 다른 태스크와 "
+            f"같은 신뢰도로 비교하면 안 된다."
+        )
+
     # 실패 처리 규칙
     n_unreliable = sum(1 for e in scores.values() if e.get("unreliable"))
     n_failed_cells = sum(1 for e in scores.values() if e.get("n_call_failed"))
@@ -550,9 +616,14 @@ def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
         desc = task_labels.get(tid, "")
         task_col = f"{tid} · {desc}" if desc else tid
 
-        # 실패 요약: 호출 실패(모델 응답 자체 실패) + judge 실패(채점 불가)를 한 칸에.
+        # 실패 요약: 호출 실패(모델 응답 자체 실패) + judge 실패(채점 불가) + 표본 부족을 한 칸에.
         notes = []
         n = e.get("n") or 0
+        n_req = e.get("n_requested")
+        if n_req and n < n_req:
+            # 요청보다 적게 로드된 태스크 — 표본이 작다는 사실이 표에 보여야 한다
+            # (실측: TXT-2가 미러 split 문제로 항상 n=10인데 다른 태스크와 같은 무게로 실렸다).
+            notes.append(f"표본 {n}/{n_req}")
         n_fail = e.get("n_call_failed") or 0
         if n_fail:
             notes.append(f"호출 {n_fail}/{n}")
@@ -586,14 +657,30 @@ def _load_task_labels(path: str = "config/tasks.yaml") -> dict[str, str]:
 
 
 def _perf_table(perf: dict[str, dict]) -> str:
+    """모델별 시간·비용 표. 단가 미등록 모델은 비용을 숫자로 쓰지 않고 이유를 적는다."""
     rows = ["| 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |",
             "|---|---|---|---|---|---|---|---|"]
+    missing: list[str] = []
     for mid, p in sorted(perf.items()):
+        if p.get("pricing_missing"):
+            # $0으로 두면 "가장 저렴"으로 오독된다 → 원인을 셀에 직접 쓴다.
+            usd = "⚠️ 단가 미등록"
+            missing.append(f"`{mid}`(endpoint `{p.get('endpoint') or '?'}`)")
+        else:
+            usd = p["total_usd"]
         rows.append(
             f"| {mid} | {p['n_calls']} | {p['errors']} | {p['latency_ms_median']} | "
-            f"{p['latency_ms_p95']} | {p['in_tokens']} | {p['out_tokens']} | {p['total_usd']} |"
+            f"{p['latency_ms_p95']} | {p['in_tokens']} | {p['out_tokens']} | {usd} |"
         )
-    return "\n".join(rows)
+    table = "\n".join(rows)
+    if missing:
+        table += (
+            f"\n\n> ⚠️ **비용 계산 불가**: {', '.join(missing)}가 `config/pricing.yaml`의 "
+            f"`models:`에 없습니다. 해당 모델의 DBU 단가(`dbu_in`/`dbu_out`)를 추가하면 비용이 "
+            f"계산됩니다. **비용 비교·'가장 저렴한 모델' 선정에서 제외**했습니다"
+            f"(0으로 두면 단가 누락이 최저 비용으로 오독됩니다)."
+        )
+    return table
 
 
 def _load_sensitive_tasks(path: str = "config/tasks.yaml") -> set[str]:

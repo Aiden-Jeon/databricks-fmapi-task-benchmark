@@ -7,7 +7,9 @@
 ## 한 줄 요약
 Databricks FMAPI 모델(opus·sol·glm)의 이미지·텍스트 성능을 표준 데이터셋으로 측정해
 수치·그래프·정성 갤러리·고객용 HTML 프레젠테이션 리포트를 자동 생성하는 벤치마크.
-**14개 태스크**(IMG-1~6, TXT-1~8) → glm vision 미지원으로 이미지 6태스크 N/A → 실행 **36셀**.
+**14개 태스크**(IMG-1~6, TXT-1~8) × **4모델**(opus·sol·sonnet·glm) → glm vision 미지원으로
+이미지 6태스크 N/A → 실행 **50셀**. 모델 추가는 `config/models.yaml`(+`pricing.yaml`)만 고치면 되고,
+빠진 항목은 실행 전 검증이 막는다(README "모델 추가하기").
 
 ## 전제
 - Databricks CLI 프로파일 필요. 기본값은 `config/models.yaml`의 `profile`(현재 `ai_devtools`)이고
@@ -25,15 +27,35 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 ```
 - **`--fresh`**: 실행 전 `results/`·`reports/` 전부 삭제하고 index부터 새로 생성.
 - **`--samples N`**: 태스크당 N개(생략 시 config 기본 50). seed 고정이라 재현 가능.
+  **최대 요청값일 뿐**이라 데이터셋이 그만큼 없으면 적게 채점된다 → 러너가 경고하고
+  리포트의 '실패' 열에 `표본 n/요청`으로 표기한다.
+- **`--profile <name>`**: Databricks 프로파일 명시(생략 시 config 기본값). 실행 로그·manifest에 기록.
 - reasoning은 config에서 **OFF(minimal) 고정** → 옵션 불필요. ON까지 비교하려면 `--reasoning-modes minimal,full`(실행 배증·glm 타임아웃 주의).
-- **오래 걸림**: 36셀 × N샘플 + judge. 10샘플 ≈ 20~30분, 30샘플 ≈ 1시간+, 50샘플 수 시간+.
+- **오래 걸림**: 50셀 × N샘플 + judge. 30샘플 ≈ 2시간+(모델 4개), 50샘플 수 시간+.
   → 반드시 백그라운드 실행(`nohup python3 -u -m src.runner ... &`) 후 프로세스 종료까지 대기.
-  "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지 처리)이 수 분 더 걸림.
+  "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지 처리·BERTScore)이 수 분 더 걸림.
+- **종료 코드를 확인할 것**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율 >10%면 `exit 1`.
+  리포트는 그대로 생성되지만 수치를 신뢰할 수 없다는 뜻이다(옛 러너는 무조건 0을 반환해
+  모델 전체가 403이어도 "실행 완료"로 보였다).
+
+## 모델 추가 (검증이 막아주는 것들)
+`config/models.yaml`에 항목 추가 + `config/pricing.yaml`에 단가 추가. 그다음 `--dry-run`.
+실행 전 `validate_models_config()`가 아래를 **차단**한다(조용히 잘못 도는 걸 막기 위해):
+- `reasoning` 모드 누락 → 빈 파라미터는 모델 기본값(=ON일 수 있음)인데 리포트는 OFF로 표기
+- `capabilities` 누락·오타(`visoin`) → 해당 태스크가 전부 조용히 N/A
+- `id` 중복 → 뒤 항목이 앞을 덮어써 한 모델이 사라짐
+- judge endpoint를 평가 대상에 넣기 → 자기 채점
+경고(실행은 됨): `pricing.yaml` 단가 누락 → 비용 계산 불가('단가 미등록' 표기, 비용 비교 제외).
+- **모델 추가 후 `--resume` 금지**(러너가 차단함): 구성이 다른 결과가 한 run에 섞이고 manifest가
+  거짓이 된다. 새 run으로 전체 재실행하는 것이 정책(동일 데이터·시점 비교).
+- 모델별 런타임: `models[].runtime.timeout_seconds`로 느린 모델만 올릴 수 있다(glm은 120s 설정).
 
 ## 실행 규모를 키울 때 (대규모 팁)
 - **HF unauthenticated rate limit**으로 데이터 스트리밍이 느림 → `HF_TOKEN` 설정하면 빨라짐.
-- **glm-5-2가 3~5배 느림**. reasoning ON이면 15초 타임아웃을 자주 초과(실측: 160호출 중 19 오류).
-  대규모·ON 실행 전 `config/models.yaml`의 `runtime.timeout_seconds` 상향(예: 30~60s) 고려.
+- **glm-5-2가 3~5배 느림** → `models.yaml`에서 glm만 `runtime.timeout_seconds: 120`으로 둠.
+- **opus 엔드포인트 502 산발 발생**(실측 420호출 중 20건, `invalid response from an upstream
+  server`). 같은 샘플을 다른 모델은 성공하므로 데이터가 아니라 업스트림 문제. 재시도 5회·
+  backoff 2s로 완화했고, 남은 실패는 채점에서 제외돼 리포트에 드러난다.
 
 ## 실측 확정 사실 (검증됨 — 재조사 불필요)
 ### 모델 · vision · reasoning

@@ -45,10 +45,37 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 |------|-----------------|:------:|------|
 | opus | `databricks-claude-opus-5` | ✅ | |
 | sol | `databricks-gpt-5-6-sol` | ✅ | |
+| sonnet | `databricks-claude-sonnet-5` | ✅ | |
 | glm | `databricks-glm-5-2` | ❌ | 이미지 입력 미지원 → 이미지 태스크는 **N/A**로 자동 스킵 |
 | judge | `databricks-gemini-3-1-pro` | ✅ | LLM-as-judge (평가 대상과 다른 계열로 bias 최소화, 텍스트·이미지 모두 채점) |
 
 > vision 지원 여부는 `ai_devtools` 워크스페이스에서 **실제 이미지 호출로 검증**됨.
+
+### 모델 추가하기
+
+`config/models.yaml`의 `models:`에 항목을 더하면 된다. 아래 7가지가 필요하고,
+빠지면 **실행 전 검증이 막는다**(`src/config.py:validate_models_config`).
+
+| 항목 | 왜 필요한가 |
+|---|---|
+| `id` | 고유해야 한다. 중복이면 뒤 항목이 앞을 덮어써 한 모델이 조용히 사라진다 |
+| `endpoint` | `databricks serving-endpoints list --profile <p>`로 확인 |
+| `family` | 계열 표기(claude·openai·gemini …). 리포트·주석용 |
+| `capabilities` | `[text]` 또는 `[text, vision]`. **실제 이미지 호출로 검증**할 것 — 오타·누락은 해당 태스크가 전부 N/A가 된다 |
+| `reasoning` | 실행할 모든 모드를 정의. 빈 dict는 "모델 기본값"이라 reasoning이 켜진 채 돌면서 리포트는 OFF로 표기해 측정 조건이 어긋난다 |
+| `config/pricing.yaml` 단가 | 없으면 비용이 계산되지 않고 리포트가 '단가 미등록'으로 표기한다(0으로 두면 **"가장 저렴한 모델"로 오선정**되므로 그렇게 하지 않는다) |
+| `runtime`(선택) | 느리거나 긴 출력을 내는 모델이면 `timeout_seconds`·`max_tokens`를 모델별로 올린다 |
+
+추가 후 확인:
+
+```bash
+python3 -m src.runner --dry-run          # 설정 검증 + 셀 수·모델별 실효 런타임 출력
+python3 -m src.runner --samples 2 --models <새모델> --no-judge   # 소규모 실호출
+```
+
+> **주의**: 모델을 추가한 뒤 `--resume`으로 기존 run에 이어붙이면 **차단된다**. 서로 다른
+> 구성의 결과가 한 run에 섞이고 manifest가 사실과 달라지기 때문이다. 새 run으로 실행한다
+> (모델 추가 시 전체 재실행이 기본 정책 — 모든 모델을 동일 데이터·시점에서 비교해야 공정하다).
 
 ---
 
@@ -126,7 +153,8 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 > "image-text-performance 벤치마크를 10샘플로 돌려서 리포트를 새로 뽑아줘."
 
-- 3모델(opus·sol·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **36셀**.
+- 4모델(opus·sol·sonnet·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **50셀**.
+- **종료 코드로 성패를 알린다**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율이 10%를 넘으면 `exit 1`(리포트는 그대로 생성됨). 자동화가 실패를 성공으로 오판하지 않게 하기 위함이다.
 - 빠른 확인만 원하면: > "opus와 sol만 텍스트 태스크로 3샘플만 빠르게 돌려줘."
 - 대규모(정확도 우선): > "HF 토큰 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플로 백그라운드 실행해줘." (전체는 HF rate limit·glm 지연으로 수 시간+ 걸린다.)
 
@@ -243,14 +271,28 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 세부 설계·의사결정은 [`plan.md`](./plan.md), 결정 이력은 §2(D1–D14) 참고.
 
-### 알려진 한계 (다음 작업 대상)
+### 리포트를 읽을 때 유의할 점
 
-리포트 수치를 읽을 때 알고 있어야 하는 항목:
+- **호출 실패는 채점에서 제외된다**(0점이 아니다). 정량표의 '실패' 열과 `n_evaluated`로
+  드러나며, 실패율 50%를 넘는 셀은 순위·요약에서 제외하고 '신뢰불가'로 표시한다.
+  엔드포인트 장애(특히 opus의 산발적 502)가 성능 저하로 오독되던 문제를 막기 위함이다.
+- **judge 실패도 평균에서 제외**하고 건수를 표기한다(중간값으로 메우지 않는다).
+- **표본이 요청보다 적으면** '실패' 열에 `표본 n/요청`으로 표기된다 — 그 태스크는 다른
+  태스크와 같은 신뢰도로 비교하면 안 된다.
+- **단가 미등록 모델**은 비용을 `⚠️ 단가 미등록`으로 표기하고 비용 비교에서 제외한다
+  (0으로 두면 "가장 저렴한 모델"로 오선정되기 때문).
+- **한국어 점수의 기준**은 리포트 "채점 조건"에 `형태소(mecab)` / `음절` 중 무엇인지 명시된다.
+  음절 폴백은 글자 겹침만으로 점수를 주어 관대하다.
+- **통계 유의성**은 judge 점수에만 적용된다(Wilcoxon). 정량 메트릭은 셀 단위 평균만 저장해
+  (스트리밍 O(1) 설계) 샘플을 짝지을 수 없다.
+- **IMG-2/TXT-2는 프롬프트를 2026-08-05에 바꿨다**(닫힌 라벨 집합 제공 / 짧은 답 강제).
+  그 이전 run과 직접 비교하면 안 된다 — 측정 조건이 다르다.
 
-- **IMG-2 어휘 불일치**: 정답이 COCO 80클래스인데 모델은 자유 명사로 답해(`umbrellas`≠`umbrella`) F1이 낮게 나온다. "태그 추출 능력"보다 "COCO 어휘 맞히기"에 가깝다.
-- **시간·비용은 추정치**: `system.ai_gateway.usage` 조인은 미구현(`src/cost/usage.py`)이고, 현재는 클라이언트 벽시계 지연 + 응답 `usage` 토큰 × `pricing.yaml` 단가로 계산한다.
-- **통계 유의성 미표기**: Wilcoxon 검정은 구현돼 있으나(`src/scoring/stats.py`) 리포트에서 호출하지 않는다.
-- **BERTScore 미계산**: `torch` 설치 여부와 무관하게 `deferred`로 표기된다.
-- **한국어 토큰화**: Mecab 미설치 환경에서는 음절 단위로 자동 폴백한다(리포트의 `korean_backend`로 확인).
-- **재현성**: `datasets/registry.yaml`의 `expected_sha256`가 전부 null이고 HF revision을 고정하지 않는다(로더가 revision 인자를 받지 않음).
-- **동점 처리**: 태스크 1위 집계가 동점일 때 한 모델에만 승리를 준다(`src/report/generate.py`).
+### 남은 작업 (blocker 아님)
+
+- **시간·비용은 추정치**: `system.ai_gateway.usage` 조인은 미구현(`src/cost/usage.py:fetch_usage`).
+  현재는 클라이언트 벽시계 지연 + 응답 `usage` 토큰 × `pricing.yaml` 단가로 계산한다.
+- **TEDS(TXT-3/IMG-6)**: 유지보수 패키지 부재로 Cell-F1을 대체 사용 중(plan D12).
+- **judge 변별력**: TXT-4는 모델들이 모두 judge 5.0에 수렴해 순위를 못 낸다(정량 지표로 봐야 한다).
+- **BERTScore 버퍼 상한 200쌍**: 그보다 큰 샘플 수로 돌리면 BERTScore만 앞 200쌍 기준이 된다
+  (`bertscore_n`으로 확인 가능).

@@ -4,12 +4,13 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 표준 데이터셋 위에서 꾸준히(재현 가능하게) 측정하고, 결과 수치·그래프·정성 샘플을
 자동 리포트로 생성하는 프로젝트.
 
-- **1차 대상 모델**: `opus`, `sol`, `glm` (설정으로 추가/교체 가능)
+- **대상 모델**: `opus`, `sol`, `sonnet`, `glm` (설정으로 추가/교체 가능 — §6, README "모델 추가하기")
   - opus → `databricks-claude-opus-5` (vision ✅ — 실측 확인)
   - sol → `databricks-gpt-5-6-sol` (vision ✅ — 실측 확인)
+  - sonnet → `databricks-claude-sonnet-5` (vision ✅ — 2026-08-06 실측 추가. claude 계열이라 `thinking` 파라미터, `reasoning_effort`는 HTTP 400 거부)
   - glm → `databricks-glm-5-2` (**vision ❌ text-only** — 이미지 입력 미지원, 실측 확인 → 이미지 태스크 전부 N/A)
 - **Judge 모델**: `databricks-gemini-3-1-pro` 단일 (평가대상과 다른 Google 계열로 계열 bias 최소화). **실측 확인: 이미지 입력도 이해 가능 → 텍스트·이미지 채점 모두 이 모델 하나로 커버.** (`gemini-3-pro-image`는 image-*생성* 모델이라 judge로 부적합 — 초기 오기 정정)
-- **워크스페이스/프로파일**: `ai_devtools` (host `dbc-a5d4177a-49dc.cloud.databricks.com`)
+- **워크스페이스/프로파일**: 기본 `ai_devtools` (host `dbc-a5d4177a-49dc.cloud.databricks.com`). 실행 시 `--profile`로 덮어쓸 수 있고 run의 manifest에 기록된다.
 - **실행 스택**: 로컬 Python + 정적 리포트(repo 커밋)
 - **최종 산출물**: `reports/<run-id>/` 아래 markdown/HTML 리포트 + 그래프 + 원시 결과(JSON/CSV) + **모델별 수행시간·비용** + Executive Summary. **벤치마크 시점(run)별로 분리·보존**(§12)
 - **대상 모델이 전부 reasoning 모델** → reasoning **ON/OFF 둘 다 측정**(공정 비교). 제어 파라미터는 계열마다 다름(§11).

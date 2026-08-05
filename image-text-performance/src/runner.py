@@ -23,7 +23,7 @@ from typing import Any
 import yaml
 
 from src.adapters.fmapi import FMAPIClient
-from src.config import load_models_config
+from src.config import ConfigValidationError, load_models_config, validate_models_config
 from src.results import RunManifest, git_commit, make_run_id, write_manifest
 
 # 한 셀에서 이 비율을 넘게 호출이 실패하면 그 셀의 점수는 모델 성능이 아니라 장애의 산물로 본다.
@@ -31,6 +31,12 @@ from src.results import RunManifest, git_commit, make_run_id, write_manifest
 # 리포트에 정상 수치처럼 실린다(실측: IMG-6 opus 19/30 실패 → cell_f1 0.290 vs 실제 0.841).
 # `unreliable` 표시 + resume 시 재실행 대상(_poisoned_cells) 판정에 같은 값을 쓴다.
 UNRELIABLE_FAILURE_RATE = 0.5
+
+# 전체 호출 중 이 비율을 넘게 실패하면 실행 자체를 실패로 보고 **non-zero exit**를 낸다.
+# 실패해도 exit 0이면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다 — 모델 전체가
+# 403/400이어도 "실행 완료"가 찍히던 문제. 개별 셀의 산발적 실패(임계 미만)는 채점에서
+# 제외되고 리포트에 드러나므로 0을 유지한다. 10%는 실측 기준(정상 run은 0~2%)에서 잡았다.
+GLOBAL_FAILURE_EXIT_RATE = 0.10
 
 
 def load_tasks_config(path: str | Path = "config/tasks.yaml") -> dict[str, Any]:
@@ -196,6 +202,22 @@ def main() -> int:
     if args.reasoning_modes:
         reasoning_override = [m.strip() for m in args.reasoning_modes.split(",")]
 
+    # ── 설정 교차 검증 (모델 추가 시 1차 방어선) ──────────────────────
+    # 새 모델을 붙일 때 조용히 잘못 도는 경우가 많다: reasoning 모드 누락(기본값=ON일 수
+    # 있는데 리포트는 OFF로 표기), capabilities 오타(태스크 전체 N/A), ID 중복(모델 소실),
+    # pricing 미등록(비용 0 → "가장 저렴"으로 오선정). 실행 전에 잡아 명확히 실패시킨다.
+    try:
+        cfg_for_check = models_cfg
+        if reasoning_override:
+            # 실제로 돌릴 모드만 검증 대상으로 삼는다(--reasoning-modes로 좁힌 경우).
+            cfg_for_check = models_cfg.model_copy(update={"reasoning_modes": reasoning_override})
+        warns = validate_models_config(cfg_for_check)
+        for w in warns:
+            print(f"  ⚠️  [설정 경고] {w}")
+    except ConfigValidationError as e:
+        print(f"\n{e}", file=sys.stderr)
+        return 1
+
     # 매트릭스 구성
     matrix, na_count = build_execution_matrix(
         models_cfg,
@@ -266,9 +288,32 @@ def main() -> int:
         notes="dry-run" if args.dry_run else "full run",
     )
 
-    # resume이면 기존 manifest 보존(덮어쓰지 않음)
-    if resuming and (run_dir / "manifest.json").exists():
-        manifest_path = run_dir / "manifest.json"
+    # resume이면 기존 manifest를 **보존하되 구성 변화가 있으면 거부**한다.
+    # 예전엔 무조건 보존해서, 모델을 추가한 뒤 --resume하면 기존 3모델 run에 새 모델 결과가
+    # 섞이는데 manifest에는 옛 3모델만 남았다 → "이 리포트는 어떤 구성으로 뽑혔나"가 거짓이 되고
+    # 시점 비교가 무의미해진다. 모델·태스크·reasoning 모드·샘플 수가 달라지면 **새 run**을 써야 한다.
+    manifest_path = run_dir / "manifest.json"
+    if resuming and manifest_path.exists():
+        try:
+            prev = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            prev = {}
+        drift = _manifest_drift(prev, manifest)
+        if drift:
+            print(
+                "\n오류: --resume 대상 run과 현재 설정이 다릅니다. 이어서 돌리면 서로 다른 "
+                "구성의 결과가 한 run에 섞이고 manifest가 사실과 달라집니다:",
+                file=sys.stderr,
+            )
+            for d in drift:
+                print(f"   - {d}", file=sys.stderr)
+            print(
+                "\n해결: (a) 구성을 원래대로 돌려 resume하거나, (b) --fresh 또는 resume 없이 "
+                "**새 run**으로 실행하세요(권장 — 시점 비교가 유효해집니다).",
+                file=sys.stderr,
+            )
+            return 1
+        # 구성이 같으면 기존 manifest를 그대로 둔다(created_at·git_commit 등 시점 정보 보존).
     else:
         manifest_path = write_manifest(run_dir, manifest)
 
@@ -289,6 +334,16 @@ def main() -> int:
     print("모델별 셀 수:")
     for model_id, count in sorted(model_counts.items()):
         print(f"  {model_id}: {count}")
+    print()
+    # 모델별 실효 런타임을 찍어 둔다 — 오버라이드가 실제로 적용됐는지 로그로 확인 가능해야
+    # 한다(공통값이 느린 모델에 맞지 않아 타임아웃 실패가 나던 문제 때문에 도입).
+    print("모델별 실효 런타임(timeout/재시도/max_tokens):")
+    for m in models_cfg.models:
+        if models_filter and m.id not in models_filter:
+            continue
+        rt = m.effective_runtime(models_cfg.runtime)
+        tag = " (모델별 오버라이드)" if m.runtime is not None else ""
+        print(f"  {m.id}: {rt.timeout_seconds}s / {rt.max_retries}회 / {rt.max_tokens} tokens{tag}")
     print()
     print(f"Manifest 저장: {manifest_path}")
     print()
@@ -443,6 +498,8 @@ def _run_samples(
             print(f"  [judge 비활성 — 클라이언트 초기화 실패] {type(e).__name__}: {e}")
 
     executed = skipped_cells = resume_skipped = 0
+    # 요청보다 적게 로드된 태스크: {task_id: (로드됨, 요청됨)}. 종료 요약·셀 메타에 쓴다.
+    shortfall_tasks: dict[str, tuple[int, int]] = {}
     gallery_records: list[dict[str, Any]] = []
     gallery_path = run_dir / "gallery.jsonl"
     gallery_done_tasks: set[str] = set()  # 이미 gallery.jsonl에 기록된 task_id(resume 중복 방지)
@@ -475,6 +532,15 @@ def _run_samples(
                 skipped_cells += len(per_task_cells[task_id])
                 continue
 
+            # 요청보다 적게 로드되면 **눈에 보이게** 남긴다. `--samples 30`은 최대 요청값일 뿐이라
+            # 태스크가 10개만 로드해도 예전엔 조용히 통과했고(실측: TXT-2가 미러 split 문제로
+            # 항상 n=10), 리포트에는 다른 태스크와 같은 무게로 실렸다. 표본이 작아진 사실이
+            # scores.json·리포트에 드러나야 수치를 올바르게 해석할 수 있다.
+            if len(samples) < n_samples:
+                shortfall_tasks[task_id] = (len(samples), n_samples)
+                print(f"  ⚠️  [{task_id}] 요청 {n_samples}개 중 {len(samples)}개만 로드됨 "
+                      f"— 이 태스크의 표본이 작다(리포트에 n_requested로 표기)")
+
             # 이미지 태스크: 갤러리용 썸네일을 지금 저장(비민감만). 원본(풀해상도) PIL 이미지는
             # build_prompt가 모델마다 필요로 하므로 태스크 동안 유지하고, 태스크 끝의 `del samples`로 회수.
             if getattr(inst, "is_vision", False) and not getattr(inst, "sensitive", False):
@@ -495,6 +561,9 @@ def _run_samples(
                     continue
 
                 params = model.reasoning_params(mode)
+                # 모델별 런타임(있으면) 적용 — 느린 모델·긴 출력 모델이 공통값 때문에
+                # 타임아웃 실패를 내고 그 실패가 성능으로 오해되는 것을 막는다.
+                rt = model.effective_runtime(models_cfg.runtime)
                 acc = inst.make_accumulator() if hasattr(inst, "make_accumulator") else None
                 buf_parsed: list[Any] | None = None if acc is not None else []
                 buf_samples: list[Any] | None = None if acc is not None else []
@@ -513,7 +582,8 @@ def _run_samples(
                     try:
                         resp = fmapi.chat(
                             model.endpoint, messages,
-                            max_tokens=models_cfg.runtime.max_tokens, extra_params=params,
+                            max_tokens=rt.max_tokens, extra_params=params,
+                            timeout_seconds=rt.timeout_seconds, max_retries=rt.max_retries,
                         )
                         latency_ms = (time.perf_counter() - t0) * 1000
                         output_text = resp.text
@@ -598,6 +668,8 @@ def _run_samples(
                 entry: dict[str, Any] = {
                     "model_id": model.id, "task_id": task_id, "reasoning_mode": mode,
                     "n": len(samples), "metrics": metrics,
+                    # 요청 샘플 수. n < n_requested면 표본이 작다는 뜻이고 리포트가 그걸 표기한다.
+                    "n_requested": n_samples,
                 }
                 if n_call_failed:
                     entry["n_call_failed"] = n_call_failed
@@ -631,6 +703,12 @@ def _run_samples(
           + (f", resume 스킵 {resume_skipped}셀" if resume_skipped else "")
           + (f", 미구현/로드실패 스킵 {skipped_cells}셀" if skipped_cells else ""))
     print(f"결과 저장: {samples_path}")
+
+    if shortfall_tasks:
+        print(f"\n⚠️  요청보다 적게 로드된 태스크 {len(shortfall_tasks)}개 (표본이 작다):")
+        for t, (got, want) in sorted(shortfall_tasks.items()):
+            print(f"   {t}: {got}/{want}")
+        print("   → 데이터셋 split·행 수를 확인할 것(`.info.splits`). 리포트에는 n으로 표기된다.")
 
     # 실패 요약을 종료 직전에 한 번 더 모아 보여준다. 셀별 경고는 긴 로그에 묻히기 쉬운데,
     # 실패를 못 보고 리포트를 그대로 신뢰하는 것이 이 벤치마크의 반복된 사고 원인이었다.
@@ -676,6 +754,99 @@ def _run_samples(
     except Exception as e:
         print(f"  [인덱스 갱신 스킵] {type(e).__name__}: {e}")
 
+    # ── 종료 코드 판정 ────────────────────────────────────────────────
+    # 실패해도 exit 0을 내면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다. 실측 위험:
+    # 모델 전체가 403/400이어도 "실행 완료" 후 0을 반환해, 빈 리포트가 정상 산출물로 커밋될 수 있다.
+    # 리포트는 이미 생성했으므로(부분 결과도 보존 가치가 있다) **결과는 남기고 종료 코드로만 알린다.**
+    return _exit_code(scores, expected_cells=len(matrix) - skipped_cells)
+
+
+def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
+    """resume 시 기존 manifest와 현재 설정의 차이를 사람이 읽을 문장으로 반환(없으면 빈 리스트).
+
+    비교 대상은 **결과 해석을 바꾸는 축**만이다: 모델 집합·태스크 집합·reasoning 모드·
+    샘플 수·프로파일. created_at·git_commit은 당연히 다르므로 비교하지 않는다
+    (코드 수정 후 실패 셀만 재실행하는 정상 워크플로를 막지 않기 위해).
+    """
+    out: list[str] = []
+
+    prev_models = {m.get("id") for m in (prev.get("models") or [])}
+    cur_models = {m.get("id") for m in cur.models}
+    if prev_models and prev_models != cur_models:
+        added = sorted(cur_models - prev_models)
+        removed = sorted(prev_models - cur_models)
+        parts = []
+        if added:
+            parts.append(f"추가 {added}")
+        if removed:
+            parts.append(f"제외 {removed}")
+        out.append(f"모델 구성이 다릅니다({', '.join(parts)}) — 기존 run: {sorted(prev_models)}")
+
+    prev_tasks = set(prev.get("task_ids") or [])
+    cur_tasks = set(cur.task_ids)
+    if prev_tasks and prev_tasks != cur_tasks:
+        out.append(
+            f"태스크 구성이 다릅니다(추가 {sorted(cur_tasks - prev_tasks)}, "
+            f"제외 {sorted(prev_tasks - cur_tasks)})"
+        )
+
+    prev_modes = list(prev.get("reasoning_modes") or [])
+    if prev_modes and prev_modes != list(cur.reasoning_modes):
+        out.append(f"reasoning 모드가 다릅니다: {prev_modes} → {list(cur.reasoning_modes)}")
+
+    if prev.get("samples_per_task") and prev["samples_per_task"] != cur.samples_per_task:
+        out.append(
+            f"태스크당 샘플 수가 다릅니다: {prev['samples_per_task']} → {cur.samples_per_task} "
+            f"(셀마다 n이 달라져 비교가 깨집니다)"
+        )
+
+    if prev.get("profile") and prev["profile"] != cur.profile:
+        out.append(
+            f"Databricks 프로파일이 다릅니다: {prev['profile']} → {cur.profile} "
+            f"(워크스페이스가 다르면 엔드포인트·단가·지연의 전제가 달라집니다)"
+        )
+    return out
+
+
+def _exit_code(scores: dict[str, Any], expected_cells: int) -> int:
+    """실행 결과로 프로세스 종료 코드를 정한다. 0=정상, 1=자동화가 멈춰야 하는 실패.
+
+    실패로 보는 조건(하나라도 해당):
+    - 채점 예외(metrics.error) 셀이 있다 → 코드·데이터 문제
+    - 실패율 과다(unreliable) 셀이 있다 → 점수가 장애의 산물
+    - 전체 호출 실패율이 GLOBAL_FAILURE_EXIT_RATE 초과 → 엔드포인트/권한 문제(403·400 등)
+    - 완료 셀이 기대 매트릭스보다 적다 → 중간에 죽었거나 로드 실패
+    산발적 소수 실패(임계 미만)는 0을 유지한다 — 이 벤치마크에서 흔하고, 그 셀은
+    채점에서 제외되며 리포트에 드러나므로 실행 자체를 실패로 볼 필요는 없다.
+    """
+    reasons: list[str] = []
+
+    err_cells = [k for k, v in scores.items() if "error" in (v.get("metrics") or {})]
+    if err_cells:
+        reasons.append(f"채점 오류 셀 {len(err_cells)}개: {', '.join(sorted(err_cells)[:5])}")
+
+    unreliable = [k for k, v in scores.items() if v.get("unreliable")]
+    if unreliable:
+        reasons.append(f"실패율 과다(신뢰불가) 셀 {len(unreliable)}개: {', '.join(sorted(unreliable)[:5])}")
+
+    total_n = sum(v.get("n", 0) for v in scores.values())
+    total_failed = sum(v.get("n_call_failed", 0) for v in scores.values())
+    if total_n and total_failed / total_n > GLOBAL_FAILURE_EXIT_RATE:
+        reasons.append(
+            f"전체 호출 실패율 {total_failed}/{total_n} "
+            f"({total_failed / total_n:.1%}) > {GLOBAL_FAILURE_EXIT_RATE:.0%}"
+        )
+
+    if expected_cells and len(scores) < expected_cells:
+        reasons.append(f"완료 셀 {len(scores)}/{expected_cells} — 일부 셀이 실행되지 않았다")
+
+    if reasons:
+        print("\n" + "=" * 70)
+        print("❌ 실행을 실패로 판정합니다(exit 1). 리포트는 생성됐지만 수치를 신뢰할 수 없습니다:")
+        for r in reasons:
+            print(f"   - {r}")
+        print("=" * 70)
+        return 1
     return 0
 
 
