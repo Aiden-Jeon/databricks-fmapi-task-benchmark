@@ -18,6 +18,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import yaml
@@ -306,19 +307,32 @@ def main() -> int:
     # 섞이는데 manifest에는 옛 3모델만 남았다 → "이 리포트는 어떤 구성으로 뽑혔나"가 거짓이 되고
     # 시점 비교가 무의미해진다. 모델·태스크·reasoning 모드·샘플 수가 달라지면 **새 run**을 써야 한다.
     manifest_path = run_dir / "manifest.json"
-    if resuming and manifest_path.exists():
+    if resuming:
+        # **manifest는 resume의 전제조건이다.** 예전엔 `exists()`일 때만 검증해서, 파일이
+        # 없으면 그냥 새 manifest를 써 버렸다 — 즉 "구성을 확인할 수 없는" 최악의 경우가
+        # 가장 느슨하게 통과했다. 없으면 거부한다.
+        if not manifest_path.exists():
+            print(f"\n❌ --resume 거부: {manifest_path}가 없습니다.\n"
+                  f"   어떤 구성으로 돌던 run인지 확인할 수 없어, 지금 설정이 다르면 서로 다른\n"
+                  f"   구성의 결과가 한 run에 섞입니다.\n"
+                  f"   → 새 run으로 전체 재실행하세요(--resume 없이).", file=sys.stderr)
+            return 1
         try:
             prev = json.loads(manifest_path.read_text(encoding="utf-8"))
             if not isinstance(prev, dict):
                 raise ValueError(f"manifest 최상위가 dict가 아님({type(prev).__name__})")
+            missing_axes = _missing_manifest_axes(prev)
+            if missing_axes:
+                raise ValueError(
+                    f"구성 축이 비어 있음: {missing_axes} — 이 값이 없으면 구성이 같은지 "
+                    f"비교할 수 없습니다"
+                )
         except Exception as e:
-            # **fail-closed.** 예전엔 `prev = {}`로 넘어갔는데, 드리프트 검사는 없는 필드를
-            # 건너뛰므로 빈 dict는 "차이 없음"이 되어 모든 구성 가드가 통째로 무력화된다
-            # (모델·태스크·샘플 수가 달라도 옛 scores와 섞인다). 읽을 수 없으면 거부한다.
-            print(f"\n❌ --resume 거부: manifest.json을 읽을 수 없습니다 "
+            # **fail-closed.** 읽을 수 없거나 핵심 축이 없으면 거부한다.
+            print(f"\n❌ --resume 거부: manifest.json을 신뢰할 수 없습니다 "
                   f"({type(e).__name__}: {e}).\n"
                   f"   구성이 같은지 확인할 수 없으면 옛 결과와 섞여 리포트가 거짓이 됩니다.\n"
-                  f"   → 새 run으로 전체 재실행하세요(--resume 없이).")
+                  f"   → 새 run으로 전체 재실행하세요(--resume 없이).", file=sys.stderr)
             return 1
         drift = _manifest_drift(prev, manifest)
         if drift:
@@ -945,21 +959,36 @@ def _run_samples(
             print("\n[--fresh 보류] 이번 run이 실패로 판정돼 이전 run을 그대로 둡니다 "
                   "(신뢰할 수 있는 리포트를 잃지 않기 위해). 원인을 고친 뒤 다시 실행하세요.")
         else:
-            _purge_previous_runs(
-                results_root or Path("results"), Path("reports"), keep_run_id=run_dir.name
-            )
-            try:
+            # 정리 **후** 단계(인덱스 재생성)까지 한 트랜잭션으로 묶는다. 그 단계가 실패하면
+            # 이동을 되돌린다 — 안 그러면 "검증된 이전 리포트를 옮긴 뒤 exit 1"이 그대로
+            # 남는다(정리 전 판정만으로는 이 조합을 막을 수 없다).
+            def _post_move_verify() -> None:
                 from src.report.index import rebuild_index
 
                 print(f"인덱스 재생성(정리 후): {rebuild_index()}")
+
+            try:
+                _purge_previous_runs(
+                    results_root or Path("results"), Path("reports"),
+                    keep_run_id=run_dir.name, post_move_verify=_post_move_verify,
+                )
             except Exception as e:
-                print(f"  [정리 후 인덱스 실패] {type(e).__name__}: {e}")
+                # 롤백이 끝난 상태다(이전 run은 제자리). 이번 run의 결과·리포트는 그대로
+                # 남아 있지만 정리가 안 됐으므로 자동화가 "완전히 깨끗하다"고 보면 안 된다.
+                print(f"\n[--fresh 실패] 정리를 되돌렸습니다({type(e).__name__}: {e}). "
+                      f"이전 run은 제자리에 있고 이번 run의 리포트도 남아 있습니다.")
                 return 1
 
     return code
 
 
-def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: str) -> None:
+def _purge_previous_runs(
+    results_dir: Path,
+    reports_dir: Path,
+    *,
+    keep_run_id: str,
+    post_move_verify: Callable[[], None] | None = None,
+) -> None:
     """--fresh: 이전 run들을 **`.trash/`로 이동**한다(즉시 삭제하지 않는다).
 
     왜 이동인가: 새 run이 중간에 죽으면 리포트가 하나도 없는 상태가 되고, README의
@@ -968,6 +997,11 @@ def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: s
     다음 --fresh 때 이전 보관본을 정리하므로 무한히 쌓이지 않는다.
 
     `keep_run_id`(이번 run 디렉터리)는 이동 대상에서 제외한다 — 이미 manifest를 써 뒀다.
+
+    **전부 성공하거나 전부 되돌린다(트랜잭션).** 중간에 이동이 실패하거나
+    `post_move_verify`(정리 후 index 재생성 등)가 실패하면, 이미 옮긴 것을 제자리로
+    되돌리고 예외를 올린다. 그러지 않으면 "검증된 이전 리포트를 옮긴 뒤 실패"라는
+    최악의 상태가 남는다 — 정리 전에 판정을 해도 정리 *후* 단계는 막을 수 없다.
     """
     import shutil
 
@@ -986,16 +1020,37 @@ def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: s
         break
 
     moved: list[str] = []
-    for base in (results_dir, reports_dir):
-        if not base.exists():
-            continue
-        for item in sorted(base.iterdir()):
-            if item.name == keep_run_id:
+    done: list[tuple[Path, Path]] = []      # (원래 위치, 보관 위치) — 롤백용
+    try:
+        for base in (results_dir, reports_dir):
+            if not base.exists():
                 continue
-            dest = trash / base.name / item.name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(item), str(dest))
-            moved.append(f"{base.name}/{item.name}")
+            for item in sorted(base.iterdir()):
+                if item.name == keep_run_id:
+                    continue
+                dest = trash / base.name / item.name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(item), str(dest))
+                done.append((item, dest))
+                moved.append(f"{base.name}/{item.name}")
+        if post_move_verify is not None:
+            post_move_verify()
+    except Exception:
+        # 되돌린다. 롤백 자체가 실패하면 그 사실을 크게 알린다 — 보관본 경로만 알면
+        # 사람이 복구할 수 있으므로, 조용히 삼켜서 "사라진 것처럼" 보이게 하지 않는다.
+        restored = 0
+        for src, dest in reversed(done):
+            try:
+                if dest.exists() and not src.exists():
+                    src.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(dest), str(src))
+                    restored += 1
+            except OSError as re:
+                print(f"  ❗ 롤백 실패: {dest} → {src} ({type(re).__name__}: {re}) — "
+                      f"보관본에 남아 있으니 수동으로 옮기세요")
+        if done:
+            print(f"  [--fresh 롤백] 이동한 {len(done)}개 중 {restored}개를 제자리로 되돌렸습니다.")
+        raise
 
     if moved:
         print(f"[--fresh] 이전 run {len(moved)}개를 {trash}/로 이동(삭제 아님): "
@@ -1061,6 +1116,20 @@ def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
             f"(워크스페이스가 다르면 엔드포인트·단가·지연의 전제가 달라집니다)"
         )
     return out
+
+
+# resume 전에 manifest에 반드시 있어야 하는 구성 축. 이 값이 없으면 "구성이 같은가"를
+# 물을 수 없고, `_manifest_drift`는 없는 필드를 건너뛰므로 조용히 통과한다.
+RESUME_REQUIRED_AXES = ("models", "task_ids", "reasoning_modes", "samples_per_task", "profile")
+
+
+def _missing_manifest_axes(prev: dict[str, Any]) -> list[str]:
+    """resume 대상 manifest에서 비어 있는 핵심 축 목록(없으면 빈 리스트).
+
+    유효 JSON인 `{}`도 파싱은 되지만 드리프트 검사를 전부 통과해버린다 —
+    모델·태스크·샘플 수가 달라도 옛 scores와 섞이게 된다. 그래서 값 존재를 따로 본다.
+    """
+    return [axis for axis in RESUME_REQUIRED_AXES if prev.get(axis) in (None, [], {}, "")]
 
 
 def _cell_key(model_id: str, task_id: str, mode: str) -> str:
@@ -1271,23 +1340,37 @@ def _poisoned_cells(samples_path: Path, threshold: float = UNRELIABLE_FAILURE_RA
     0.0류로 산출되지만 예외가 아니라 scores.json에 'error' 키 없이 남는다. resume가 그런
     셀을 '완료'로 오판해 스킵하는 것을 막기 위해, 여기서 오염 셀을 식별해 재실행 대상으로 삼는다.
     파일이 없으면 빈 집합.
+
+    **물리 행이 아니라 샘플 단위(last-wins)로 센다.** append-only라 재실행이 겹치면 같은
+    샘플의 옛 성공 행과 새 실패 행이 함께 남는데, 물리 행을 세면 옛 성공이 새 실패를
+    희석한다(실측 시나리오: 옛 성공 30 + 최신 403 30 → 실제는 30/30 실패인데 30/60=50%로
+    계산돼 임계를 넘지 못하고 오염 셀에서 빠졌다). 채점·리포트가 모두 마지막 행을 쓰므로
+    오염 판정도 같은 기준이어야 한다.
     """
     if not samples_path.exists():
         return set()
-    total: dict[str, int] = {}
-    errs: dict[str, int] = {}
+    # (cell_key, sample_id) → 마지막 행이 실패였는지
+    last_failed: dict[tuple[str, int], bool] = {}
     with open(samples_path, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
             try:
                 d = json.loads(line)
+                if not isinstance(d, dict):
+                    continue
                 key = f"{d['model_id']}::{d['task_id']}::{d['reasoning_mode']}"
-            except (json.JSONDecodeError, KeyError):
+                sid = d["sample_id"]
+            except (json.JSONDecodeError, KeyError, TypeError):
                 continue
-            total[key] = total.get(key, 0) + 1
-            if str(d.get("model_output", "")).startswith("__ERROR__"):
-                errs[key] = errs.get(key, 0) + 1
+            last_failed[(key, sid)] = str(d.get("model_output", "")).startswith("__ERROR__")
+
+    total: dict[str, int] = {}
+    errs: dict[str, int] = {}
+    for (key, _sid), failed in last_failed.items():
+        total[key] = total.get(key, 0) + 1
+        if failed:
+            errs[key] = errs.get(key, 0) + 1
     return {k for k, n in total.items() if n > 0 and errs.get(k, 0) / n > threshold}
 
 
@@ -1319,6 +1402,11 @@ def _load_cell_rows(
             try:
                 d = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            # `[]`·`null`처럼 **유효 JSON이지만 object가 아닌** 행도 있다. 가드가 없으면
+            # 아래 .get에서 AttributeError가 나 resume 전체가 죽는다(로드 경로마다 손상 행
+            # 처리가 갈리던 원인). load_sample_results와 같은 기준으로 건너뛴다.
+            if not isinstance(d, dict):
                 continue
             if (d.get("model_id") != model_id or d.get("task_id") != task_id
                     or d.get("reasoning_mode") != mode):
@@ -1367,9 +1455,11 @@ def _partial_progress(
                 continue
             try:
                 d = json.loads(line)
+                if not isinstance(d, dict):
+                    continue   # `[]`·`null` 등 유효 JSON 비-object 행(아래 첨자에서 TypeError)
                 key = f"{d['model_id']}::{d['task_id']}::{d['reasoning_mode']}"
                 sid = d["sample_id"]
-            except (json.JSONDecodeError, KeyError):
+            except (json.JSONDecodeError, KeyError, TypeError):
                 continue
             if key in done_keys:
                 kept.append(line)          # 완료 셀 행은 그대로 보존

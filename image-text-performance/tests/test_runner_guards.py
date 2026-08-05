@@ -134,9 +134,36 @@ def test_reasoning_mode_change_blocks_resume():
     assert any("reasoning" in d for d in _manifest_drift(prev, cur))
 
 
-def test_empty_prev_manifest_is_permissive():
-    """옛 run에 없던 필드는 비교하지 않는다(하위호환) — 빈 manifest는 통과."""
+def test_empty_prev_manifest_shows_no_drift_but_is_rejected_upstream():
+    """빈 manifest는 드리프트 검사만으로는 통과한다 — 그래서 러너가 **호출 전에** 막는다.
+
+    `_manifest_drift`는 없는 필드를 건너뛰므로 `{}`는 구조적으로 "차이 없음"이다.
+    이 함수만 믿으면 구성 가드가 통째로 무력화되므로, 핵심 축 존재 여부는
+    `_missing_manifest_axes`가 따로 검증한다(아래 테스트).
+    """
     assert _manifest_drift({}, _manifest(["opus"])) == []
+
+
+@pytest.mark.parametrize("prev,why", [
+    ({}, "빈 dict — 모든 축 누락"),
+    ({"models": [], "task_ids": ["IMG-1"], "reasoning_modes": ["minimal"],
+      "samples_per_task": 30, "profile": "ai_devtools"}, "models가 빈 리스트"),
+    ({"models": [{"id": "opus"}], "task_ids": ["IMG-1"], "reasoning_modes": ["minimal"],
+      "samples_per_task": 30}, "profile 누락"),
+    ({"models": [{"id": "opus"}], "reasoning_modes": ["minimal"],
+      "samples_per_task": 30, "profile": "ai_devtools"}, "task_ids 누락"),
+])
+def test_resume_rejects_manifest_missing_core_axes(prev, why):
+    """핵심 축이 비어 있으면 resume을 거부한다 — 비교할 수 없으면 섞일 수 있다."""
+    missing = runner._missing_manifest_axes(prev)
+    assert missing, f"{why}: 거부해야 하는데 통과했다"
+
+
+def test_resume_accepts_complete_manifest():
+    prev = {"models": [{"id": "opus"}], "task_ids": ["IMG-1"],
+            "reasoning_modes": ["minimal"], "samples_per_task": 30,
+            "profile": "ai_devtools"}
+    assert runner._missing_manifest_axes(prev) == []
 
 
 # ──────────────────────────────────────────────── 완주 판정(2026-08-06 지적)
@@ -574,3 +601,151 @@ def test_purge_removes_old_backup_after_success(tmp_path, monkeypatch):
     current = list((tmp_path / ".trash").glob("purged-*"))
     assert len(current) == 1
     assert (current[0] / "results" / "old-run").is_dir(), "보관본에 옛 run이 들어 있어야 한다"
+
+
+# ---------------------------------------------------------------------------
+# --fresh 정리는 트랜잭션 — 정리 '후' 단계가 실패하면 되돌린다
+# (재검토 P1) 판정을 정리 전에 해도, post-purge 단계(index 재생성)가 실패하면
+# "검증된 이전 리포트를 옮긴 뒤 exit 1"이 그대로 남는다.
+# ---------------------------------------------------------------------------
+
+def test_purge_rolls_back_when_post_move_step_fails(tmp_path, monkeypatch):
+    """정리 후 검증(index 재생성)이 실패하면 이동을 전부 되돌린다."""
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    for base in (results, reports):
+        (base / "검증된-옛run").mkdir(parents=True)
+        (base / "새run").mkdir()
+    (reports / "검증된-옛run" / "report.md").write_text("신뢰할 수 있는 리포트", encoding="utf-8")
+
+    def boom():
+        raise RuntimeError("rebuild_index 실패")
+
+    with pytest.raises(RuntimeError):
+        runner._purge_previous_runs(
+            results, reports, keep_run_id="새run", post_move_verify=boom
+        )
+
+    assert (reports / "검증된-옛run" / "report.md").read_text(encoding="utf-8") == \
+        "신뢰할 수 있는 리포트", "정리 후 단계가 실패하면 이전 리포트는 제자리여야 한다"
+    assert (results / "검증된-옛run").is_dir()
+    assert (results / "새run").is_dir(), "이번 run은 건드리지 않는다"
+
+
+def test_purge_rolls_back_when_move_fails_midway(tmp_path, monkeypatch):
+    """이동이 중간에 실패해도 일부만 옮긴 상태로 남지 않는다."""
+    import shutil
+
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    for base in (results, reports):
+        (base / "옛run-a").mkdir(parents=True)
+        (base / "옛run-b").mkdir()
+        (base / "새run").mkdir()
+
+    real_move = shutil.move
+    calls = {"n": 0}
+
+    def flaky(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 3:            # 3번째 이동에서 실패
+            raise OSError("device full")
+        return real_move(src, dst)
+
+    monkeypatch.setattr(shutil, "move", flaky)
+    with pytest.raises(OSError):
+        runner._purge_previous_runs(results, reports, keep_run_id="새run")
+    monkeypatch.setattr(shutil, "move", real_move)
+
+    for base in (results, reports):
+        for name in ("옛run-a", "옛run-b", "새run"):
+            assert (base / name).is_dir(), f"{base.name}/{name}이 제자리에 없다(롤백 실패)"
+
+
+def test_purge_succeeds_when_post_move_step_passes(tmp_path, monkeypatch):
+    """정상 경로: 정리 후 단계까지 성공하면 이동이 확정된다."""
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    for base in (results, reports):
+        (base / "옛run").mkdir(parents=True)
+        (base / "새run").mkdir()
+    ran = {"verify": False}
+
+    runner._purge_previous_runs(
+        results, reports, keep_run_id="새run",
+        post_move_verify=lambda: ran.__setitem__("verify", True),
+    )
+
+    assert ran["verify"], "정리 후 검증이 호출돼야 한다"
+    assert not (results / "옛run").exists() and not (reports / "옛run").exists()
+    assert (results / "새run").is_dir()
+
+
+# ---------------------------------------------------------------------------
+# 오염 셀 판정도 last-wins 기준 (물리 행 중복 집계 금지)
+# ---------------------------------------------------------------------------
+
+def _row(sid, out, *, model="opus", task="IMG-1", mode="minimal"):
+    return json.dumps({
+        "model_id": model, "task_id": task, "sample_id": sid, "reasoning_mode": mode,
+        "prompt": "p", "model_output": out, "reference": "r", "request_id": None,
+        "finish_reason": "error" if out.startswith("__ERROR__") else "stop",
+        "usage": {}, "latency_ms_local": 1.0, "timestamp": "2026-08-06T00:00:00Z",
+    })
+
+
+def test_poisoned_cells_uses_last_row_per_sample(tmp_path):
+    """옛 성공 30 + 최신 403 30이면 실제는 30/30 실패 → 오염 셀로 잡아야 한다.
+
+    물리 행을 세면 30/60=50%로 임계(0.5)를 '넘지 못해' 재실행 대상에서 빠졌다.
+    """
+    lines = [_row(i, f"정상 응답 {i}") for i in range(30)]        # 옛 성공
+    lines += [_row(i, "__ERROR__: 403 IP ACL") for i in range(30)]  # 최신 실패
+    samples = tmp_path / "samples.jsonl"
+    samples.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    poisoned = runner._poisoned_cells(samples)
+    assert "opus::IMG-1::minimal" in poisoned, \
+        "마지막 행이 전부 실패인 셀은 오염 셀이다(물리 행 중복 집계로 희석되면 안 됨)"
+
+
+def test_poisoned_cells_recovered_cell_not_flagged(tmp_path):
+    """반대 방향: 옛 실패를 재호출로 복구했으면 오염 셀이 아니다."""
+    lines = [_row(i, "__ERROR__: 502") for i in range(30)]     # 옛 실패
+    lines += [_row(i, f"정상 응답 {i}") for i in range(30)]      # 재호출 성공
+    samples = tmp_path / "samples.jsonl"
+    samples.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert runner._poisoned_cells(samples) == set(), \
+        "복구된 셀을 오염으로 보면 멀쩡한 결과를 또 재호출한다"
+
+
+# ---------------------------------------------------------------------------
+# 손상 JSON 처리를 경로마다 일관되게 (유효 JSON 비-object 행)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("bad", ["[]", "null", "42", '"문자열"'])
+def test_all_load_paths_survive_valid_json_non_object_rows(tmp_path, bad):
+    """`[]`·`null` 같은 행에서 resume 경로가 죽지 않는다.
+
+    예전엔 load_sample_results만 건너뛰고 _load_cell_rows는 AttributeError,
+    _partial_progress는 TypeError로 실행 전체가 중단됐다.
+    """
+    from src.results import load_sample_results
+
+    samples = tmp_path / "samples.jsonl"
+    samples.write_text(
+        bad + "\n" + _row(0, "정상") + "\n" + bad + "\n" + _row(1, "정상") + "\n",
+        encoding="utf-8",
+    )
+
+    rows = load_sample_results(tmp_path)
+    assert len(rows) == 2
+
+    cell = runner._load_cell_rows(samples, "opus", "IMG-1", "minimal", {0, 1})
+    assert set(cell) == {0, 1}, "정상 행은 그대로 읽혀야 한다"
+
+    assert runner._poisoned_cells(samples) == set()
+
+    progress = runner._partial_progress(samples, set(), drop_keys=set())
+    assert progress.get("opus::IMG-1::minimal") == {0, 1}
