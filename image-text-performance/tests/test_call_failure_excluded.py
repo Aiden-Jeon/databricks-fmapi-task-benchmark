@@ -141,3 +141,40 @@ def test_mixed_failures_are_counted_separately():
 
     assert out["n_evaluated"] == 2, f"파싱 실패가 분모에서 빠졌다: {out}"
     assert out["n_skipped"] == 1, f"호출 실패가 분모에 들어갔다: {out}"
+
+
+# ──────────────────────────────── IMG-1 BERTScore 버퍼 (review 지적, 2026-08-06)
+
+
+def test_img1_bertscore_excludes_call_failures():
+    """IMG-1의 BERTScore 버퍼가 호출 실패를 담지 않는다.
+
+    (Isaac Review 지적) `CALL_FAILED`는 falsy라 `str(parsed or "")`가 빈 문자열이 되어
+    "빈 후보 vs 정답" 쌍이 BERTScore에 들어갔다. 그러면 caption_token_f1(호출 실패 제외)과
+    bertscore(포함)의 분모가 어긋나고, 엔드포인트 장애가 BERTScore를 끌어내린다.
+    파싱 실패(None)는 실제 0점이므로 **포함**돼야 한다 — 두 축을 여기서도 지킨다.
+    """
+    from src.tasks.loader import discover_tasks
+
+    inst = discover_tasks()["IMG-1"]({}, load_registry())
+    acc = inst.make_accumulator()
+    s = Sample(sample_id=0, inputs={}, reference=["a cat on a mat"], lang="en")
+
+    acc.add("a cat sits on a mat", s)   # 성공 → 버퍼 포함
+    acc.add(CALL_FAILED, s)             # 호출 실패 → 버퍼 제외
+    acc.add(None, s)                    # 파싱 실패 → 빈 후보로 포함(0점)
+
+    pairs = acc._pairs
+    assert len(pairs) == 2, f"호출 실패가 BERTScore 버퍼에 들어갔다: {pairs}"
+    assert pairs[0][0] == "a cat sits on a mat"
+    assert pairs[1][0] == "", "파싱 실패는 빈 후보로 채점돼야 한다"
+
+
+def test_img1_caption_bertscore_helper_filters_call_failed():
+    """score() 경로가 쓰는 헬퍼도 호출 실패를 걸러낸다(직접 호출 방어)."""
+    from src.tasks.img_1 import _caption_bertscore
+
+    s = Sample(sample_id=0, inputs={}, reference=["a cat"], lang="en")
+    out = _caption_bertscore([CALL_FAILED, CALL_FAILED], [s, s])
+    # 유효 쌍이 하나도 없으면 계산 불가로 표시된다(빈 후보로 0점을 만들지 않는다).
+    assert "bertscore_f1" not in out, out

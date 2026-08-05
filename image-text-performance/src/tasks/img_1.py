@@ -17,7 +17,7 @@ from PIL import Image
 from src.adapters.fmapi import build_image_message, FMAPIClient
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
-from src.scoring.accumulators import MeanAccumulator
+from src.scoring.accumulators import MeanAccumulator, is_call_failed
 from src.scoring.metrics import bertscore_f1, token_f1
 from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
@@ -37,9 +37,15 @@ def _first_ref(reference: Any) -> str:
 
 
 def _caption_bertscore(parsed: list[str], samples: list[Sample]) -> dict:
-    """캡션 BERTScore. score()와 누적기가 같은 값을 내도록 이 함수를 공유한다."""
+    """캡션 BERTScore. score()와 누적기가 같은 값을 내도록 이 함수를 공유한다.
+
+    호출 실패(CALL_FAILED)는 제외한다 — 러너가 폴백 경로에서 이미 걸러주지만, 이 함수를
+    직접 부르는 경우(테스트·자체점검)에도 빈 후보가 섞이지 않도록 여기서도 방어한다.
+    """
     pairs = [
-        (str(p or ""), _first_ref(s.reference)) for p, s in zip(parsed, samples)
+        (str(p or ""), _first_ref(s.reference))
+        for p, s in zip(parsed, samples)
+        if not is_call_failed(p)
     ][:BERTSCORE_MAX_PAIRS]
     return bertscore_f1([c for c, _ in pairs], [r for _, r in pairs])
 
@@ -57,6 +63,12 @@ class _Img1Accumulator:
 
     def add(self, parsed: Any, sample: Any) -> None:
         self._inner.add(parsed, sample)
+        # 호출 실패는 BERTScore 버퍼에도 넣지 않는다. CALL_FAILED는 falsy라
+        # `str(parsed or "")`가 빈 문자열이 되어 "빈 후보 vs 정답" 쌍이 들어가고,
+        # 그러면 caption_token_f1(제외됨)과 bertscore(포함됨)의 분모가 어긋나면서
+        # 엔드포인트 장애가 BERTScore를 끌어내린다(파싱 실패 None은 실제 0점이라 포함).
+        if is_call_failed(parsed):
+            return
         if len(self._pairs) < BERTSCORE_MAX_PAIRS:
             self._pairs.append((str(parsed or ""), _first_ref(sample.reference)))
 
