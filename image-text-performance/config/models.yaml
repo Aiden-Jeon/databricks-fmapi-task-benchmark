@@ -19,8 +19,13 @@ runtime:
                                         # 2026-08-05: 15초로는 IMG-6(표이미지→HTML 전체 생성)이
                                         # opus 19/30, sol 5/30 타임아웃/503 실패 → 실패가 0점으로
                                         # 채점돼 "성능 낮음"처럼 보였다. 긴 출력 태스크 여유분으로 60s.
-  max_retries: 3                        # 지수 backoff
-  backoff_initial_seconds: 0.5
+  # 재시도는 업스트림 장애가 **지나갈 시간**을 벌어야 한다. 3회 × 0.5s 초기값이면
+  # 0.5+1+2 = 3.5초 안에 다 소진돼 502가 몇 초만 이어져도 3회가 같은 장애 구간에 걸린다.
+  # 2026-08-05 실측: opus 이미지 호출에서 `HTTP 502 "invalid response from an upstream
+  # server"`가 IMG-2·IMG-4에서 각각 11/30 발생(같은 샘플을 sol은 전부 성공 → 데이터가
+  # 아니라 엔드포인트 문제). 5회 × 2s면 2+4+8+16 = 30초를 커버한다.
+  max_retries: 5                        # 지수 backoff
+  backoff_initial_seconds: 2.0
   # ⚠️ max_concurrency는 **현재 미사용**이다(러너가 순차 실행). 값을 올려도 빨라지지 않는다.
   # 병렬화 시 참고용으로만 남겨둔다(실측: rate limit 넉넉, 429 미관측 → 5~10 안전).
   max_concurrency: 8

@@ -200,14 +200,23 @@ class Img2Task(Task):
         )
         return build_image_message(prompt, image_url)
 
-    def parse_output(self, raw_text: str, sample: Sample) -> set[str]:
-        """모델 응답을 정규화된 태그 set으로 파싱.
+    def parse_output(self, raw_text: str, sample: Sample) -> set[str] | None:
+        """모델 응답을 정규화된 태그 set으로 파싱. **호출 실패는 None**(채점 제외).
 
         쉼표/줄바꿈으로 분할. 단어가 아닌 문장 부분은 제외.
         짧고 명사 같은 항목만 선택 (한두 단어).
+
+        **호출 실패 처리 (2026-08-05 수정)**: 러너는 호출이 실패하면 `model_output`에
+        `"__ERROR__: ..."`를 넣는다. 예전엔 그 문자열을 정상 텍스트로 파싱해 빈 set이
+        되고 그게 **0점으로 채점**됐다(실측: opus IMG-2가 502로 11/30 실패 → micro_f1
+        0.671, 성공 19건만 보면 0.786). 분류 태스크들(IMG-3/4/5)은 None을 돌려 이미
+        제외하고 있었는데 이 태스크만 0점으로 섞었다. `score()`·누적기가 None을 제외하므로
+        여기서 None을 돌려주면 실패가 성능으로 오독되지 않는다.
         """
         if not raw_text:
-            return set()
+            return None
+        if str(raw_text).startswith("__ERROR__"):
+            return None
 
         import re
 

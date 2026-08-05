@@ -367,8 +367,14 @@ class _Txt5Accumulator:
         # 상한을 넘으면 그 이후 샘플은 BERTScore에서만 빠지고(ROUGE는 전부 반영),
         # 몇 쌍으로 계산했는지 bertscore_n으로 리포트에 드러난다.
         self._bs_pairs: list[tuple[str, str]] = []
+        self._skipped = 0   # 호출 실패로 채점에서 빠진 샘플 수
 
     def add(self, parsed: Any, sample: Sample) -> None:
+        if parsed is None:
+            # 호출 실패(러너가 None을 넘긴다) — 채점 제외. 예전엔 _compute_rouge가
+            # None.lower()로 예외를 던져 셀 전체가 error로 죽었다.
+            self._skipped += 1
+            return
         lang = sample.lang if sample.lang in self._sum else "en"
         rouge = _compute_rouge(parsed, sample.reference, lang)
         for k in ("rouge1", "rouge2", "rougeL"):
@@ -408,6 +414,8 @@ class _Txt5Accumulator:
         }
         # 실제로 계산한다. 예전엔 "deferred (torch 미설치)"를 하드코딩해 torch가 설치된
         # 환경에서도 값이 안 나왔다. 불가하면 bertscore_f1()이 이유를 담아 돌려준다.
+        if self._skipped:
+            out["n_skipped"] = self._skipped
         out.update(bertscore_f1([c for c, _ in self._bs_pairs], [r for _, r in self._bs_pairs]))
         return out
 

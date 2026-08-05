@@ -523,10 +523,19 @@ def _run_samples(
                         output_text = f"__ERROR__: {type(e).__name__}: {e}"
                         req_id, finish, usage = None, "error", {}
 
-                    try:
-                        parsed = inst.parse_output(output_text, s)
-                    except Exception:
+                    # 호출이 실패한 샘플은 **파싱하지 않고 None**으로 둔다. 실패 응답
+                    # ("__ERROR__: ...")을 태스크의 parse_output에 넘기면 태스크마다 다르게
+                    # 처리돼 조용히 갈렸다 — 분류 태스크는 None을 돌려 채점에서 빠졌지만
+                    # IMG-2는 빈 태그셋이 돼 **0점으로 채점**됐다(실측: opus 502 11/30 →
+                    # micro_f1 0.671, 성공 19건만 보면 0.786). 실패는 성능이 아니므로
+                    # 여기 한 곳에서 일괄 제외한다(태스크별 __ERROR__ 처리 중복 불필요).
+                    if finish == "error":
                         parsed = None
+                    else:
+                        try:
+                            parsed = inst.parse_output(output_text, s)
+                        except Exception:
+                            parsed = None
 
                     if acc is not None:
                         try:

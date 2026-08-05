@@ -39,6 +39,10 @@ class MeanAccumulator:
 
     value_fn(parsed, sample) -> float | None. None이면 무효 샘플로 카운트만 하고 합 제외
     (태스크별로 무효 처리 규칙이 달라 include_invalid_as_zero로 조정).
+
+    **parsed=None(=호출 실패)은 분모에서도 뺀다** (2026-08-05). count_all=True인 태스크
+    (TXT-3·IMG-6: 빈 예측도 낮은 점수로 포함)에서 호출 실패가 0점으로 섞이면 엔드포인트
+    장애가 성능처럼 보인다. `n_skipped`로 빠진 건수를 드러낸다.
     """
 
     def __init__(
@@ -56,8 +60,13 @@ class MeanAccumulator:
         self._sum = 0.0
         self._valid = 0
         self._total = 0
+        self._skipped = 0
 
     def add(self, parsed: Any, sample: Any) -> None:
+        if parsed is None:
+            # 호출 실패 — 채점 대상이 아니다(모델이 답을 낸 게 아니므로).
+            self._skipped += 1
+            return
         self._total += 1
         v = self.value_fn(parsed, sample)
         if v is not None:
@@ -68,6 +77,8 @@ class MeanAccumulator:
         n = self._total if self.count_all else self._valid
         mean = self._sum / self._valid if self._valid else 0.0
         out: dict[str, Any] = {self.out_key: float(mean), "n_evaluated": n}
+        if self._skipped:
+            out["n_skipped"] = self._skipped
         out.update(self.static)
         return out
 
@@ -77,6 +88,12 @@ class MultiMeanAccumulator:
 
     value_fns: {out_key: fn(parsed, sample) -> float}. 모든 키가 같은 분모(전체 개수)로 평균.
     무효(파싱 실패)는 각 fn이 0.0을 반환하도록 태스크가 정의(기존 score()가 그렇게 동작).
+
+    **parsed=None은 채점에서 제외한다** (2026-08-05). 러너는 **호출 자체가 실패한** 샘플에
+    None을 넘긴다(HTTP 502·타임아웃 등). 그걸 0점으로 세면 엔드포인트 장애가 모델 성능처럼
+    보인다 — 실측: opus IMG-2가 502로 11/30 실패했을 때 micro_f1 0.671 vs 성공분만 0.786.
+    `n_skipped`로 몇 건이 빠졌는지 드러내, 조용히 분모가 줄지 않게 한다.
+    (모델이 응답은 했지만 형식을 못 맞춘 '파싱 실패'는 여전히 0점이다 — 그건 실제 능력 문제다.)
     """
 
     def __init__(self, value_fns: dict[str, Any], *, static: dict[str, Any] | None = None) -> None:
@@ -84,8 +101,12 @@ class MultiMeanAccumulator:
         self.static = static or {}
         self._sums = {k: 0.0 for k in value_fns}
         self._n = 0
+        self._skipped = 0
 
     def add(self, parsed: Any, sample: Any) -> None:
+        if parsed is None:
+            self._skipped += 1
+            return
         self._n += 1
         for k, fn in self.value_fns.items():
             self._sums[k] += float(fn(parsed, sample))
@@ -95,6 +116,8 @@ class MultiMeanAccumulator:
             k: (self._sums[k] / self._n if self._n else 0.0) for k in self.value_fns
         }
         out["n_evaluated"] = self._n
+        if self._skipped:
+            out["n_skipped"] = self._skipped
         out.update(self.static)
         return out
 

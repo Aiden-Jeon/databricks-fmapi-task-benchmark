@@ -308,12 +308,19 @@ class _Txt7Accumulator:
     """
 
     def __init__(self) -> None:
-        vf = lambda p, s: True
+        # 빈 예측 집합은 채점한다(모델이 키워드를 못 뽑은 것 = 실제 성능). 단 **None은 제외**한다 —
+        # 러너가 호출 실패 샘플에 None을 넘기고, 그건 성능이 아니다. 예전엔 항상 True라
+        # None이 통과해 `None & set` TypeError로 셀 전체가 error로 죽었다(2026-08-05 수정).
+        vf = lambda p, s: p is not None
         self._overall = MultilabelAccumulator(valid_fn=vf)
         self._lang = {"en": MultilabelAccumulator(valid_fn=vf), "ko": MultilabelAccumulator(valid_fn=vf)}
         self._n_total = 0
+        self._skipped = 0
 
     def add(self, parsed: Any, sample: Sample) -> None:
+        if parsed is None:
+            self._skipped += 1   # 호출 실패 — n_total(분모)에도 넣지 않는다
+            return
         self._n_total += 1
         self._overall.add(parsed, sample)
         sub = self._lang.get(getattr(sample, "lang", "en"))
@@ -332,7 +339,7 @@ class _Txt7Accumulator:
                     "f1": f["micro_f1"],
                     "n_evaluated": f["n_evaluated"],
                 }
-        return {
+        out = {
             "precision": o["micro_precision"],
             "recall": o["micro_recall"],
             "f1": o["micro_f1"],
@@ -342,6 +349,9 @@ class _Txt7Accumulator:
             "macro_recall": o["macro_recall"],
             "macro_f1": o["macro_f1"],
         }
+        if self._skipped:
+            out["n_skipped"] = self._skipped   # 호출 실패로 빠진 샘플 수
+        return out
 
 
 
