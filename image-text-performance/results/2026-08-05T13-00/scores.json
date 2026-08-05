@@ -5,34 +5,36 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "caption_token_f1": 0.3266761608462279,
+      "caption_token_f1": 0.32593764133343867,
       "n_evaluated": 30,
-      "notes": "bertscore deferred (torch 미설치)",
-      "judge_mean": 4.2667,
+      "bertscore_f1": 0.7461,
+      "bertscore_model": "bert-base-multilingual-cased",
+      "bertscore_n": 30,
+      "judge_mean": 4.1667,
       "judge_detail": {
         "n": 30,
         "scores": [
           5,
           5,
           3,
-          4,
           5,
           5,
           5,
-          3,
+          5,
+          2,
           5,
           5,
           1,
           5,
           5,
           5,
-          3,
+          2,
+          5,
+          5,
+          2,
+          5,
           4,
-          5,
           3,
-          5,
-          5,
-          4,
           5,
           4,
           2,
@@ -52,38 +54,40 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "caption_token_f1": 0.44376217997777917,
+      "caption_token_f1": 0.4328017518433115,
       "n_evaluated": 30,
-      "notes": "bertscore deferred (torch 미설치)",
+      "bertscore_f1": 0.7848,
+      "bertscore_model": "bert-base-multilingual-cased",
+      "bertscore_n": 30,
       "judge_mean": 3.7333,
       "judge_detail": {
         "n": 30,
         "scores": [
           5,
-          5,
+          4,
           3,
           2,
           2,
           2,
-          4,
           5,
+          4,
           3,
           5,
           1,
-          3,
+          4,
+          5,
+          5,
+          4,
           5,
           5,
           3,
-          5,
-          5,
-          3,
-          3,
+          2,
           3,
           2,
           5,
-          3,
+          2,
           4,
-          4,
+          5,
           5,
           5,
           5,
@@ -93,56 +97,19 @@
       }
     }
   },
-  "opus::IMG-2::minimal": {
-    "model_id": "opus",
-    "task_id": "IMG-2",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "micro_precision": 0.13013698630136986,
-      "micro_recall": 0.4470588235294118,
-      "micro_f1": 0.2015915119363395,
-      "macro_precision": 0.14273476523476525,
-      "macro_recall": 0.4800000000000001,
-      "macro_f1": 0.2131105412761759,
-      "n_evaluated": 30
-    }
-  },
   "sol::IMG-2::minimal": {
     "model_id": "sol",
     "task_id": "IMG-2",
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "micro_precision": 0.17989417989417988,
-      "micro_recall": 0.4,
-      "micro_f1": 0.24817518248175183,
-      "macro_precision": 0.20066378066378068,
-      "macro_recall": 0.4311111111111111,
-      "macro_f1": 0.26635882635882635,
+      "micro_precision": 0.8470588235294118,
+      "micro_recall": 0.8470588235294118,
+      "micro_f1": 0.8470588235294118,
+      "macro_precision": 0.9040476190476192,
+      "macro_recall": 0.8744444444444446,
+      "macro_f1": 0.8703102453102455,
       "n_evaluated": 30
-    }
-  },
-  "opus::IMG-3::minimal": {
-    "model_id": "opus",
-    "task_id": "IMG-3",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "accuracy": 0.7,
-      "f1": 0.8085106382978723,
-      "confusion_matrix": {
-        "tn": 2,
-        "fp": 9,
-        "fn": 0,
-        "tp": 19
-      },
-      "n_evaluated": 30,
-      "n_unparsed": 0,
-      "class_balance": {
-        "class_0": 11,
-        "class_1": 19
-      }
     }
   },
   "sol::IMG-3::minimal": {
@@ -164,28 +131,6 @@
       "class_balance": {
         "class_0": 11,
         "class_1": 19
-      }
-    }
-  },
-  "opus::IMG-4::minimal": {
-    "model_id": "opus",
-    "task_id": "IMG-4",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "accuracy": 0.9333333333333333,
-      "f1": 0.9285714285714286,
-      "confusion_matrix": {
-        "tn": 15,
-        "fp": 0,
-        "fn": 2,
-        "tp": 13
-      },
-      "n_evaluated": 30,
-      "n_unparsed": 0,
-      "class_balance": {
-        "sfw_count": 15,
-        "nsfw_count": 15
       }
     }
   },
@@ -211,28 +156,6 @@
       }
     }
   },
-  "opus::IMG-5::minimal": {
-    "model_id": "opus",
-    "task_id": "IMG-5",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "accuracy": 0.9333333333333333,
-      "f1": 0.9411764705882353,
-      "confusion_matrix": {
-        "tn": 12,
-        "fp": 0,
-        "fn": 2,
-        "tp": 16
-      },
-      "n_evaluated": 30,
-      "n_unparsed": 0,
-      "class_balance": {
-        "class_0": 12,
-        "class_1": 18
-      }
-    }
-  },
   "sol::IMG-5::minimal": {
     "model_id": "sol",
     "task_id": "IMG-5",
@@ -255,25 +178,46 @@
       }
     }
   },
+  "opus::IMG-6::minimal": {
+    "model_id": "opus",
+    "task_id": "IMG-6",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "cell_f1": 0.8717527857890182,
+      "n_evaluated": 30,
+      "notes": "표 이미지 → HTML, Cell-F1(셀 퍼지 매칭 threshold=0.8). TXT-3와 동일 채점."
+    }
+  },
+  "sol::IMG-6::minimal": {
+    "model_id": "sol",
+    "task_id": "IMG-6",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "cell_f1": 0.8332383712361742,
+      "n_evaluated": 30,
+      "notes": "표 이미지 → HTML, Cell-F1(셀 퍼지 매칭 threshold=0.8). TXT-3와 동일 채점."
+    }
+  },
   "opus::TXT-1::minimal": {
     "model_id": "opus",
     "task_id": "TXT-1",
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "anls": 0.9132478632478632,
-      "token_f1": 0.8933333333333333,
-      "exact_match": 0.8666666666666667,
+      "anls": 0.9521367521367521,
+      "token_f1": 0.9600000000000001,
+      "exact_match": 0.9333333333333333,
       "n_evaluated": 30,
-      "judge_mean": 4.7,
+      "judge_mean": 4.9655,
       "judge_detail": {
-        "n": 30,
+        "n": 29,
         "scores": [
           5,
           5,
           5,
           4,
-          1,
           5,
           5,
           5,
@@ -289,7 +233,8 @@
           5,
           5,
           5,
-          1,
+          5,
+          null,
           5,
           5,
           5,
@@ -299,7 +244,8 @@
           5,
           5,
           5
-        ]
+        ],
+        "n_failed": 1
       }
     }
   },
@@ -309,11 +255,11 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "anls": 0.8805555555555554,
-      "token_f1": 0.8242424242424242,
+      "anls": 0.8638888888888888,
+      "token_f1": 0.8409090909090909,
       "exact_match": 0.8333333333333334,
       "n_evaluated": 30,
-      "judge_mean": 4.4667,
+      "judge_mean": 4.5667,
       "judge_detail": {
         "n": 30,
         "scores": [
@@ -335,10 +281,10 @@
           5,
           5,
           5,
-          5,
+          4,
           5,
           1,
-          1,
+          5,
           5,
           1,
           5,
@@ -357,11 +303,11 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "anls": 0.8632478632478633,
-      "token_f1": 0.8266666666666667,
-      "exact_match": 0.8,
+      "anls": 0.8188034188034189,
+      "token_f1": 0.798888888888889,
+      "exact_match": 0.7333333333333333,
       "n_evaluated": 30,
-      "judge_mean": 4.4333,
+      "judge_mean": 4.3667,
       "judge_detail": {
         "n": 30,
         "scores": [
@@ -384,7 +330,7 @@
           5,
           5,
           5,
-          5,
+          3,
           1,
           1,
           5,
@@ -405,10 +351,10 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "accuracy": 0.1,
-      "token_f1": 0.16732943423622118,
+      "accuracy": 0.5333333333333333,
+      "token_f1": 0.5888888888888889,
       "n_evaluated": 30,
-      "judge_mean": 4.4333,
+      "judge_mean": 4.2667,
       "judge_detail": {
         "n": 30,
         "scores": [
@@ -418,29 +364,29 @@
           5,
           5,
           5,
+          4,
           5,
           5,
           5,
           5,
-          5,
-          5,
-          5,
-          2,
           5,
           5,
           1,
-          4,
-          2,
           5,
           5,
-          4,
-          4,
+          1,
+          5,
+          1,
+          5,
           1,
           5,
           5,
           5,
+          4,
           5,
           5,
+          2,
+          4,
           5
         ]
       }
@@ -452,43 +398,43 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "accuracy": 0.0,
-      "token_f1": 0.18929659712268412,
+      "accuracy": 0.6,
+      "token_f1": 0.6555555555555556,
       "n_evaluated": 30,
-      "judge_mean": 3.7,
+      "judge_mean": 3.8667,
       "judge_detail": {
         "n": 30,
         "scores": [
-          4,
+          5,
           1,
           5,
           5,
-          5,
-          5,
-          5,
-          4,
           5,
           5,
           4,
           5,
           1,
+          5,
+          5,
+          5,
           1,
+          1,
+          5,
+          5,
+          1,
+          5,
+          1,
+          5,
+          5,
+          5,
+          5,
           5,
           4,
-          1,
-          4,
-          1,
-          5,
-          4,
-          5,
-          5,
-          5,
           5,
           5,
           1,
           1,
-          1,
-          4
+          5
         ]
       }
     }
@@ -499,56 +445,45 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "accuracy": 0.1,
-      "token_f1": 0.11394026471612677,
+      "accuracy": 0.5,
+      "token_f1": 0.538888888888889,
       "n_evaluated": 30,
-      "judge_mean": 4.0667,
+      "judge_mean": 3.4333,
       "judge_detail": {
         "n": 30,
         "scores": [
+          1,
+          1,
           5,
           5,
           5,
           5,
+          4,
           5,
-          5,
-          2,
-          5,
-          5,
-          5,
+          1,
           5,
           5,
           5,
-          2,
+          1,
+          1,
           5,
           5,
           1,
           5,
           1,
           5,
+          1,
+          5,
+          5,
+          1,
+          4,
+          5,
+          1,
+          2,
           3,
-          5,
-          5,
-          5,
-          5,
-          5,
-          1,
-          1,
-          1,
           5
         ]
       }
-    }
-  },
-  "opus::TXT-3::minimal": {
-    "model_id": "opus",
-    "task_id": "TXT-3",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "cell_f1": 0.9423920725573859,
-      "n_evaluated": 30,
-      "notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정."
     }
   },
   "sol::TXT-3::minimal": {
@@ -557,7 +492,7 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "cell_f1": 0.9791180126407645,
+      "cell_f1": 0.9774086109313628,
       "n_evaluated": 30,
       "notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정."
     }
@@ -573,64 +508,16 @@
       "notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정."
     }
   },
-  "opus::TXT-4::minimal": {
-    "model_id": "opus",
-    "task_id": "TXT-4",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "token_f1": 0.8370683269476374,
-      "exact_match": 0.6,
-      "n_evaluated": 30,
-      "korean_backend": "unknown",
-      "judge_mean": 5.0,
-      "judge_detail": {
-        "n": 30,
-        "scores": [
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5
-        ]
-      }
-    }
-  },
   "sol::TXT-4::minimal": {
     "model_id": "sol",
     "task_id": "TXT-4",
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "token_f1": 0.8809716209716211,
-      "exact_match": 0.6666666666666666,
+      "token_f1": 0.8403270803270804,
+      "exact_match": 0.6,
       "n_evaluated": 30,
-      "korean_backend": "syllable",
+      "korean_backend": "mecab",
       "judge_mean": 5.0,
       "judge_detail": {
         "n": 30,
@@ -675,10 +562,10 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "token_f1": 0.9507203907203908,
+      "token_f1": 0.9553535353535353,
       "exact_match": 0.8333333333333334,
       "n_evaluated": 30,
-      "korean_backend": "syllable",
+      "korean_backend": "mecab",
       "judge_mean": 5.0,
       "judge_detail": {
         "n": 30,
@@ -723,31 +610,41 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "rouge1": 0.3249454694910084,
-      "rouge2": 0.15909218993653246,
-      "rougeL": 0.2599944628178325,
+      "rouge1": 0.3262946518803138,
+      "rouge2": 0.18060584799718907,
+      "rougeL": 0.27422595900495317,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "rouge1": 0.26012562199805106,
-          "rouge2": 0.09179685184656985,
-          "rougeL": 0.18157873916724962,
+          "rouge1": 0.24676722448611327,
+          "rouge2": 0.0878176004416844,
+          "rougeL": 0.17499208185625578,
           "n_evaluated": 15
         },
         "ko": {
-          "rouge1": 0.38976531698396566,
-          "rouge2": 0.22638752802649503,
-          "rougeL": 0.3384101864684154,
+          "rouge1": 0.4058220792745144,
+          "rouge2": 0.2733940955526937,
+          "rougeL": 0.3734598361536505,
           "n_evaluated": 15
         }
       },
-      "bertscore": "deferred (torch 미설치)",
-      "korean_backend": "syllable",
-      "judge_mean": 4.8966,
+      "korean_backend": "mecab",
+      "bertscore_f1": 0.7372,
+      "bertscore_model": "bert-base-multilingual-cased",
+      "bertscore_n": 30,
+      "judge_mean": 4.9,
       "judge_detail": {
-        "n": 29,
+        "n": 30,
         "scores": [
           5,
+          4,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          4,
           5,
           5,
           5,
@@ -756,7 +653,6 @@
           5,
           5,
           4,
-          4,
           5,
           5,
           5,
@@ -766,27 +662,19 @@
           5,
           5,
           5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          null,
-          4,
           5,
           5,
           5,
           5
         ],
-        "n_failed": 1,
         "per_language": {
           "en": {
             "mean": 4.866666666666666,
             "n": 15
           },
           "ko": {
-            "mean": 4.928571428571429,
-            "n": 14
+            "mean": 4.933333333333334,
+            "n": 15
           }
         }
       }
@@ -798,49 +686,46 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "rouge1": 0.31498620542937844,
-      "rouge2": 0.13799777327745522,
-      "rougeL": 0.2543233782976342,
+      "rouge1": 0.3304926486155575,
+      "rouge2": 0.16033540445116506,
+      "rougeL": 0.2705236067447055,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "rouge1": 0.2601507147625511,
-          "rouge2": 0.08011235567171951,
-          "rougeL": 0.1675430092170112,
+          "rouge1": 0.2610987103880064,
+          "rouge2": 0.07875640908470453,
+          "rougeL": 0.17567567681352644,
           "n_evaluated": 15
         },
         "ko": {
-          "rouge1": 0.3698216960962058,
-          "rouge2": 0.1958831908831909,
-          "rougeL": 0.34110374737825716,
+          "rouge1": 0.39988658684310857,
+          "rouge2": 0.2419143998176256,
+          "rougeL": 0.36537153667588446,
           "n_evaluated": 15
         }
       },
-      "bertscore": "deferred (torch 미설치)",
-      "korean_backend": "syllable",
-      "judge_mean": 4.7667,
+      "korean_backend": "mecab",
+      "bertscore_f1": 0.7343,
+      "bertscore_model": "bert-base-multilingual-cased",
+      "bertscore_n": 30,
+      "judge_mean": 4.8276,
       "judge_detail": {
-        "n": 30,
+        "n": 29,
         "scores": [
           5,
           5,
           5,
           5,
+          5,
+          5,
+          4,
+          5,
           4,
           5,
           5,
           5,
-          3,
           5,
           5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          5,
-          4,
           5,
           5,
           5,
@@ -848,19 +733,25 @@
           4,
           5,
           5,
+          5,
+          5,
+          5,
+          5,
+          null,
           5,
           5,
           4,
           4
         ],
+        "n_failed": 1,
         "per_language": {
           "en": {
-            "mean": 4.8,
+            "mean": 4.866666666666666,
             "n": 15
           },
           "ko": {
-            "mean": 4.733333333333333,
-            "n": 15
+            "mean": 4.785714285714286,
+            "n": 14
           }
         }
       }
@@ -872,69 +763,71 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "rouge1": 0.2715586560239177,
-      "rouge2": 0.11475094917691352,
-      "rougeL": 0.2149101848752739,
+      "rouge1": 0.2871866276808716,
+      "rouge2": 0.1350145731046108,
+      "rougeL": 0.2336499870881924,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "rouge1": 0.253149489321392,
-          "rouge2": 0.08459569344762213,
-          "rougeL": 0.1769184440900015,
+          "rouge1": 0.26208277611474223,
+          "rouge2": 0.09373700035185831,
+          "rougeL": 0.19038235395441683,
           "n_evaluated": 15
         },
         "ko": {
-          "rouge1": 0.28996782272644345,
-          "rouge2": 0.14490620490620493,
-          "rougeL": 0.2529019256605463,
+          "rouge1": 0.312290479247001,
+          "rouge2": 0.17629214585736325,
+          "rougeL": 0.27691762022196803,
           "n_evaluated": 15
         }
       },
-      "bertscore": "deferred (torch 미설치)",
-      "korean_backend": "syllable",
-      "judge_mean": 4.4483,
+      "korean_backend": "mecab",
+      "bertscore_f1": 0.7359,
+      "bertscore_model": "bert-base-multilingual-cased",
+      "bertscore_n": 30,
+      "judge_mean": 4.5862,
       "judge_detail": {
         "n": 29,
         "scores": [
           5,
-          2,
-          5,
-          5,
-          5,
-          5,
-          3,
-          5,
           3,
           5,
           5,
           5,
           5,
+          4,
           5,
+          4,
+          5,
+          5,
+          5,
+          5,
+          4,
           3,
           5,
           5,
-          5,
-          4,
-          4,
-          5,
-          5,
-          4,
-          4,
           5,
           null,
           5,
+          5,
+          5,
+          5,
           4,
+          5,
           3,
+          5,
+          4,
+          4,
           5
         ],
         "n_failed": 1,
         "per_language": {
           "en": {
-            "mean": 4.4,
+            "mean": 4.533333333333333,
             "n": 15
           },
           "ko": {
-            "mean": 4.5,
+            "mean": 4.642857142857143,
             "n": 14
           }
         }
@@ -1019,21 +912,21 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "precision": 0.3029661016949153,
-      "recall": 0.45110410094637227,
-      "f1": 0.36248415716096327,
+      "precision": 0.3148936170212766,
+      "recall": 0.4668769716088328,
+      "f1": 0.3761118170266836,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "precision": 0.3029661016949153,
-          "recall": 0.45110410094637227,
-          "f1": 0.36248415716096327,
+          "precision": 0.3148936170212766,
+          "recall": 0.4668769716088328,
+          "f1": 0.3761118170266836,
           "n_evaluated": 30
         }
       },
-      "macro_precision": 0.3018011784795673,
-      "macro_recall": 0.448774709907433,
-      "macro_f1": 0.3443244078212659
+      "macro_precision": 0.3148616809037121,
+      "macro_recall": 0.48266304580663844,
+      "macro_f1": 0.3627719829373888
     }
   },
   "sol::TXT-7::minimal": {
@@ -1042,21 +935,21 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "precision": 0.36950146627565983,
-      "recall": 0.39747634069400634,
-      "f1": 0.3829787234042553,
+      "precision": 0.38439306358381503,
+      "recall": 0.4195583596214511,
+      "f1": 0.40120663650075417,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "precision": 0.36950146627565983,
-          "recall": 0.39747634069400634,
-          "f1": 0.3829787234042553,
+          "precision": 0.38439306358381503,
+          "recall": 0.4195583596214511,
+          "f1": 0.40120663650075417,
           "n_evaluated": 30
         }
       },
-      "macro_precision": 0.37498001998001995,
-      "macro_recall": 0.40913618820369396,
-      "macro_f1": 0.3761315491398844
+      "macro_precision": 0.3936546079193138,
+      "macro_recall": 0.4470605664570196,
+      "macro_f1": 0.398050495131293
     }
   },
   "glm::TXT-7::minimal": {
@@ -1065,57 +958,25 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "precision": 0.5,
-      "recall": 0.5331230283911672,
-      "f1": 0.5160305343511451,
+      "precision": 0.4954128440366973,
+      "recall": 0.5110410094637224,
+      "f1": 0.5031055900621118,
       "n_evaluated": 30,
       "per_language": {
         "en": {
-          "precision": 0.5,
-          "recall": 0.5331230283911672,
-          "f1": 0.5160305343511451,
+          "precision": 0.4954128440366973,
+          "recall": 0.5110410094637224,
+          "f1": 0.5031055900621118,
           "n_evaluated": 30
         }
       },
-      "macro_precision": 0.4832621472095157,
-      "macro_recall": 0.5196212567837281,
-      "macro_f1": 0.4806276707435201
+      "macro_precision": 0.4820179136483484,
+      "macro_recall": 0.49674740548882423,
+      "macro_f1": 0.46865173717874686
     }
   },
   "opus::TXT-8::minimal": {
     "model_id": "opus",
-    "task_id": "TXT-8",
-    "reasoning_mode": "minimal",
-    "n": 30,
-    "metrics": {
-      "accuracy": 0.8,
-      "f1": 0.6666666666666666,
-      "confusion_matrix": {
-        "tn": 18,
-        "fp": 3,
-        "fn": 3,
-        "tp": 6
-      },
-      "n_evaluated": 30,
-      "n_unparsed": 0,
-      "per_language": {
-        "en": {
-          "n_evaluated": 15,
-          "n_unparsed": 0,
-          "accuracy": 0.9333333333333333,
-          "f1": 0.8571428571428571
-        },
-        "ko": {
-          "n_evaluated": 15,
-          "n_unparsed": 0,
-          "accuracy": 0.6666666666666666,
-          "f1": 0.5454545454545454
-        }
-      }
-    }
-  },
-  "sol::TXT-8::minimal": {
-    "model_id": "sol",
     "task_id": "TXT-8",
     "reasoning_mode": "minimal",
     "n": 30,
@@ -1134,8 +995,40 @@
         "en": {
           "n_evaluated": 15,
           "n_unparsed": 0,
-          "accuracy": 0.8666666666666667,
-          "f1": 0.75
+          "accuracy": 0.9333333333333333,
+          "f1": 0.8571428571428571
+        },
+        "ko": {
+          "n_evaluated": 15,
+          "n_unparsed": 0,
+          "accuracy": 0.7333333333333333,
+          "f1": 0.6666666666666666
+        }
+      }
+    }
+  },
+  "sol::TXT-8::minimal": {
+    "model_id": "sol",
+    "task_id": "TXT-8",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "accuracy": 0.8666666666666667,
+      "f1": 0.7777777777777778,
+      "confusion_matrix": {
+        "tn": 19,
+        "fp": 2,
+        "fn": 2,
+        "tp": 7
+      },
+      "n_evaluated": 30,
+      "n_unparsed": 0,
+      "per_language": {
+        "en": {
+          "n_evaluated": 15,
+          "n_unparsed": 0,
+          "accuracy": 0.9333333333333333,
+          "f1": 0.8571428571428571
         },
         "ko": {
           "n_evaluated": 15,
@@ -1152,11 +1045,11 @@
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "accuracy": 0.9,
-      "f1": 0.8235294117647058,
+      "accuracy": 0.8666666666666667,
+      "f1": 0.7777777777777778,
       "confusion_matrix": {
-        "tn": 20,
-        "fp": 1,
+        "tn": 19,
+        "fp": 2,
         "fn": 2,
         "tp": 7
       },
@@ -1166,8 +1059,8 @@
         "en": {
           "n_evaluated": 15,
           "n_unparsed": 0,
-          "accuracy": 1.0,
-          "f1": 1.0
+          "accuracy": 0.9333333333333333,
+          "f1": 0.8571428571428571
         },
         "ko": {
           "n_evaluated": 15,
@@ -1178,26 +1071,155 @@
       }
     }
   },
-  "opus::IMG-6::minimal": {
+  "opus::IMG-2::minimal": {
     "model_id": "opus",
-    "task_id": "IMG-6",
+    "task_id": "IMG-2",
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "cell_f1": 0.8409933292436219,
-      "n_evaluated": 30,
-      "notes": "표 이미지 → HTML, Cell-F1(셀 퍼지 매칭 threshold=0.8). TXT-3와 동일 채점."
-    }
+      "micro_precision": 0.6526315789473685,
+      "micro_recall": 0.9538461538461539,
+      "micro_f1": 0.7750000000000001,
+      "macro_precision": 0.7591013431013433,
+      "macro_recall": 0.94,
+      "macro_f1": 0.8095219421101774,
+      "n_evaluated": 25
+    },
+    "n_call_failed": 5,
+    "call_failure_rate": 0.1667
   },
-  "sol::IMG-6::minimal": {
-    "model_id": "sol",
-    "task_id": "IMG-6",
+  "opus::IMG-3::minimal": {
+    "model_id": "opus",
+    "task_id": "IMG-3",
     "reasoning_mode": "minimal",
     "n": 30,
     "metrics": {
-      "cell_f1": 0.7864140147287331,
+      "accuracy": 0.7142857142857143,
+      "f1": 0.8181818181818182,
+      "confusion_matrix": {
+        "tn": 2,
+        "fp": 8,
+        "fn": 0,
+        "tp": 18
+      },
+      "n_evaluated": 28,
+      "n_unparsed": 2,
+      "class_balance": {
+        "class_0": 10,
+        "class_1": 18
+      }
+    },
+    "n_call_failed": 2,
+    "call_failure_rate": 0.0667
+  },
+  "opus::IMG-4::minimal": {
+    "model_id": "opus",
+    "task_id": "IMG-4",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "accuracy": 0.9259259259259259,
+      "f1": 0.9166666666666666,
+      "confusion_matrix": {
+        "tn": 14,
+        "fp": 0,
+        "fn": 2,
+        "tp": 11
+      },
+      "n_evaluated": 27,
+      "n_unparsed": 3,
+      "class_balance": {
+        "sfw_count": 14,
+        "nsfw_count": 13
+      }
+    },
+    "n_call_failed": 3,
+    "call_failure_rate": 0.1
+  },
+  "opus::IMG-5::minimal": {
+    "model_id": "opus",
+    "task_id": "IMG-5",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "accuracy": 0.9047619047619048,
+      "f1": 0.9230769230769231,
+      "confusion_matrix": {
+        "tn": 7,
+        "fp": 0,
+        "fn": 2,
+        "tp": 12
+      },
+      "n_evaluated": 21,
+      "n_unparsed": 9,
+      "class_balance": {
+        "class_0": 7,
+        "class_1": 14
+      }
+    },
+    "n_call_failed": 9,
+    "call_failure_rate": 0.3
+  },
+  "opus::TXT-3::minimal": {
+    "model_id": "opus",
+    "task_id": "TXT-3",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "cell_f1": 0.9757725242194002,
+      "n_evaluated": 29,
+      "n_skipped": 1,
+      "notes": "Cell-F1 v1: 셀 텍스트 퍼지 매칭 (threshold=0.8). TEDS는 후속 예정."
+    },
+    "n_call_failed": 1,
+    "call_failure_rate": 0.0333
+  },
+  "opus::TXT-4::minimal": {
+    "model_id": "opus",
+    "task_id": "TXT-4",
+    "reasoning_mode": "minimal",
+    "n": 30,
+    "metrics": {
+      "token_f1": 0.7882828282828284,
+      "exact_match": 0.5666666666666667,
       "n_evaluated": 30,
-      "notes": "표 이미지 → HTML, Cell-F1(셀 퍼지 매칭 threshold=0.8). TXT-3와 동일 채점."
+      "korean_backend": "mecab",
+      "judge_mean": 5.0,
+      "judge_detail": {
+        "n": 30,
+        "scores": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ]
+      }
     }
   }
 }

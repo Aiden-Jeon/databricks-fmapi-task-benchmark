@@ -511,8 +511,10 @@ def _scoring_notes(scores: dict[str, Any]) -> str:
     n_failed_cells = sum(1 for e in scores.values() if e.get("n_call_failed"))
     if n_failed_cells:
         notes.append(
-            f"> - 호출 실패: {n_failed_cells}개 셀에 실패가 있다(위 '실패' 열). 실패 응답은 0점으로 "
-            f"채점되므로 실패가 많은 셀의 점수는 모델 성능이 아니다."
+            f"> - 호출 실패: {n_failed_cells}개 셀에 실패가 있다(위 '실패' 열). 실패한 샘플은 "
+            f"**채점에서 제외**하므로(0점으로 세지 않음) 그 셀의 점수는 성공한 샘플 기준이다 — "
+            f"표의 `n_evaluated`가 요청 샘플 수보다 작은 이유다. 실패는 엔드포인트 문제이지 "
+            f"모델 성능이 아니다."
         )
     if n_unreliable:
         notes.append(
