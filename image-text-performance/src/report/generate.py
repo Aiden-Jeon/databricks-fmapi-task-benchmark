@@ -41,19 +41,30 @@ def generate_report(
     results: list[SampleResult],
     scores: dict[str, Any],
     models_cfg,
+    *,
+    reasoning_modes: list[str] | None = None,
+    profile: str | None = None,
 ) -> Path:
-    """run 디렉터리에 report.md를 생성하고 경로를 반환."""
+    """run 디렉터리에 report.md를 생성하고 경로를 반환.
+
+    `reasoning_modes`·`profile`은 **이 run에서 실제로 쓴 값**을 러너가 넘긴다
+    (`--reasoning-modes`/`--profile` 오버라이드 반영). 넘기지 않으면 config 기본값을 쓴다.
+    예전엔 리포트가 항상 config를 읽어, `--reasoning-modes minimal,full`로 돌려도 리포트에는
+    config의 `[minimal]`이 실렸고, Executive Summary의 judge 호출도 `--profile`을 무시하고
+    config 프로파일로 되돌아갔다(엉뚱한 워크스페이스에 과금될 수 있다).
+    """
     reports_dir = Path("reports") / run_dir.name
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     # model_id → Databricks model name(endpoint) 매핑
     ep = {m.id: m.endpoint for m in models_cfg.models}
-    modes = list(models_cfg.reasoning_modes)
+    modes = list(reasoning_modes or models_cfg.reasoning_modes)
+    judge_profile = profile or models_cfg.profile
 
     task_labels = _load_task_labels()
     perf = _perf_by_model(results, ep)
     facts = _extract_facts(scores, perf)
-    summary = _executive_summary(facts, models_cfg)
+    summary = _executive_summary(facts, models_cfg, profile=judge_profile)
 
     # 비교 그래프 생성 (png) → 리포트에 임베드
     charts = _make_charts(reports_dir, scores, perf, ep)
@@ -415,8 +426,13 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
     }
 
 
-def _executive_summary(facts: dict[str, Any], models_cfg) -> str:
-    """하이브리드 요약(D14): judge로 문단화 시도, 실패 시 규칙 기반 fallback."""
+def _executive_summary(facts: dict[str, Any], models_cfg, *, profile: str | None = None) -> str:
+    """하이브리드 요약(D14): judge로 문단화 시도, 실패 시 규칙 기반 fallback.
+
+    `profile`은 이 run에서 실제로 쓴 Databricks 프로파일(`--profile` 반영). 넘기지 않으면
+    config 기본값 — 예전엔 항상 config를 써서, --profile로 다른 워크스페이스를 지정해도
+    요약 judge 호출만 기본 프로파일로 되돌아갔다(엉뚱한 곳에 과금·권한 오류).
+    """
     rule_based = _rule_based_summary(facts)
     # judge 문단화 시도 (실패해도 규칙 기반으로 진행)
     try:
@@ -429,7 +445,10 @@ def _executive_summary(facts: dict[str, Any], models_cfg) -> str:
         )
         # judge(gemini)는 reasoning을 완전히 못 끄는 모델 → 사고 토큰에 소진돼 요약이 잘리지
         # 않도록 max_tokens를 크게(3000) 잡는다. timeout도 넉넉히.
-        with FMAPIClient(profile=models_cfg.profile, timeout_seconds=max(60, models_cfg.runtime.timeout_seconds)) as c:
+        with FMAPIClient(
+            profile=profile or models_cfg.profile,
+            timeout_seconds=max(60, models_cfg.runtime.timeout_seconds),
+        ) as c:
             resp = c.chat(models_cfg.judge, build_text_message(prompt), max_tokens=3000)
         if resp.text.strip():
             return resp.text.strip() + f"\n\n<sub>규칙 기반 요약(대조용): {rule_based}</sub>"

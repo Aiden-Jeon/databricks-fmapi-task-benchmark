@@ -25,6 +25,7 @@ import yaml
 from src.adapters.fmapi import FMAPIClient
 from src.config import ConfigValidationError, load_models_config, validate_models_config
 from src.results import RunManifest, git_commit, make_run_id, write_manifest
+from src.scoring.accumulators import CALL_FAILED
 
 # 한 셀에서 이 비율을 넘게 호출이 실패하면 그 셀의 점수는 모델 성능이 아니라 장애의 산물로 본다.
 # 실패 응답은 파싱 실패로 0점 채점되지만 예외가 아니라 metrics에 'error'가 없어, 그냥 두면
@@ -37,6 +38,17 @@ UNRELIABLE_FAILURE_RATE = 0.5
 # 403/400이어도 "실행 완료"가 찍히던 문제. 개별 셀의 산발적 실패(임계 미만)는 채점에서
 # 제외되고 리포트에 드러나므로 0을 유지한다. 10%는 실측 기준(정상 run은 0~2%)에서 잡았다.
 GLOBAL_FAILURE_EXIT_RATE = 0.10
+
+# judge 실패율이 이 값을 넘으면 실행을 실패로 본다. judge가 대량 실패하면 생성 태스크의
+# 대표 수치(judge_mean)가 사실상 비어 있는데도 예전엔 exit 0이었다 — 실측: max_tokens
+# 부족으로 IMG-1 judge가 30/30 실패했는데 "실행 완료"로 끝났다. 산발적 잘림(요약 태스크에서
+# 30건당 1~2건)은 정상 범위라 5%로 둔다.
+JUDGE_FAILURE_EXIT_RATE = 0.05
+
+# samples.jsonl에 몇 샘플마다 flush할지. 셀 전체(보통 30개)를 다 돌고 나서 한 번에 쓰면
+# 중단 시 이미 과금된 호출 결과가 통째로 사라진다. 5개마다 append하면 손실이 최대 4개로
+# 줄고, I/O도 샘플당 수 초 걸리는 호출에 비하면 무시할 수준이다.
+SAMPLE_FLUSH_EVERY = 5
 
 
 def load_tasks_config(path: str | Path = "config/tasks.yaml") -> dict[str, Any]:
@@ -173,14 +185,11 @@ def main() -> int:
         print("오류: --fresh와 --resume은 동시에 쓸 수 없습니다.", file=sys.stderr)
         return 1
 
-    # --fresh: 기존 리포트·결과 전부 삭제 후 새로 시작 (파괴적 — 명시할 때만)
-    if args.fresh and not args.dry_run:
-        import shutil
-
-        for d in (Path(args.out), Path("reports")):
-            if d.exists():
-                shutil.rmtree(d)
-                print(f"[--fresh] {d}/ 삭제됨")
+    # ⚠️ --fresh 삭제는 **여기서 하지 않는다**. 설정 검증·매트릭스 구성·클라이언트 초기화가
+    # 모두 성공한 뒤(_purge_previous_runs 호출 지점)로 미룬다.
+    # 실측 사고(2026-08-06): 삭제가 검증보다 앞서 있어서, 실행이 첫 셀에서 중단됐을 때
+    # 직전 리포트가 이미 사라져 README의 '최신 리포트' 링크가 깨졌다(git에서 복구했다).
+    # 설정 오류·인증 실패로 한 셀도 못 돌리는 경우가 흔하므로, 그때는 기존 결과를 지키는 게 맞다.
 
     # 설정 로드
     try:
@@ -254,7 +263,8 @@ def main() -> int:
         run_id = run_dir.name
         print(f"[--resume] 이어갈 run: {run_id}")
     else:
-        run_id = make_run_id()
+        # results_root를 넘겨 기존 디렉터리와 충돌하지 않는 ID를 받는다(같은 분에 두 실행 시).
+        run_id = make_run_id(results_root=args.out)
         run_dir = Path(args.out) / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -374,6 +384,13 @@ def main() -> int:
     except Exception as e:
         print(f"오류: FMAPI 클라이언트 초기화 실패: {e}", file=sys.stderr)
         return 1
+
+    # --fresh 삭제는 **여기서** 한다: 설정 검증·매트릭스 구성·클라이언트 초기화가 모두
+    # 통과해 실제로 호출을 시작할 수 있음이 확인된 뒤. 그 전에 지우면 설정 오류·인증 실패로
+    # 한 셀도 못 돌렸을 때 직전 리포트만 잃는다(실측 사고 — 위 주석 참고).
+    # 게다가 삭제가 아니라 **보관 이동**이라, 새 run이 중간에 죽어도 이전 결과를 되찾을 수 있다.
+    if args.fresh:
+        _purge_previous_runs(Path(args.out), Path("reports"), keep_run_id=run_id)
 
     try:
         rc = _run_samples(
@@ -500,6 +517,9 @@ def _run_samples(
     executed = skipped_cells = resume_skipped = 0
     # 요청보다 적게 로드된 태스크: {task_id: (로드됨, 요청됨)}. 종료 요약·셀 메타에 쓴다.
     shortfall_tasks: dict[str, tuple[int, int]] = {}
+    # 아예 실행하지 못한 태스크: {task_id: 이유}. **종료 코드를 실패로 만든다** —
+    # 태스크가 통째로 누락됐는데 "실행 완료 exit 0"이 되던 문제를 막는다.
+    failed_tasks: dict[str, str] = {}
     gallery_records: list[dict[str, Any]] = []
     gallery_path = run_dir / "gallery.jsonl"
     gallery_done_tasks: set[str] = set()  # 이미 gallery.jsonl에 기록된 task_id(resume 중복 방지)
@@ -518,7 +538,12 @@ def _run_samples(
         for task_id in task_order:
             cls = task_classes.get(task_id)
             cfg = all_task_cfgs.get(task_id, {})
+            # 아래 세 경로는 **모두 실행 실패**다(의도된 N/A 스킵과 다르다) — 종료 코드에
+            # 반영해야 한다. 예전엔 skipped_cells로 세고 그 수를 기대 셀 수에서 빼서,
+            # 태스크가 통째로 누락돼도 exit 0이 나왔다. failed_tasks에 이유와 함께 남긴다.
             if cls is None:
+                print(f"  [태스크 미구현] {task_id}: 플러그인이 없습니다")
+                failed_tasks[task_id] = "플러그인 미구현"
                 skipped_cells += len(per_task_cells[task_id])
                 continue
             inst = cls(cfg, registry)
@@ -526,9 +551,12 @@ def _run_samples(
                 samples = inst.load_samples(n_samples, seed)
             except Exception as e:
                 print(f"  [샘플 로드 실패] {task_id}: {type(e).__name__}: {e}")
+                failed_tasks[task_id] = f"샘플 로드 실패: {type(e).__name__}: {str(e)[:120]}"
                 skipped_cells += len(per_task_cells[task_id])
                 continue
             if not samples:
+                print(f"  [샘플 0개] {task_id}: 데이터셋이 샘플을 주지 않았습니다")
+                failed_tasks[task_id] = "샘플 0개"
                 skipped_cells += len(per_task_cells[task_id])
                 continue
 
@@ -593,19 +621,20 @@ def _run_samples(
                         output_text = f"__ERROR__: {type(e).__name__}: {e}"
                         req_id, finish, usage = None, "error", {}
 
-                    # 호출이 실패한 샘플은 **파싱하지 않고 None**으로 둔다. 실패 응답
-                    # ("__ERROR__: ...")을 태스크의 parse_output에 넘기면 태스크마다 다르게
-                    # 처리돼 조용히 갈렸다 — 분류 태스크는 None을 돌려 채점에서 빠졌지만
-                    # IMG-2는 빈 태그셋이 돼 **0점으로 채점**됐다(실측: opus 502 11/30 →
-                    # micro_f1 0.671, 성공 19건만 보면 0.786). 실패는 성능이 아니므로
-                    # 여기 한 곳에서 일괄 제외한다(태스크별 __ERROR__ 처리 중복 불필요).
+                    # 호출 실패와 파싱 실패를 **다른 값으로** 구분한다:
+                    # - CALL_FAILED: 응답 자체를 못 받음(502·타임아웃) → 인프라 문제 → 채점 제외
+                    # - None: 응답은 받았지만 형식을 못 맞춤 → **능력 문제 → 0점 채점**
+                    # 둘을 None으로 합치면(2026-08-05~08-06 상태) 형식을 대부분 못 맞추는
+                    # 새 모델이 "성공한 일부"만으로 높은 점수를 받는다. 반대로 둘 다 0점으로
+                    # 채점하면 엔드포인트 장애가 성능 저하로 보인다(실측: opus 502 11/30 →
+                    # micro_f1 0.671 vs 성공분만 0.786). 그래서 두 축을 분리해 둔다.
                     if finish == "error":
-                        parsed = None
+                        parsed = CALL_FAILED
                     else:
                         try:
                             parsed = inst.parse_output(output_text, s)
                         except Exception:
-                            parsed = None
+                            parsed = None    # 파싱 예외 = 형식 불일치 → 0점
 
                     if acc is not None:
                         try:
@@ -634,13 +663,36 @@ def _run_samples(
                         n_call_failed += 1
                     executed += 1
 
-                # 셀 완료: 결과 증분 저장(크래시 대비) 후 버림
-                append_sample_results(run_dir, cell_results)
+                    # **샘플 단위 flush**: 버퍼가 차면 즉시 samples.jsonl에 append한다.
+                    # 예전엔 셀의 30개 호출과 judge가 다 끝난 뒤에야 기록해서, 중단되면
+                    # 이미 돈을 쓴 호출 결과가 통째로 사라지고 재실행 시 전부 다시 호출했다.
+                    # (scores.json은 여전히 셀 단위 — 셀 점수는 전체 샘플이 있어야 확정된다.
+                    #  다만 samples.jsonl이 남으면 어디까지 호출했는지 사후 확인은 가능하다.)
+                    if len(cell_results) >= SAMPLE_FLUSH_EVERY:
+                        append_sample_results(run_dir, cell_results)
+                        cell_results.clear()
+
+                # 남은 버퍼 flush (셀 완료)
+                if cell_results:
+                    append_sample_results(run_dir, cell_results)
+                    cell_results.clear()
                 del cell_results
 
                 # 채점 finalize
                 try:
-                    metrics = acc.finalize() if acc is not None else inst.score(buf_parsed, buf_samples)
+                    if acc is not None:
+                        metrics = acc.finalize()
+                    else:
+                        # 폴백 score() 경로: 태스크의 score()는 CALL_FAILED sentinel을 모르므로
+                        # **호출 실패 샘플을 여기서 제거**해서 넘긴다(파싱 실패 None은 그대로
+                        # 넘겨 0점으로 채점되게 한다 — 능력 문제이므로).
+                        keep = [
+                            (p, s) for p, s in zip(buf_parsed, buf_samples) if p is not CALL_FAILED
+                        ]
+                        n_dropped = len(buf_parsed) - len(keep)
+                        metrics = inst.score([p for p, _ in keep], [s for _, s in keep])
+                        if n_dropped and isinstance(metrics, dict):
+                            metrics["n_skipped"] = n_dropped
                 except Exception as e:
                     metrics = {"error": f"{type(e).__name__}: {e}"}
 
@@ -741,7 +793,14 @@ def _run_samples(
         from src.report.generate import generate_report
 
         results_for_report = load_sample_results(run_dir)
-        report_path = generate_report(run_dir, results_for_report, scores, models_cfg)
+        # 이 run에서 **실제로 쓴** 모드·프로파일을 넘긴다(--reasoning-modes/--profile 반영).
+        # config를 다시 읽게 두면 리포트가 실행 조건과 다른 값을 싣는다.
+        # 모드는 매트릭스에서 유도한다 — 그것이 실제로 돌린 조합의 유일한 진실이다.
+        modes_in_run = list(dict.fromkeys(c["reasoning_mode"] for c in matrix)) or None
+        report_path = generate_report(
+            run_dir, results_for_report, scores, models_cfg,
+            reasoning_modes=modes_in_run, profile=profile,
+        )
         print(f"리포트 생성: {report_path}")
     except Exception as e:
         print(f"  [리포트 생성 스킵] {type(e).__name__}: {e}")
@@ -758,7 +817,53 @@ def _run_samples(
     # 실패해도 exit 0을 내면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다. 실측 위험:
     # 모델 전체가 403/400이어도 "실행 완료" 후 0을 반환해, 빈 리포트가 정상 산출물로 커밋될 수 있다.
     # 리포트는 이미 생성했으므로(부분 결과도 보존 가치가 있다) **결과는 남기고 종료 코드로만 알린다.**
-    return _exit_code(scores, expected_cells=len(matrix) - skipped_cells)
+    # 기대 셀 수는 **매트릭스 전체**다. skipped_cells를 빼면 로드 실패로 태스크가 통째로
+    # 누락돼도 "기대치를 다 채웠다"가 되어 exit 0이 나온다(그게 옛 동작이었다).
+    return _exit_code(
+        scores,
+        expected_cells=len(matrix),
+        failed_tasks=failed_tasks,
+        shortfall_tasks=shortfall_tasks,
+    )
+
+
+def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: str) -> None:
+    """--fresh: 이전 run들을 **`.trash/`로 이동**한다(즉시 삭제하지 않는다).
+
+    왜 이동인가: 새 run이 중간에 죽으면 리포트가 하나도 없는 상태가 되고, README의
+    '최신 리포트' 링크가 깨진다(실측 사고 2026-08-06 — git에서 복구해야 했다).
+    보관해 두면 그 상황에서도 직전 결과를 되찾을 수 있다. `.trash/`는 gitignore 대상이며,
+    다음 --fresh 때 이전 보관본을 정리하므로 무한히 쌓이지 않는다.
+
+    `keep_run_id`(이번 run 디렉터리)는 이동 대상에서 제외한다 — 이미 manifest를 써 뒀다.
+    """
+    import shutil
+
+    trash = Path(".trash") / f"purged-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    moved: list[str] = []
+
+    # 직전 보관본 정리(하나만 유지) — 디스크가 무한히 늘지 않게.
+    trash_root = Path(".trash")
+    if trash_root.exists():
+        for old in sorted(trash_root.glob("purged-*"))[:-1]:
+            shutil.rmtree(old, ignore_errors=True)
+
+    for base in (results_dir, reports_dir):
+        if not base.exists():
+            continue
+        for item in sorted(base.iterdir()):
+            if item.name == keep_run_id:
+                continue
+            dest = trash / base.name / item.name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(item), str(dest))
+            moved.append(f"{base.name}/{item.name}")
+
+    if moved:
+        print(f"[--fresh] 이전 run {len(moved)}개를 {trash}/로 이동(삭제 아님): "
+              f"{', '.join(moved[:6])}{' …' if len(moved) > 6 else ''}")
+    else:
+        print("[--fresh] 정리할 이전 run이 없습니다.")
 
 
 def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
@@ -808,18 +913,40 @@ def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
     return out
 
 
-def _exit_code(scores: dict[str, Any], expected_cells: int) -> int:
+def _exit_code(
+    scores: dict[str, Any],
+    expected_cells: int,
+    *,
+    failed_tasks: dict[str, str] | None = None,
+    shortfall_tasks: dict[str, tuple[int, int]] | None = None,
+    judge_failure_rate_limit: float = JUDGE_FAILURE_EXIT_RATE,
+) -> int:
     """실행 결과로 프로세스 종료 코드를 정한다. 0=정상, 1=자동화가 멈춰야 하는 실패.
 
-    실패로 보는 조건(하나라도 해당):
-    - 채점 예외(metrics.error) 셀이 있다 → 코드·데이터 문제
-    - 실패율 과다(unreliable) 셀이 있다 → 점수가 장애의 산물
-    - 전체 호출 실패율이 GLOBAL_FAILURE_EXIT_RATE 초과 → 엔드포인트/권한 문제(403·400 등)
-    - 완료 셀이 기대 매트릭스보다 적다 → 중간에 죽었거나 로드 실패
+    **"완주"의 정의**: 매트릭스의 모든 셀이 요청한 샘플 수만큼 채점됐고, 실패가 임계 미만이며,
+    태스크가 하나도 누락되지 않은 상태. 아래 중 하나라도 걸리면 exit 1이다:
+    - 태스크 로드·구현 실패로 셀이 아예 실행되지 않음 (`failed_tasks`)
+    - 요청보다 적은 샘플로 채점됨 (`shortfall_tasks`) — `--samples 30`은 완주 조건이다
+    - 채점 예외(metrics.error) 셀 → 코드·데이터 문제
+    - 실패율 과다(unreliable) 셀 → 점수가 장애의 산물
+    - 전체 호출 실패율 > GLOBAL_FAILURE_EXIT_RATE → 엔드포인트/권한 문제(403·400 등)
+    - 전체 judge 실패율 > judge_failure_rate_limit → 채점기가 제대로 안 돌았다
+    - 완료 셀이 기대 매트릭스보다 적음 → 중간에 죽음
     산발적 소수 실패(임계 미만)는 0을 유지한다 — 이 벤치마크에서 흔하고, 그 셀은
     채점에서 제외되며 리포트에 드러나므로 실행 자체를 실패로 볼 필요는 없다.
     """
     reasons: list[str] = []
+
+    if failed_tasks:
+        detail = ", ".join(f"{t}({why})" for t, why in sorted(failed_tasks.items()))
+        reasons.append(f"실행되지 않은 태스크 {len(failed_tasks)}개: {detail}")
+
+    if shortfall_tasks:
+        detail = ", ".join(f"{t} {got}/{want}" for t, (got, want) in sorted(shortfall_tasks.items()))
+        reasons.append(
+            f"요청보다 적게 채점된 태스크 {len(shortfall_tasks)}개: {detail} "
+            f"— 표본이 작아 다른 태스크와 같은 신뢰도로 비교할 수 없다"
+        )
 
     err_cells = [k for k, v in scores.items() if "error" in (v.get("metrics") or {})]
     if err_cells:
@@ -835,6 +962,21 @@ def _exit_code(scores: dict[str, Any], expected_cells: int) -> int:
         reasons.append(
             f"전체 호출 실패율 {total_failed}/{total_n} "
             f"({total_failed / total_n:.1%}) > {GLOBAL_FAILURE_EXIT_RATE:.0%}"
+        )
+
+    # judge 실패도 종료 코드에 반영한다 — judge가 대량 실패하면 생성 태스크의 대표 수치가
+    # 사실상 비어 있는데도 예전엔 exit 0이었다(실측: max_tokens 부족으로 30/30 실패한 셀).
+    judge_ok = judge_failed = 0
+    for v in scores.values():
+        jd = (v.get("metrics") or {}).get("judge_detail") or {}
+        judge_ok += jd.get("n") or 0
+        judge_failed += jd.get("n_failed") or 0
+    judge_total = judge_ok + judge_failed
+    if judge_total and judge_failed / judge_total > judge_failure_rate_limit:
+        reasons.append(
+            f"judge 실패율 {judge_failed}/{judge_total} "
+            f"({judge_failed / judge_total:.1%}) > {judge_failure_rate_limit:.0%} "
+            f"— 생성 태스크의 judge 수치를 신뢰할 수 없다"
         )
 
     if expected_cells and len(scores) < expected_cells:
@@ -856,6 +998,11 @@ def _run_judge_streaming(inst, samples, run_dir, model_id, mode, judge_client, j
     judge_scores()는 parsed 리스트를 요구하지만, 스트리밍에선 parsed를 보관하지 않으므로
     이 시점에 samples.jsonl에서 해당 셀의 model_output을 읽어 parsed를 재구성한다(디스크 기반, O(샘플)이지만
     한 셀 범위라 작음). 태스크의 judge_scores 계약을 그대로 사용한다.
+
+    **호출이 실패한 샘플은 judge에 보내지 않는다** (2026-08-06 수정). 예전엔 저장된
+    `"__ERROR__: FMAPIError ..."` 문자열을 다시 parse_output에 넘겨, 그 오류 메시지를
+    모델 답변으로 취급해 judge에게 채점을 요청했다(judge 비용 낭비 + 오류 문구에 대한
+    무의미한 점수). 실패 샘플은 아예 제외하고, 그 사실을 judge 결과에 남긴다.
     """
     from src.results import load_sample_results
 
@@ -864,15 +1011,30 @@ def _run_judge_streaming(inst, samples, run_dir, model_id, mode, judge_client, j
         if r.model_id == model_id and r.task_id == inst.task_id and r.reasoning_mode == mode
     ]
     by_sid = {r.sample_id: r for r in rows}
-    parsed = []
+    parsed: list[Any] = []
+    kept_samples = []
+    n_call_failed = 0
     for s in samples:
         r = by_sid.get(s.sample_id)
-        out = r.model_output if r else ""
+        # finish_reason이 error이거나 행 자체가 없으면 호출 실패 → judge 대상 아님.
+        if r is None or r.finish_reason == "error":
+            n_call_failed += 1
+            continue
         try:
-            parsed.append(inst.parse_output(out, s))
+            parsed.append(inst.parse_output(r.model_output, s))
         except Exception:
-            parsed.append(None)
-    return inst.judge_scores(parsed, samples, judge_client, judge_endpoint)
+            parsed.append(None)   # 파싱 실패는 judge가 낮게 평가하도록 그대로 넘긴다
+        kept_samples.append(s)
+
+    if not kept_samples:
+        # 셀 전체가 호출 실패 — judge를 호출할 이유가 없다(비용·시간 낭비).
+        return {"judge_mean": None, "judge_scores": [], "n_judged": 0,
+                "n_judge_skipped_call_failed": n_call_failed}
+
+    result = inst.judge_scores(parsed, kept_samples, judge_client, judge_endpoint)
+    if n_call_failed and isinstance(result, dict):
+        result["n_judge_skipped_call_failed"] = n_call_failed
+    return result
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
@@ -1060,6 +1222,11 @@ def _normalize_judge(jr: dict[str, Any]) -> dict[str, Any]:
     failed = jr.get("n_judge_failed")
     if failed:
         detail["n_failed"] = failed
+    # 호출 실패로 judge에 보내지도 않은 샘플 수 — judge 실패(n_failed)와 구분해 남긴다.
+    # 둘을 합치면 "채점기 문제"와 "엔드포인트 문제"가 섞여 원인 파악이 어렵다.
+    skipped = jr.get("n_judge_skipped_call_failed")
+    if skipped:
+        detail["n_skipped_call_failed"] = skipped
     if jr.get("per_language"):
         detail["per_language"] = jr["per_language"]
     out["judge_detail"] = detail

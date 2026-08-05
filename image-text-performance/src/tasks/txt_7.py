@@ -13,7 +13,7 @@ from typing import Any
 
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
-from src.scoring.accumulators import MultilabelAccumulator
+from src.scoring.accumulators import CALL_FAILED, MultilabelAccumulator
 from src.scoring.metrics import multilabel_prf
 from src.tasks.base import Task, Sample, register
 
@@ -308,9 +308,9 @@ class _Txt7Accumulator:
     """
 
     def __init__(self) -> None:
-        # 빈 예측 집합은 채점한다(모델이 키워드를 못 뽑은 것 = 실제 성능). 단 **None은 제외**한다 —
-        # 러너가 호출 실패 샘플에 None을 넘기고, 그건 성능이 아니다. 예전엔 항상 True라
-        # None이 통과해 `None & set` TypeError로 셀 전체가 error로 죽었다(2026-08-05 수정).
+        # 빈 예측 집합은 채점한다(모델이 키워드를 못 뽑은 것 = 실제 성능).
+        # 호출 실패는 MultilabelAccumulator가 CALL_FAILED sentinel로 먼저 걸러 제외한다.
+        # 파싱 실패(None)는 빈 집합으로 바꿔 0점 채점한다(아래 add) — 능력 문제이므로.
         vf = lambda p, s: p is not None
         self._overall = MultilabelAccumulator(valid_fn=vf)
         self._lang = {"en": MultilabelAccumulator(valid_fn=vf), "ko": MultilabelAccumulator(valid_fn=vf)}
@@ -318,9 +318,11 @@ class _Txt7Accumulator:
         self._skipped = 0
 
     def add(self, parsed: Any, sample: Sample) -> None:
-        if parsed is None:
+        if parsed is CALL_FAILED:
             self._skipped += 1   # 호출 실패 — n_total(분모)에도 넣지 않는다
             return
+        if parsed is None:
+            parsed = set()       # 파싱 실패 = 키워드를 못 뽑은 것 → 0점으로 채점
         self._n_total += 1
         self._overall.add(parsed, sample)
         sub = self._lang.get(getattr(sample, "lang", "en"))

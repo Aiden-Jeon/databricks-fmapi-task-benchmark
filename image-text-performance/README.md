@@ -45,11 +45,16 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 |------|-----------------|:------:|------|
 | opus | `databricks-claude-opus-5` | ✅ | |
 | sol | `databricks-gpt-5-6-sol` | ✅ | |
-| sonnet | `databricks-claude-sonnet-5` | ✅ | |
 | glm | `databricks-glm-5-2` | ❌ | 이미지 입력 미지원 → 이미지 태스크는 **N/A**로 자동 스킵 |
 | judge | `databricks-gemini-3-1-pro` | ✅ | LLM-as-judge (평가 대상과 다른 계열로 bias 최소화, 텍스트·이미지 모두 채점) |
 
 > vision 지원 여부는 `ai_devtools` 워크스페이스에서 **실제 이미지 호출로 검증**됨.
+
+> **모델 추가 검증 범위(2026-08-06)**: `databricks-claude-sonnet-5`를 4번째 모델로 붙여
+> ① 설정 검증 통과, ② dry-run 매트릭스 50셀 구성, ③ **opus+sonnet 2샘플 실호출 28셀 완주**
+> (exit 0, 양쪽 비용 계산됨)까지 확인했다. **4모델 30샘플 전체 완주는 하지 않았다**
+> (사용자 요청으로 3모델 비교로 되돌림). 현재 `config/models.yaml`에 주석으로 보존돼 있고
+> 단가는 `pricing.yaml`에 등록된 상태라, 주석을 풀면 바로 4모델로 실행된다.
 
 ### 모델 추가하기
 
@@ -153,7 +158,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 > "image-text-performance 벤치마크를 10샘플로 돌려서 리포트를 새로 뽑아줘."
 
-- 4모델(opus·sol·sonnet·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **50셀**.
+- 3모델(opus·sol·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **36셀**(모델을 하나 추가하면 +14셀).
 - **종료 코드로 성패를 알린다**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율이 10%를 넘으면 `exit 1`(리포트는 그대로 생성됨). 자동화가 실패를 성공으로 오판하지 않게 하기 위함이다.
 - 빠른 확인만 원하면: > "opus와 sol만 텍스트 태스크로 3샘플만 빠르게 돌려줘."
 - 대규모(정확도 우선): > "HF 토큰 설정하고 glm 타임아웃을 60초로 올린 뒤 전체 50샘플로 백그라운드 실행해줘." (전체는 HF rate limit·glm 지연으로 수 시간+ 걸린다.)

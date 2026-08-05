@@ -32,3 +32,7 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# --fresh가 이전 run을 옮겨두는 보관함(즉시 삭제하지 않아 사고 시 복구 가능).
+# 다음 --fresh 때 직전 것만 남기고 정리된다.
+.trash/

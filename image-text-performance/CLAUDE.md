@@ -7,9 +7,11 @@
 ## 한 줄 요약
 Databricks FMAPI 모델(opus·sol·glm)의 이미지·텍스트 성능을 표준 데이터셋으로 측정해
 수치·그래프·정성 갤러리·고객용 HTML 프레젠테이션 리포트를 자동 생성하는 벤치마크.
-**14개 태스크**(IMG-1~6, TXT-1~8) × **4모델**(opus·sol·sonnet·glm) → glm vision 미지원으로
-이미지 6태스크 N/A → 실행 **50셀**. 모델 추가는 `config/models.yaml`(+`pricing.yaml`)만 고치면 되고,
-빠진 항목은 실행 전 검증이 막는다(README "모델 추가하기").
+**14개 태스크**(IMG-1~6, TXT-1~8) × **3모델**(opus·sol·glm) → glm vision 미지원으로
+이미지 6태스크 N/A → 실행 **36셀**. 모델 추가는 `config/models.yaml`(+`pricing.yaml`)만 고치면 되고,
+빠진 항목은 실행 전 검증이 막는다(README "모델 추가하기"). 2026-08-06에 sonnet-5를 붙여
+설정검증·dry-run 50셀·**2샘플 실호출 28셀 완주**까지 확인했다(4모델 30샘플 전체 완주는 안 함).
+이후 3모델로 되돌렸다 — models.yaml에 주석으로 남아 있어 풀면 바로 4모델이 된다.
 
 ## 전제
 - Databricks CLI 프로파일 필요. 기본값은 `config/models.yaml`의 `profile`(현재 `ai_devtools`)이고
@@ -31,7 +33,7 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
   리포트의 '실패' 열에 `표본 n/요청`으로 표기한다.
 - **`--profile <name>`**: Databricks 프로파일 명시(생략 시 config 기본값). 실행 로그·manifest에 기록.
 - reasoning은 config에서 **OFF(minimal) 고정** → 옵션 불필요. ON까지 비교하려면 `--reasoning-modes minimal,full`(실행 배증·glm 타임아웃 주의).
-- **오래 걸림**: 50셀 × N샘플 + judge. 30샘플 ≈ 2시간+(모델 4개), 50샘플 수 시간+.
+- **오래 걸림**: 36셀 × N샘플 + judge. 30샘플 ≈ 1.5~2시간(모델 3개), 50샘플 수 시간+.
   → 반드시 백그라운드 실행(`nohup python3 -u -m src.runner ... &`) 후 프로세스 종료까지 대기.
   "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지 처리·BERTScore)이 수 분 더 걸림.
 - **종료 코드를 확인할 것**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율 >10%면 `exit 1`.

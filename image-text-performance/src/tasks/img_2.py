@@ -304,9 +304,14 @@ class Img2Task(Task):
     def make_accumulator(self) -> MultilabelAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일(micro/macro PRF + n_evaluated).
 
-        유효 샘플: pred is not None and sample.reference (score()의 valid_indices와 동일).
+        파싱 실패(None)는 **빈 태그셋으로 채점**한다(precision/recall 0) — 태그를 못 낸 것은
+        실제 능력 문제다. 예전엔 분모에서 빼서, 형식을 못 맞추는 모델이 성공분만으로 높은
+        F1을 받았다(2026-08-06 지적). 호출 실패는 CALL_FAILED sentinel로 따로 제외된다.
         """
-        return MultilabelAccumulator(valid_fn=lambda p, s: p is not None and bool(s.reference))
+        return MultilabelAccumulator(
+            valid_fn=lambda p, s: bool(s.reference),
+            normalize_fn=lambda p: p if p is not None else set(),
+        )
 
 
 

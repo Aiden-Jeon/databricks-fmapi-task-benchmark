@@ -34,17 +34,28 @@ class SampleResult:
     timestamp: str                     # ISO 8601 timestamp
 
 
-def make_run_id(version_suffix: str = "") -> str:
-    """타임스탬프 기반 run ID 생성.
+def make_run_id(version_suffix: str = "", *, results_root: str | Path = "results") -> str:
+    """타임스탬프 기반 run ID 생성. **기존 디렉터리와 충돌하지 않는 값**을 돌려준다.
 
     형식: YYYY-MM-DDTHH-MM[_version_suffix]
     예시: 2026-07-31T14-00 또는 2026-07-31T14-00_v1
+
+    분 단위라 같은 분에 두 실행을 시작하면 같은 ID가 나오고, 두 run의 결과가 한 디렉터리에
+    섞인다(scores.json을 서로 덮어써 수치가 뒤섞인다). 이미 존재하면 `-2`, `-3`…을 붙여
+    피한다 — 초 단위로 바꾸지 않는 이유는 기존 run-id 형식(문서·README 링크·index)이
+    분 단위로 고정돼 있어 호환을 깨지 않기 위해서다.
     """
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y-%m-%dT%H-%M")
-    if version_suffix:
-        return f"{timestamp}_{version_suffix}"
-    return timestamp
+    base = f"{timestamp}_{version_suffix}" if version_suffix else timestamp
+
+    root = Path(results_root)
+    candidate = base
+    n = 2
+    while (root / candidate).exists() or (Path("reports") / candidate).exists():
+        candidate = f"{base}-{n}"
+        n += 1
+    return candidate
 
 
 def git_commit() -> str | None:

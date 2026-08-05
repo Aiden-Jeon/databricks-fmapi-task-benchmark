@@ -23,6 +23,33 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 
+class _CallFailed:
+    """호출 자체가 실패했음을 나타내는 sentinel. 누적기가 **분모에서 제외**한다.
+
+    왜 None과 구분하는가 (2026-08-06):
+    - `parsed is None` = 모델이 응답은 했지만 **형식을 못 맞춰 파싱 실패** → 실제 능력 문제이므로
+      **0점으로 채점**해야 한다. None을 전부 제외하면, 형식을 대부분 못 맞추는 새 모델이
+      "성공한 일부"만으로 높은 점수를 받는다.
+    - `parsed is CALL_FAILED` = HTTP 502·타임아웃 등으로 **응답을 받지 못함** → 모델 성능이
+      아니라 인프라 문제이므로 채점에서 빼야 한다.
+    두 경우를 None으로 합쳐 두면 어느 쪽인지 알 수 없어 위 두 요구가 충돌한다.
+    """
+
+    def __repr__(self) -> str:  # pragma: no cover - 디버깅 편의
+        return "CALL_FAILED"
+
+    def __bool__(self) -> bool:
+        return False
+
+
+CALL_FAILED = _CallFailed()
+
+
+def is_call_failed(parsed: Any) -> bool:
+    """호출 실패 sentinel인지. 태스크 코드가 파싱 실패(None)와 구분할 때 쓴다."""
+    return parsed is CALL_FAILED
+
+
 class Accumulator(Protocol):
     """온라인 누적기 인터페이스. add로 상태 갱신, finalize로 score()와 동일 dict 반환."""
 
@@ -63,10 +90,11 @@ class MeanAccumulator:
         self._skipped = 0
 
     def add(self, parsed: Any, sample: Any) -> None:
-        if parsed is None:
-            # 호출 실패 — 채점 대상이 아니다(모델이 답을 낸 게 아니므로).
+        if parsed is CALL_FAILED:
+            # 호출 실패(인프라) — 채점 대상이 아니다(모델이 답을 낸 게 아니므로).
             self._skipped += 1
             return
+        # parsed is None = 파싱 실패(모델이 형식을 못 맞춤) → 아래 value_fn이 0점 처리.
         self._total += 1
         v = self.value_fn(parsed, sample)
         if v is not None:
@@ -114,9 +142,10 @@ class MultiMeanAccumulator:
         self._skipped = 0
 
     def add(self, parsed: Any, sample: Any) -> None:
-        if parsed is None:
-            self._skipped += 1
+        if parsed is CALL_FAILED:
+            self._skipped += 1   # 호출 실패만 분모에서 제외
             return
+        # 파싱 실패(None)는 각 value_fn이 0.0을 돌려주므로 0점으로 채점된다(능력 문제).
         self._n += 1
         for k, fn in self.value_fns.items():
             self._sums[k] += float(fn(parsed, sample))
@@ -156,12 +185,16 @@ class BinaryAccumulator:
         self.class_balance_keys = class_balance_keys
         self.include_confusion = include_confusion
         self.tp = self.tn = self.fp = self.fn = 0
-        self.n_unparsed = 0
+        self.n_unparsed = 0        # 모델이 응답했지만 형식 파싱 실패(=능력 문제, 채점 제외)
+        self.n_call_failed = 0     # 호출 자체 실패(=인프라 문제, 채점 제외) — 둘을 구분해 보고
         self.gold0 = self.gold1 = 0   # class_balance(정답 기준)
 
     def add(self, parsed: Any, sample: Any) -> None:
+        if parsed is CALL_FAILED:
+            self.n_call_failed += 1   # 호출 실패 — 파싱 실패(n_unparsed)와 구분
+            return
         if parsed is None:
-            self.n_unparsed += 1
+            self.n_unparsed += 1      # 모델이 yes/no를 못 낸 것 = 능력 문제
             return
         gold = sample.reference
         pred = int(parsed)
@@ -189,6 +222,8 @@ class BinaryAccumulator:
             out["confusion_matrix"] = {"tn": self.tn, "fp": self.fp, "fn": self.fn, "tp": self.tp}
         out["n_evaluated"] = n
         out["n_unparsed"] = self.n_unparsed
+        if self.n_call_failed:
+            out["n_skipped"] = self.n_call_failed   # 호출 실패(파싱 실패와 구분)
         if self.class_balance_keys:
             k0, k1 = self.class_balance_keys
             out["class_balance"] = {k0: self.gold0, k1: self.gold1}
@@ -206,9 +241,13 @@ class MulticlassAccumulator:
 
     def __init__(self) -> None:
         self.conf: dict[tuple[int, int], int] = {}
-        self.n_unparsed = 0
+        self.n_unparsed = 0        # 파싱 실패(능력 문제)
+        self.n_call_failed = 0     # 호출 실패(인프라 문제) — 구분해 보고
 
     def add(self, parsed: Any, sample: Any) -> None:
+        if parsed is CALL_FAILED:
+            self.n_call_failed += 1
+            return
         if parsed is None:
             self.n_unparsed += 1
             return
@@ -239,6 +278,7 @@ class MulticlassAccumulator:
             "macro_f1": float(macro_f1),
             "n_evaluated": n,
             "n_unparsed": self.n_unparsed,
+            **({"n_skipped": self.n_call_failed} if self.n_call_failed else {}),
         }
 
 
@@ -249,18 +289,30 @@ class MultilabelAccumulator:
     """예측 라벨 집합 vs 정답 라벨 집합. micro/macro precision·recall·f1.
 
     valid_fn(parsed, sample) -> bool: 유효 샘플만 채점(기본: parsed is not None and sample.reference).
+
+    **호출 실패(CALL_FAILED)는 valid_fn보다 먼저 걸러 분모에서 제외**한다. 태스크가
+    `valid_fn=lambda p,s: True`처럼 넓게 열어 둔 경우(TXT-7)에도 sentinel이 채점에 들어가
+    `CALL_FAILED & set` 예외가 나거나 0점으로 섞이는 것을 막는다.
+    파싱 실패(None)의 처리는 valid_fn에 맡긴다 — 태스크마다 "빈 예측을 0점으로 셀지"가 다르다.
     """
 
-    def __init__(self, valid_fn=None) -> None:
+    def __init__(self, valid_fn=None, normalize_fn=None) -> None:
         self.valid_fn = valid_fn or (lambda p, s: p is not None and bool(s.reference))
+        # normalize_fn: 채점 전에 예측을 변환(예: 파싱 실패 None → 빈 집합으로 0점 채점).
+        # 태스크가 "파싱 실패도 채점 대상"이라고 선언하는 방법이다.
+        self.normalize_fn = normalize_fn or (lambda p: p)
         self.tp = self.fp = self.fn = 0
         self.sum_p = self.sum_r = self.sum_f1 = 0.0
         self.n = 0
+        self.n_call_failed = 0
 
     def add(self, parsed: Any, sample: Any) -> None:
+        if parsed is CALL_FAILED:
+            self.n_call_failed += 1
+            return
         if not self.valid_fn(parsed, sample):
             return
-        pred: set = parsed
+        pred: set = self.normalize_fn(parsed)
         gold: set = sample.reference
         tp = len(pred & gold)
         fp = len(pred - gold)

@@ -16,6 +16,7 @@ from typing import Any
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
+from src.scoring.accumulators import CALL_FAILED
 from src.scoring.metrics import bertscore_f1
 from src.scoring.tokenizers import korean_tokenizer_backend, tokenize
 from src.tasks.base import Task, Sample, register
@@ -370,11 +371,14 @@ class _Txt5Accumulator:
         self._skipped = 0   # 호출 실패로 채점에서 빠진 샘플 수
 
     def add(self, parsed: Any, sample: Sample) -> None:
-        if parsed is None:
-            # 호출 실패(러너가 None을 넘긴다) — 채점 제외. 예전엔 _compute_rouge가
-            # None.lower()로 예외를 던져 셀 전체가 error로 죽었다.
+        if parsed is CALL_FAILED:
+            # 호출 실패(인프라) — 채점 제외. 예전엔 _compute_rouge가 예외를 던져
+            # 셀 전체가 error로 죽었다.
             self._skipped += 1
             return
+        if parsed is None:
+            # 파싱 실패(형식 불일치) = 능력 문제 → 빈 문자열로 0점 채점한다.
+            parsed = ""
         lang = sample.lang if sample.lang in self._sum else "en"
         rouge = _compute_rouge(parsed, sample.reference, lang)
         for k in ("rouge1", "rouge2", "rougeL"):

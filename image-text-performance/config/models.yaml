@@ -51,15 +51,21 @@ models:
       minimal: {reasoning_effort: none}
       full: {reasoning_effort: high}
 
-  - id: sonnet
-    endpoint: databricks-claude-sonnet-5
-    family: claude                      # opus와 같은 계열 → thinking 파라미터 사용
-    capabilities: [text, vision]        # 2026-08-06 실측: 이미지 입력 ✅(보라색 이미지 인식 확인)
-    reasoning:
-      # 2026-08-06 실측: `reasoning_effort`는 HTTP 400으로 거부(claude 계열),
-      # `thinking:{type:disabled}` 정상 동작 → opus와 동일 파라미터 체계.
-      minimal: {thinking: {type: disabled}}
-      full: {thinking: {type: adaptive}}
+  # ── 모델 추가 예시 (검증 완료, 현재는 비활성) ────────────────────────────────
+  # 2026-08-06 검증 범위: 설정검증 통과 + dry-run 50셀 구성 + opus·sonnet **2샘플 실호출
+  # 28셀 완주**(exit 0, 비용 양쪽 계산됨). ⚠️ 4모델 30샘플 전체 완주는 하지 않았다.
+  # 이후 기존 3모델 비교로 되돌렸다. 아래 주석을 풀면 그대로 4모델로 실행된다
+  # (pricing.yaml에 databricks-claude-sonnet-5 단가도 이미 등록돼 있다).
+  # 실측값: vision ✅(이미지 인식 확인), `reasoning_effort`는 HTTP 400 거부(claude 계열),
+  #         `thinking:{type:disabled}` 정상 동작 → opus와 동일 파라미터 체계.
+  # ⚠️ 모델을 추가하면 **새 run으로 전체 재실행**해야 한다(기존 run에 --resume은 차단됨).
+  # - id: sonnet
+  #   endpoint: databricks-claude-sonnet-5
+  #   family: claude
+  #   capabilities: [text, vision]
+  #   reasoning:
+  #     minimal: {thinking: {type: disabled}}
+  #     full: {thinking: {type: adaptive}}
 
   - id: glm
     endpoint: databricks-glm-5-2

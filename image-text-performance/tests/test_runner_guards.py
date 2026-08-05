@@ -133,3 +133,87 @@ def test_reasoning_mode_change_blocks_resume():
 def test_empty_prev_manifest_is_permissive():
     """옛 run에 없던 필드는 비교하지 않는다(하위호환) — 빈 manifest는 통과."""
     assert _manifest_drift({}, _manifest(["opus"])) == []
+
+
+# ──────────────────────────────────────────────── 완주 판정(2026-08-06 지적)
+
+
+def test_load_failure_makes_run_fail():
+    """태스크 로드 실패로 셀이 누락되면 exit 1 — 예전엔 기대 셀 수에서 빼서 exit 0이었다."""
+    scores = {f"c{i}": _cell() for i in range(33)}
+    assert _exit_code(scores, expected_cells=36,
+                      failed_tasks={"TXT-2": "샘플 로드 실패: ValueError"}) == 1
+
+
+def test_sample_shortfall_makes_run_fail():
+    """요청보다 적게 채점되면 exit 1 — `--samples 30`은 완주 조건이다."""
+    scores = {f"c{i}": _cell() for i in range(36)}
+    assert _exit_code(scores, expected_cells=36, shortfall_tasks={"TXT-2": (10, 30)}) == 1
+
+
+def test_judge_mass_failure_makes_run_fail():
+    """judge가 대량 실패하면 exit 1 — 생성 태스크 대표 수치가 사실상 비어 있다."""
+    scores = {
+        f"c{i}": {"n": 30, "metrics": {"accuracy": 0.9,
+                                       "judge_detail": {"n": 0, "n_failed": 30}}}
+        for i in range(3)
+    }
+    assert _exit_code(scores, expected_cells=3) == 1
+
+
+def test_judge_sporadic_failure_keeps_zero():
+    """judge 산발 실패(임계 미만)는 정상 — 요약 태스크에서 30건당 1~2건은 흔하다."""
+    scores = {
+        f"c{i}": {"n": 30, "metrics": {"accuracy": 0.9,
+                                       "judge_detail": {"n": 29, "n_failed": 1}}}
+        for i in range(3)
+    }
+    assert _exit_code(scores, expected_cells=3) == 0
+
+
+# ──────────────────────────────────────────────── run-id 충돌 방지
+
+
+def test_run_id_avoids_existing_dir(tmp_path):
+    """같은 분에 두 번 실행해도 run-id가 겹치지 않는다(결과가 섞이면 수치가 뒤엉킨다)."""
+    from src.results import make_run_id
+
+    first = make_run_id(results_root=tmp_path)
+    (tmp_path / first).mkdir()
+    second = make_run_id(results_root=tmp_path)
+    assert second != first
+    assert second.startswith(first)      # 같은 타임스탬프 + 접미사
+
+
+def test_run_id_plain_when_no_conflict(tmp_path):
+    """충돌이 없으면 접미사 없이 기존 형식(YYYY-MM-DDTHH-MM)을 유지한다."""
+    import re
+
+    from src.results import make_run_id
+
+    rid = make_run_id(results_root=tmp_path)
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}", rid), rid
+
+
+# ──────────────────────────────────────────────── --fresh는 삭제가 아니라 보관 이동
+
+
+def test_purge_moves_instead_of_deleting(tmp_path, monkeypatch):
+    """--fresh가 이전 run을 .trash로 **이동**한다 — 새 run이 죽어도 복구 가능해야 한다."""
+    from src.runner import _purge_previous_runs
+
+    monkeypatch.chdir(tmp_path)
+    results = tmp_path / "results"
+    reports = tmp_path / "reports"
+    for base in (results, reports):
+        (base / "old-run").mkdir(parents=True)
+        (base / "old-run" / "f.txt").write_text("data", encoding="utf-8")
+    (results / "keep-me").mkdir()
+
+    _purge_previous_runs(results, reports, keep_run_id="keep-me")
+
+    assert not (results / "old-run").exists(), "이전 run이 남아 있다"
+    assert (results / "keep-me").exists(), "이번 run 디렉터리를 지웠다"
+    moved = list((tmp_path / ".trash").glob("purged-*/results/old-run/f.txt"))
+    assert moved, "삭제만 하고 보관하지 않았다 — 사고 시 복구할 수 없다"
+    assert moved[0].read_text(encoding="utf-8") == "data"

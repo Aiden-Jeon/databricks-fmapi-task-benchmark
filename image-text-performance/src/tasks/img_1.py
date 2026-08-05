@@ -168,7 +168,11 @@ class Img1Task(Task):
         total_f1 = 0.0
 
         for pred, sample in zip(parsed, samples):
+            # 빈 예측(파싱 실패·빈 응답)도 **0점으로 채점**한다. 예전엔 continue로 분모에서
+            # 빼서, 캡션을 거의 못 내는 모델이 "성공한 일부"만으로 높은 평균을 받았다
+            # (2026-08-06 지적). 호출 실패는 러너가 CALL_FAILED로 걸러 여기 오지 않는다.
             if not pred:
+                valid_count += 1
                 continue
 
             # reference는 list of captions
@@ -197,12 +201,13 @@ class Img1Task(Task):
     def make_accumulator(self) -> MeanAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일(caption_token_f1 + n_evaluated).
 
-        빈 예측은 None 반환 → 평균·개수 모두에서 제외(score()의 valid_count 의미와 동일).
-        n_evaluated = 유효(비어있지 않은) 예측 수 → count_all=False.
+        빈 예측(파싱 실패)은 **0.0으로 채점**한다 — 캡션을 못 낸 것은 실제 능력 문제이므로
+        분모에 포함해야 한다(제외하면 형식을 못 맞추는 모델이 부당하게 높은 평균을 받는다).
+        호출 실패는 러너가 CALL_FAILED로 넘겨 MeanAccumulator가 분모에서 뺀다.
         """
         def value_fn(pred, sample):
             if not pred:
-                return None
+                return 0.0
             refs = sample.reference if isinstance(sample.reference, list) else [sample.reference]
             best = 0.0
             for ref in refs:
@@ -210,7 +215,7 @@ class Img1Task(Task):
             return best
 
         return _Img1Accumulator(
-            MeanAccumulator(out_key="caption_token_f1", value_fn=value_fn, count_all=False)
+            MeanAccumulator(out_key="caption_token_f1", value_fn=value_fn, count_all=True)
         )
 
     def judge_scores(
