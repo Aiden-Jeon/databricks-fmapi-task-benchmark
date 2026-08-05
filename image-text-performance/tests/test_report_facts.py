@@ -126,3 +126,73 @@ def test_error_cells_ignored():
     }
     facts = _extract_facts(scores, perf={})
     assert facts["win_counts"] == {"opus": 1}
+
+
+# ──────────────────────────────────────── pricing 누락·측정불가 (이슈 4 + review 지적)
+
+
+def _sample_result(model_id, *, error=False):
+    from datetime import datetime, timezone
+
+    from src.results import SampleResult
+
+    return SampleResult(
+        model_id=model_id, task_id="T", sample_id=0, reasoning_mode="minimal",
+        prompt="p", model_output="__ERROR__: boom" if error else "ok", reference="x",
+        request_id=None, finish_reason="error" if error else "stop",
+        usage={} if error else {"prompt_tokens": 10, "completion_tokens": 5},
+        latency_ms_local=1.0, timestamp=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+def test_unpriced_endpoint_is_not_cheapest():
+    """pricing.yaml에 없는 endpoint는 $0이 아니라 None → cheapest에서 제외."""
+    from src.report.generate import _perf_by_model
+
+    res = [_sample_result("opus")] * 3 + [_sample_result("newm")] * 3
+    perf = _perf_by_model(res, {"opus": "databricks-claude-opus-5", "newm": "databricks-not-in-pricing"})
+
+    assert perf["newm"]["total_usd"] is None
+    assert perf["newm"]["pricing_missing"] is True
+    assert perf["newm"]["pricing_missing_reason"] == "endpoint_not_in_pricing_yaml"
+
+    facts = _extract_facts(_scores(_cell("T", "opus", 0.9)), perf)
+    assert facts["cheapest_model"] == "opus", "단가 미등록 모델이 최저 비용으로 뽑혔다"
+    assert facts["unpriced_models"] == ["newm"]
+
+
+def test_all_calls_failed_is_not_cheapest():
+    """모델 전체가 실패하면 비용 합계가 0.0이 되는데 그건 '무료'가 아니라 '측정 불가'다.
+
+    (Isaac Review 지적) error 분기가 compute_usd 전에 continue하므로 priced·unpriced가
+    둘 다 0이 되어, `unpriced > 0` 조건만으로는 걸리지 않고 $0.0이 됐다. 그러면 403/400으로
+    전멸한 모델이 "가장 저렴한 모델"로 뽑힌다 — 이 가드가 막으려던 바로 그 상황.
+    """
+    from src.report.generate import _perf_by_model
+
+    res = [_sample_result("opus")] * 3 + [_sample_result("dead", error=True)] * 3
+    perf = _perf_by_model(res, {"opus": "databricks-claude-opus-5", "dead": "databricks-claude-opus-5"})
+
+    assert perf["dead"]["total_usd"] is None, "전멸한 모델의 비용이 0.0으로 남았다"
+    assert perf["dead"]["pricing_missing_reason"] == "no_successful_calls"
+
+    facts = _extract_facts(_scores(_cell("T", "opus", 0.9)), perf)
+    assert facts["cheapest_model"] == "opus", "전멸한 모델이 최저 비용으로 뽑혔다"
+
+
+def test_perf_table_distinguishes_two_missing_reasons():
+    """단가 미등록과 성공 0건은 조치가 다르므로 표·주석에서 구분한다."""
+    from src.report.generate import _perf_table
+
+    perf = {
+        "no_rate": {"n_calls": 3, "errors": 0, "latency_ms_median": 1.0, "latency_ms_p95": 1.0,
+                    "in_tokens": 1, "out_tokens": 1, "total_usd": None, "pricing_missing": True,
+                    "pricing_missing_reason": "endpoint_not_in_pricing_yaml", "endpoint": "databricks-x"},
+        "dead": {"n_calls": 3, "errors": 3, "latency_ms_median": None, "latency_ms_p95": None,
+                 "in_tokens": 0, "out_tokens": 0, "total_usd": None, "pricing_missing": True,
+                 "pricing_missing_reason": "no_successful_calls", "endpoint": "databricks-y"},
+    }
+    table = _perf_table(perf)
+    assert "단가 미등록" in table
+    assert "성공 호출 0건" in table
+    assert "가장 저렴한 모델' 선정에서 제외" in table

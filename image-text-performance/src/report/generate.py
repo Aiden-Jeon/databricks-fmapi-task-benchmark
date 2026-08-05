@@ -313,8 +313,13 @@ def _perf_by_model(results: list[SampleResult], endpoints: dict[str, str]) -> di
     out = {}
     for mid, a in agg.items():
         lat = a["latencies"]
-        # 단가를 못 찾은 호출이 하나라도 있으면 비용을 신뢰할 수 없다(부분 합계는 과소계상).
-        pricing_missing = a["unpriced"] > 0
+        # 비용을 신뢰할 수 없는 두 경우 모두 None으로 둔다:
+        # (a) 단가를 못 찾은 호출이 있다 → 부분 합계는 과소계상
+        # (b) **성공 호출이 0건** → 합계가 0.0이 되는데, 그건 "무료"가 아니라 "측정 불가"다.
+        #     모델 전체가 403/400으로 실패하면 error 분기에서 continue하므로 priced·unpriced가
+        #     둘 다 0이 되어, 예전 조건(unpriced>0)으로는 걸리지 않고 $0.0이 되어 그 모델이
+        #     "가장 저렴한 모델"로 뽑혔다 — 이 가드가 막으려던 바로 그 상황이다.
+        pricing_missing = a["unpriced"] > 0 or a["priced"] == 0
         entry = {
             "n_calls": a["n"],
             "errors": a["errors"],
@@ -329,6 +334,11 @@ def _perf_by_model(results: list[SampleResult], endpoints: dict[str, str]) -> di
             entry["pricing_missing"] = True
             entry["unpriced_calls"] = a["unpriced"]
             entry["endpoint"] = endpoints.get(mid, "")
+            # 원인을 구분해 둔다 — 조치가 다르다(단가 추가 vs 엔드포인트·권한 점검).
+            entry["pricing_missing_reason"] = (
+                "no_successful_calls" if a["priced"] == 0 and a["unpriced"] == 0
+                else "endpoint_not_in_pricing_yaml"
+            )
         out[mid] = entry
     return out
 
@@ -660,12 +670,17 @@ def _perf_table(perf: dict[str, dict]) -> str:
     """모델별 시간·비용 표. 단가 미등록 모델은 비용을 숫자로 쓰지 않고 이유를 적는다."""
     rows = ["| 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |",
             "|---|---|---|---|---|---|---|---|"]
-    missing: list[str] = []
+    no_rate: list[str] = []      # pricing.yaml 미등록
+    no_success: list[str] = []   # 성공 호출 0건(전멸)
     for mid, p in sorted(perf.items()):
         if p.get("pricing_missing"):
             # $0으로 두면 "가장 저렴"으로 오독된다 → 원인을 셀에 직접 쓴다.
-            usd = "⚠️ 단가 미등록"
-            missing.append(f"`{mid}`(endpoint `{p.get('endpoint') or '?'}`)")
+            if p.get("pricing_missing_reason") == "no_successful_calls":
+                usd = "⚠️ 측정 불가(성공 호출 0건)"
+                no_success.append(f"`{mid}`(endpoint `{p.get('endpoint') or '?'}`)")
+            else:
+                usd = "⚠️ 단가 미등록"
+                no_rate.append(f"`{mid}`(endpoint `{p.get('endpoint') or '?'}`)")
         else:
             usd = p["total_usd"]
         rows.append(
@@ -673,12 +688,22 @@ def _perf_table(perf: dict[str, dict]) -> str:
             f"{p['latency_ms_p95']} | {p['in_tokens']} | {p['out_tokens']} | {usd} |"
         )
     table = "\n".join(rows)
-    if missing:
+    if no_rate:
         table += (
-            f"\n\n> ⚠️ **비용 계산 불가**: {', '.join(missing)}가 `config/pricing.yaml`의 "
-            f"`models:`에 없습니다. 해당 모델의 DBU 단가(`dbu_in`/`dbu_out`)를 추가하면 비용이 "
-            f"계산됩니다. **비용 비교·'가장 저렴한 모델' 선정에서 제외**했습니다"
-            f"(0으로 두면 단가 누락이 최저 비용으로 오독됩니다)."
+            f"\n\n> ⚠️ **비용 계산 불가(단가 미등록)**: {', '.join(no_rate)}가 "
+            f"`config/pricing.yaml`의 `models:`에 없습니다. 해당 모델의 DBU 단가"
+            f"(`dbu_in`/`dbu_out`)를 추가하면 비용이 계산됩니다."
+        )
+    if no_success:
+        table += (
+            f"\n\n> ⚠️ **비용 측정 불가(성공 호출 0건)**: {', '.join(no_success)}는 모든 호출이 "
+            f"실패해 비용을 계산할 수 없습니다(엔드포인트·권한·파라미터를 점검하세요). "
+            f"**이 모델의 다른 수치도 신뢰할 수 없습니다.**"
+        )
+    if no_rate or no_success:
+        table += (
+            "\n\n> 위 모델들은 **비용 비교·'가장 저렴한 모델' 선정에서 제외**했습니다 — "
+            "0으로 두면 계산 불가가 최저 비용으로 오독됩니다."
         )
     return table
 
