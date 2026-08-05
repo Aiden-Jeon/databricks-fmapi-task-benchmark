@@ -309,8 +309,17 @@ def main() -> int:
     if resuming and manifest_path.exists():
         try:
             prev = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except Exception:
-            prev = {}
+            if not isinstance(prev, dict):
+                raise ValueError(f"manifest 최상위가 dict가 아님({type(prev).__name__})")
+        except Exception as e:
+            # **fail-closed.** 예전엔 `prev = {}`로 넘어갔는데, 드리프트 검사는 없는 필드를
+            # 건너뛰므로 빈 dict는 "차이 없음"이 되어 모든 구성 가드가 통째로 무력화된다
+            # (모델·태스크·샘플 수가 달라도 옛 scores와 섞인다). 읽을 수 없으면 거부한다.
+            print(f"\n❌ --resume 거부: manifest.json을 읽을 수 없습니다 "
+                  f"({type(e).__name__}: {e}).\n"
+                  f"   구성이 같은지 확인할 수 없으면 옛 결과와 섞여 리포트가 거짓이 됩니다.\n"
+                  f"   → 새 run으로 전체 재실행하세요(--resume 없이).")
+            return 1
         drift = _manifest_drift(prev, manifest)
         if drift:
             print(
@@ -630,18 +639,23 @@ def _run_samples(
                     judge_expected_cells.add(key)
                 cell_results: list[SampleResult] = []
                 n_call_failed = 0   # 이 셀의 호출 실패 수 → 점수와 함께 기록(아래 주석 참고)
+                # 누적기 add 실패 수. 경고만 찍고 넘어가면 그 샘플이 분모에서 조용히 빠져
+                # (n_evaluated가 줄어든) 셀이 "완주"로 통과한다 → 셀 오류로 승격시킨다.
+                n_acc_errors = 0
 
                 # 부분 이어달리기: 이 셀에서 **이미 호출해 저장된** sample_id는 다시 부르지 않고
                 # samples.jsonl에서 결과를 읽어 채점에만 넣는다(중단 시 재호출 비용 절감).
                 reuse_sids = partial_done.get(key, set())
                 reused_rows: dict[int, Any] = {}
                 if reuse_sids:
-                    from src.results import load_sample_results
-
-                    for r in load_sample_results(run_dir):
-                        if (r.model_id == model.id and r.task_id == task_id
-                                and r.reasoning_mode == mode and r.sample_id in reuse_sids):
-                            reused_rows[r.sample_id] = r
+                    # samples.jsonl을 **스트리밍으로 한 줄씩** 훑어 이 셀의 행만 뽑는다.
+                    # 예전엔 `load_sample_results(run_dir)`(전체 파일을 리스트로 로드)를 셀
+                    # 루프 안에서 호출해 두 가지가 깨졌다: (1) 파일이 커지는 동안 셀마다 전체
+                    # 재스캔 → O(셀수 × 행수), (2) 전 행을 메모리에 올려 러너의 O(1) 메모리
+                    # 계약 위반. 여기서는 해당 셀 행만 dict에 담는다(최대 샘플 수개).
+                    reused_rows = _load_cell_rows(
+                        samples_path, model.id, task_id, mode, reuse_sids
+                    )
                     print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 "
                           f"(이어달리기: {len(reused_rows)}개 재사용, "
                           f"{len(samples) - len(reused_rows)}개 호출)...", flush=True)
@@ -660,6 +674,7 @@ def _run_samples(
                             try:
                                 acc.add(parsed_prev, s)
                             except Exception as e:
+                                n_acc_errors += 1
                                 print(f"    [acc.add 실패(재사용)] {key} s{s.sample_id}: "
                                       f"{type(e).__name__}: {e}")
                         else:
@@ -702,7 +717,9 @@ def _run_samples(
                         try:
                             acc.add(parsed, s)
                         except Exception as e:
-                            # add 실패는 드물지만 조용히 삼키면 n_evaluated가 어긋난다 → 경고 출력.
+                            # add 실패를 조용히 삼키면 그 샘플이 분모에서 빠져 n_evaluated가
+                            # 어긋난 채 셀이 완주로 통과한다 → 세어서 아래에서 오류로 승격.
+                            n_acc_errors += 1
                             print(f"    [acc.add 실패] {key} s{s.sample_id}: {type(e).__name__}: {e}")
                     else:
                         buf_parsed.append(parsed)
@@ -757,6 +774,16 @@ def _run_samples(
                             metrics["n_skipped"] = n_dropped
                 except Exception as e:
                     metrics = {"error": f"{type(e).__name__}: {e}"}
+
+                # 누적기 add가 하나라도 실패했으면 이 셀의 분모가 조용히 줄어든 상태다.
+                # 수치는 그대로 계산되지만 "몇 개로 낸 값인지"가 어긋나므로, 오류로 표시해
+                # 완주 판정·리포트 순위에서 빠지게 한다(경고만 찍던 옛 동작의 구멍).
+                if n_acc_errors and isinstance(metrics, dict):
+                    metrics["error"] = (
+                        f"누적기 add 실패 {n_acc_errors}/{len(samples)}건 — 분모가 어긋나 "
+                        f"수치를 신뢰할 수 없음"
+                        + (f" (기존 오류: {metrics['error']})" if "error" in metrics else "")
+                    )
 
                 # per-task judge (config-gated). 정량 정상일 때만.
                 # judge_scores()는 parsed 리스트 전체를 요구하므로: 폴백 경로는 buf_parsed를,
@@ -887,14 +914,36 @@ def _run_samples(
     if not list(reports_dir.glob("chart_*.png")):
         artifact_errors.append("chart_*.png 없음")
 
-    # ── --fresh 정리는 **지금** 한다 ──────────────────────────────────
-    # 새 리포트가 실제로 만들어지고 필수 산출물이 확인된 뒤에만 이전 run을 보관 이동한다.
-    # 실행 중간에 죽으면 정리가 아예 일어나지 않아 README '최신 리포트' 링크·index가
-    # 그대로 살아 있다(2026-08-06 재지적 반영).
+    # ── 종료 코드 판정 ────────────────────────────────────────────────
+    # 실패해도 exit 0을 내면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다. 실측 위험:
+    # 모델 전체가 403/400이어도 "실행 완료" 후 0을 반환해, 빈 리포트가 정상 산출물로 커밋될 수 있다.
+    # 리포트는 이미 생성했으므로(부분 결과도 보존 가치가 있다) **결과는 남기고 종료 코드로만 알린다.**
+    # 기대 셀 수는 **매트릭스 전체**다. skipped_cells를 빼면 로드 실패로 태스크가 통째로
+    # 누락돼도 "기대치를 다 채웠다"가 되어 exit 0이 나온다(그게 옛 동작이었다).
+    #
+    # **정리보다 먼저 판정한다** — 아래 --fresh 보관 이동이 이 판정 결과를 봐야 하기 때문이다.
+    code = _exit_code(
+        scores,
+        expected_cells=len(matrix),
+        expected_keys={_cell_key(c["model_id"], c["task_id"], c["reasoning_mode"])
+                       for c in matrix},
+        failed_tasks=failed_tasks,
+        shortfall_tasks=shortfall_tasks,
+        judge_expected_cells=judge_expected_cells,
+        judge_init_error=judge_init_error,
+        artifact_errors=artifact_errors,
+    )
+
+    # ── --fresh 정리는 **맨 마지막에, 판정이 통과한 경우에만** ─────────────
+    # 이전엔 필수 산출물 존재만 확인하고 치웠다. 그러면 모델 전체가 403이어서 점수가 텅 빈
+    # run도 구조적으로는 report.md·chart를 만들어내므로, **검증된 이전 run을 전부 보관 이동한 뒤
+    # exit 1**을 내는 최악의 조합이 나온다(믿을 수 있는 유일한 리포트를 스스로 치운다).
+    # 지금은 exit 0(= 수치를 신뢰할 수 있음)일 때만 치운다. 실행 중간에 죽으면 정리가 아예
+    # 일어나지 않아 README '최신 리포트' 링크·index가 그대로 살아 있다.
     if fresh:
-        if artifact_errors:
-            print(f"\n[--fresh 보류] 필수 산출물이 불완전해 이전 run을 그대로 둡니다: "
-                  f"{', '.join(artifact_errors[:3])}")
+        if code != 0:
+            print("\n[--fresh 보류] 이번 run이 실패로 판정돼 이전 run을 그대로 둡니다 "
+                  "(신뢰할 수 있는 리포트를 잃지 않기 위해). 원인을 고친 뒤 다시 실행하세요.")
         else:
             _purge_previous_runs(
                 results_root or Path("results"), Path("reports"), keep_run_id=run_dir.name
@@ -904,24 +953,10 @@ def _run_samples(
 
                 print(f"인덱스 재생성(정리 후): {rebuild_index()}")
             except Exception as e:
-                artifact_errors.append(f"정리 후 index 재생성: {type(e).__name__}: {e}")
                 print(f"  [정리 후 인덱스 실패] {type(e).__name__}: {e}")
+                return 1
 
-    # ── 종료 코드 판정 ────────────────────────────────────────────────
-    # 실패해도 exit 0을 내면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다. 실측 위험:
-    # 모델 전체가 403/400이어도 "실행 완료" 후 0을 반환해, 빈 리포트가 정상 산출물로 커밋될 수 있다.
-    # 리포트는 이미 생성했으므로(부분 결과도 보존 가치가 있다) **결과는 남기고 종료 코드로만 알린다.**
-    # 기대 셀 수는 **매트릭스 전체**다. skipped_cells를 빼면 로드 실패로 태스크가 통째로
-    # 누락돼도 "기대치를 다 채웠다"가 되어 exit 0이 나온다(그게 옛 동작이었다).
-    return _exit_code(
-        scores,
-        expected_cells=len(matrix),
-        failed_tasks=failed_tasks,
-        shortfall_tasks=shortfall_tasks,
-        judge_expected_cells=judge_expected_cells,
-        judge_init_error=judge_init_error,
-        artifact_errors=artifact_errors,
-    )
+    return code
 
 
 def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: str) -> None:
@@ -936,15 +971,21 @@ def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: s
     """
     import shutil
 
-    trash = Path(".trash") / f"purged-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    moved: list[str] = []
-
-    # 직전 보관본 정리(하나만 유지) — 디스크가 무한히 늘지 않게.
     trash_root = Path(".trash")
-    if trash_root.exists():
-        for old in sorted(trash_root.glob("purged-*"))[:-1]:
-            shutil.rmtree(old, ignore_errors=True)
+    # 이번 보관본 디렉터리는 **원자적으로 예약**한다 — 같은 초에 두 번 정리하면 같은 이름을
+    # 공유해 한쪽이 다른쪽 트리 안에 중첩되거나 중간에 실패한다.
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    trash = trash_root / f"purged-{stamp}"
+    for n in range(1, 100):
+        cand = trash if n == 1 else trash_root / f"purged-{stamp}-{n}"
+        try:
+            cand.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            continue
+        trash = cand
+        break
 
+    moved: list[str] = []
     for base in (results_dir, reports_dir):
         if not base.exists():
             continue
@@ -961,6 +1002,18 @@ def _purge_previous_runs(results_dir: Path, reports_dir: Path, *, keep_run_id: s
               f"{', '.join(moved[:6])}{' …' if len(moved) > 6 else ''}")
     else:
         print("[--fresh] 정리할 이전 run이 없습니다.")
+
+    # 옛 보관본 정리는 **이번 보관본이 완성된 뒤에** 한다(하나만 유지 — 디스크 무한 증가 방지).
+    # 순서를 뒤집으면(옛것 삭제 → 이동) 이동이 중간에 실패했을 때 옛 보관본도 없고 이번
+    # 보관본도 반쪽인 상태가 된다. 삭제 실패는 조용히 넘기지 않고 알린다(누수 신호).
+    if trash_root.exists():
+        for old in sorted(trash_root.glob("purged-*")):
+            if old == trash:
+                continue
+            try:
+                shutil.rmtree(old)
+            except OSError as e:
+                print(f"  [.trash 정리 실패] {old}: {type(e).__name__}: {e} — 수동 삭제 필요")
 
 
 def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
@@ -1010,10 +1063,16 @@ def _manifest_drift(prev: dict[str, Any], cur: RunManifest) -> list[str]:
     return out
 
 
+def _cell_key(model_id: str, task_id: str, mode: str) -> str:
+    """셀(모델×태스크×모드)의 고유 키. scores.json의 키이자 samples 행의 그룹 키다."""
+    return f"{model_id}::{task_id}::{mode}"
+
+
 def _exit_code(
     scores: dict[str, Any],
     expected_cells: int,
     *,
+    expected_keys: set[str] | None = None,
     failed_tasks: dict[str, str] | None = None,
     shortfall_tasks: dict[str, tuple[int, int]] | None = None,
     judge_expected_cells: set[str] | None = None,
@@ -1115,7 +1174,23 @@ def _exit_code(
             f"— 생성 태스크의 judge 수치를 신뢰할 수 없다"
         )
 
-    if expected_cells and len(scores) < expected_cells:
+    # 개수 비교가 아니라 **키 집합**을 비교한다. 개수만 보면 옛 run에서 남은 scores 항목이
+    # 이번 매트릭스의 누락 셀을 벌충해 "다 돌았다"가 되고(exit 0), 그 낡은 항목이 리포트
+    # 순위에도 들어간다(--resume + 구성 변경 시 실제로 가능한 경로).
+    if expected_keys:
+        missing = sorted(expected_keys - set(scores))
+        extra = sorted(set(scores) - expected_keys)
+        if missing:
+            reasons.append(
+                f"누락 셀 {len(missing)}/{len(expected_keys)} — 실행되지 않았다: "
+                f"{', '.join(missing[:5])}{' …' if len(missing) > 5 else ''}"
+            )
+        if extra:
+            reasons.append(
+                f"이번 매트릭스에 없는 scores 항목 {len(extra)}개 — 옛 run의 결과가 섞였다: "
+                f"{', '.join(extra[:5])}{' …' if len(extra) > 5 else ''}"
+            )
+    elif expected_cells and len(scores) < expected_cells:
         reasons.append(f"완료 셀 {len(scores)}/{expected_cells} — 일부 셀이 실행되지 않았다")
 
     if reasons:
@@ -1178,9 +1253,15 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
     import os
 
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2, default=str)
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=2, default=str)
+        os.replace(tmp, path)
+    except Exception:
+        # 실패 시 tmp를 남기지 않는다 — 셀마다 호출되므로 남으면 계속 쌓이고,
+        # 수동 점검 때 어느 게 진짜 결과인지 헷갈린다. 원본은 그대로 유지된다.
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _poisoned_cells(samples_path: Path, threshold: float = UNRELIABLE_FAILURE_RATE) -> set[str]:
@@ -1208,6 +1289,50 @@ def _poisoned_cells(samples_path: Path, threshold: float = UNRELIABLE_FAILURE_RA
             if str(d.get("model_output", "")).startswith("__ERROR__"):
                 errs[key] = errs.get(key, 0) + 1
     return {k for k, n in total.items() if n > 0 and errs.get(k, 0) / n > threshold}
+
+
+def _load_cell_rows(
+    samples_path: Path,
+    model_id: str,
+    task_id: str,
+    mode: str,
+    sample_ids: set[int],
+) -> dict[int, Any]:
+    """samples.jsonl을 스트리밍으로 훑어 **한 셀의 지정 샘플 행만** 돌려준다.
+
+    반환: {sample_id: SampleResult 유사 객체(필요 필드만 있는 경량 레코드)}.
+
+    왜 전체 로드를 쓰지 않는가: `load_sample_results()`는 파일 전체를 리스트로 만든다.
+    그걸 셀 루프 안에서 부르면 (1) 파일이 커지는 동안 셀마다 전체 재스캔이 되어
+    O(셀수 × 행수)가 되고, (2) 모든 행이 메모리에 올라와 러너의 O(1) 메모리 설계가 깨진다.
+    여기서는 한 줄씩 읽고 이 셀에 해당하는 행만 남긴다(최대 샘플 수개).
+    """
+    from src.results import SampleResult
+
+    out: dict[int, Any] = {}
+    if not samples_path.exists() or not sample_ids:
+        return out
+    with open(samples_path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (d.get("model_id") != model_id or d.get("task_id") != task_id
+                    or d.get("reasoning_mode") != mode):
+                continue
+            sid = d.get("sample_id")
+            if sid not in sample_ids:
+                continue
+            # 알려진 필드만 넘긴다 — 스키마가 늘어난 옛 파일도 안전하게 읽힌다.
+            known = {f: d.get(f) for f in SampleResult.__dataclass_fields__ if f in d}
+            try:
+                out[sid] = SampleResult(**known)
+            except TypeError:
+                continue   # 필수 필드가 빠진 손상 행은 건너뛴다(재호출됨)
+    return out
 
 
 def _partial_progress(
@@ -1254,53 +1379,26 @@ def _partial_progress(
             kept.append(line)              # 부분 완료 행 보존
             progress.setdefault(key, set()).add(sid)
 
+    # 재작성 실패 시 **원본을 그대로 두고** 이어달리기를 포기한다(재호출은 손해지만,
+    # 반쪽 파일로 채점이 오염되는 것보다 안전하다). tmp도 남기지 않는다.
     tmp = samples_path.with_suffix(samples_path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        for line in kept:
-            f.write(line + "\n")
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, samples_path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            for line in kept:
+                f.write(line + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, samples_path)
+    except Exception as e:
+        tmp.unlink(missing_ok=True)
+        # 전부 재호출하면 같은 (모델·태스크·모드·샘플) 행이 파일에 두 번 남는다. 그래도
+        # 집계가 중복되지 않는 이유: `load_sample_results()`가 그 키로 **마지막 행만** 남기고
+        # 읽는다(= 실제로 채점에 쓴 새 응답). 반쪽 파일로 채점하는 것보다 이 편이 안전하다.
+        print(f"  [resume] samples.jsonl 재작성 실패({type(e).__name__}: {e}) — "
+              f"이어달리기를 건너뛰고 해당 셀을 전부 재호출합니다(원본은 보존, "
+              f"중복 행은 로드 시 마지막 것만 집계).")
+        return {}
     return progress
-
-
-def _reconcile_samples_with_scores(samples_path: Path, done_keys: set[str]) -> None:
-    """resume 시 samples.jsonl을 scores.json과 정합화한다.
-
-    완료된 셀(scores에 있는 key = "model::task::mode")의 행만 남기고, scores에 없는
-    셀의 행(크래시 직전 부분 기록)은 버린다. 그래야 그 셀을 재실행해 다시 append해도
-    옛 부분행과 중복되지 않아 perf·비용 집계가 정확하다. 원자적 교체로 안전하게 재작성.
-    파일이 없으면 no-op.
-    """
-    import os
-
-    if not samples_path.exists():
-        return
-    kept: list[str] = []
-    dropped = 0
-    with open(samples_path, encoding="utf-8") as f:
-        for line in f:
-            line = line.rstrip("\n")
-            if not line.strip():
-                continue
-            try:
-                d = json.loads(line)
-                key = f"{d['model_id']}::{d['task_id']}::{d['reasoning_mode']}"
-            except (json.JSONDecodeError, KeyError):
-                dropped += 1
-                continue
-            if key in done_keys:
-                kept.append(line)
-            else:
-                dropped += 1
-    tmp = samples_path.with_suffix(samples_path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        for line in kept:
-            f.write(line + "\n")
-        f.flush()
-    os.replace(tmp, samples_path)
-    if dropped:
-        print(f"  [resume] samples.jsonl 정합화: 미완료 셀 {dropped}행 제거, {len(kept)}행 유지")
 
 
 def _record_gallery(gallery_path, records, task_id, is_image, sensitive, per_task_outputs, ref_by_sid):

@@ -34,7 +34,12 @@ class SampleResult:
     timestamp: str                     # ISO 8601 timestamp
 
 
-def make_run_id(version_suffix: str = "", *, results_root: str | Path = "results") -> str:
+def make_run_id(
+    version_suffix: str = "",
+    *,
+    results_root: str | Path = "results",
+    reports_root: str | Path = "reports",
+) -> str:
     """타임스탬프 기반 run ID를 **원자적으로 예약**하고 돌려준다(디렉터리까지 생성).
 
     형식: YYYY-MM-DDTHH-MM[_version_suffix]
@@ -54,19 +59,30 @@ def make_run_id(version_suffix: str = "", *, results_root: str | Path = "results
 
     root = Path(results_root)
     root.mkdir(parents=True, exist_ok=True)
-    reports_root = Path("reports")
+    # 리포트 루트도 인자로 받는다 — 기본값은 러너가 실제로 쓰는 `reports/`이고, 테스트는
+    # tmp_path를 넘겨 실제 리포트 디렉터리를 오염시키지 않는다.
+    reports_root = Path(reports_root)
 
     for n in range(1, 1000):
         candidate = base if n == 1 else f"{base}-{n}"
-        # reports/에 같은 이름이 있으면(이전 run의 리포트만 남은 경우) 그 ID는 피한다 —
-        # 리포트를 덮어써 옛 결과를 잃지 않기 위해. 이 검사는 경합에 안전하지 않아도 되는데,
-        # 실제 예약은 아래 mkdir이 하기 때문이다(최악의 경우 접미사만 하나 건너뛴다).
-        if (reports_root / candidate).exists():
-            continue
+        # **results/와 reports/를 둘 다 예약한다.** results만 예약하면, `--out`으로 결과
+        # 루트를 다르게 준 두 프로세스가 같은 ID를 얻어 같은 `reports/<id>/`를 덮어쓴다
+        # (리포트 경로는 항상 프로세스 기준 `reports/`다). exists() 검사만으로는 TOCTOU라
+        # 막을 수 없으므로, 여기서도 mkdir 자체로 예약한다.
         try:
             (root / candidate).mkdir(exist_ok=False)
         except FileExistsError:
             continue          # 다른 프로세스가 먼저 예약함 → 다음 후보
+        try:
+            (reports_root / candidate).mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            # reports 쪽이 이미 있으면(옛 run의 리포트만 남은 경우 포함) 이 ID는 포기한다.
+            # 방금 만든 results 디렉터리는 비어 있을 때만 되돌린다(남의 것을 지우지 않게).
+            try:
+                (root / candidate).rmdir()
+            except OSError:
+                pass
+            continue
         return candidate
 
     raise RuntimeError(f"run ID를 예약할 수 없습니다(같은 분에 1000회 시도): {base}")
@@ -151,6 +167,10 @@ def load_sample_results(run_dir: str | Path) -> list[SampleResult]:
       (리포트는 model_output·reference·finish_reason 등 스칼라/문자열만 읽으므로 무해).
     - SampleResult 필드 이외의 잉여 키는 방어적으로 무시(포맷 진화 대비).
     - 깨진 줄(부분 기록 등)은 조용히 건너뛴다.
+    - **같은 (model, task, mode, sample) 행이 여러 개면 마지막 것만 남긴다.** append-only
+      파일이라 중단·재실행이 겹치면 같은 샘플이 두 번 기록될 수 있는데, 그때 시간·비용·
+      토큰·실패율이 그 샘플만큼 **중복 집계**된다(채점은 셀당 한 번만 하므로 수치가 어긋난다).
+      마지막 행을 택하는 이유는 그것이 실제로 채점에 쓰인 응답이라서다.
     """
     run_dir = Path(run_dir)
     samples_file = run_dir / "samples.jsonl"
@@ -158,7 +178,8 @@ def load_sample_results(run_dir: str | Path) -> list[SampleResult]:
         return []
 
     valid_keys = {f.name for f in fields(SampleResult)}
-    out: list[SampleResult] = []
+    # dict는 삽입 순서를 유지하므로, 덮어써도 "처음 등장한 자리"의 순서가 보존된다.
+    by_key: dict[tuple, SampleResult] = {}
     with open(samples_file, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -171,10 +192,11 @@ def load_sample_results(run_dir: str | Path) -> list[SampleResult]:
             if not isinstance(d, dict):
                 continue
             try:
-                out.append(SampleResult(**{k: v for k, v in d.items() if k in valid_keys}))
+                r = SampleResult(**{k: v for k, v in d.items() if k in valid_keys})
             except TypeError:
                 continue  # 필드 누락 등 스키마 불일치 줄 스킵
-    return out
+            by_key[(r.model_id, r.task_id, r.reasoning_mode, r.sample_id)] = r
+    return list(by_key.values())
 
 
 def _json_default(o: Any) -> Any:

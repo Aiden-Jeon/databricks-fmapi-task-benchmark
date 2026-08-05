@@ -8,8 +8,12 @@
   옛 3모델만 남아, "이 리포트는 어떤 구성으로 뽑혔나"가 거짓이 됐다.
 """
 
+import json
+import os
+
 import pytest
 
+from src import runner
 from src.results import RunManifest
 from src.runner import GLOBAL_FAILURE_EXIT_RATE, _exit_code, _manifest_drift
 
@@ -181,12 +185,29 @@ def test_run_id_avoids_existing_dir(tmp_path):
     """
     from src.results import make_run_id
 
-    first = make_run_id(results_root=tmp_path)
-    assert (tmp_path / first).is_dir(), "예약 시 디렉터리를 만들어야 한다"
-    second = make_run_id(results_root=tmp_path)
+    res, rep = tmp_path / "results", tmp_path / "reports"
+    first = make_run_id(results_root=res, reports_root=rep)
+    assert (res / first).is_dir(), "예약 시 디렉터리를 만들어야 한다"
+    second = make_run_id(results_root=res, reports_root=rep)
     assert second != first
     assert second.startswith(first)      # 같은 타임스탬프 + 접미사
-    assert (tmp_path / second).is_dir()
+    assert (res / second).is_dir()
+
+
+def test_run_id_reserves_reports_dir_too(tmp_path):
+    """reports/도 함께 예약한다 — results만 예약하면 `--out`이 다른 두 프로세스가 같은
+    reports/<id>/를 덮어쓴다(리포트 경로는 항상 프로세스 기준 reports/)."""
+    from src.results import make_run_id
+
+    res, rep = tmp_path / "results", tmp_path / "reports"
+    rid = make_run_id(results_root=res, reports_root=rep)
+    assert (rep / rid).is_dir(), "reports 쪽도 예약해야 덮어쓰기를 막는다"
+
+    # reports에만 같은 이름이 이미 있으면 그 ID는 건너뛴다(옛 리포트 보호).
+    other_res = tmp_path / "results2"
+    rid2 = make_run_id(results_root=other_res, reports_root=rep)
+    assert rid2 != rid, "reports가 점유된 ID를 재사용하면 옛 리포트를 덮어쓴다"
+    assert not (other_res / rid).exists(), "포기한 후보의 results 디렉터리는 되돌려야 한다"
 
 
 def test_run_id_reservation_is_atomic_under_concurrency(tmp_path):
@@ -195,8 +216,11 @@ def test_run_id_reservation_is_atomic_under_concurrency(tmp_path):
 
     from src.results import make_run_id
 
+    res, rep = tmp_path / "results", tmp_path / "reports"
     with ThreadPoolExecutor(max_workers=12) as ex:
-        ids = list(ex.map(lambda _: make_run_id(results_root=tmp_path), range(12)))
+        ids = list(ex.map(
+            lambda _: make_run_id(results_root=res, reports_root=rep), range(12)
+        ))
 
     assert len(set(ids)) == len(ids), f"동시 예약에서 중복 발생: {sorted(ids)}"
 
@@ -207,7 +231,9 @@ def test_run_id_plain_when_no_conflict(tmp_path):
 
     from src.results import make_run_id
 
-    rid = make_run_id(results_root=tmp_path)
+    rid = make_run_id(
+        results_root=tmp_path / "results", reports_root=tmp_path / "reports"
+    )
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}", rid), rid
 
 
@@ -330,3 +356,221 @@ def test_partial_progress_no_file_is_noop(tmp_path):
     from src.runner import _partial_progress
 
     assert _partial_progress(tmp_path / "missing.jsonl", set()) == {}
+
+
+# ──────────────────────────── 필수 산출물 실패 (P1-5, review 지적)
+
+
+def test_artifact_errors_make_run_fail():
+    """리포트·인덱스·차트 생성 실패는 exit 1 — "성공했는데 리포트가 없는" 상태 방지.
+
+    (gstack review 지적) `artifact_errors`를 _exit_code에 넣었지만 테스트가 없었다.
+    """
+    scores = {f"c{i}": _cell() for i in range(36)}
+    assert _exit_code(scores, expected_cells=36,
+                      artifact_errors=["report.md: OSError: disk full"]) == 1
+    assert _exit_code(scores, expected_cells=36, artifact_errors=["chart_*.png 없음"]) == 1
+
+
+def test_empty_artifact_errors_passes():
+    """산출물이 모두 정상이면 통과(과잉 실패 방지)."""
+    scores = {f"c{i}": _cell() for i in range(36)}
+    assert _exit_code(scores, expected_cells=36, artifact_errors=[]) == 0
+    assert _exit_code(scores, expected_cells=36, artifact_errors=None) == 0
+
+
+# ──────────────────────────── 부분 재사용 행 로드 (성능 지적)
+
+
+def test_load_cell_rows_streams_only_matching_cell(tmp_path):
+    """지정한 셀·sample_id 행만 돌려준다 — 파일 전체를 메모리에 올리지 않는다.
+
+    (gstack review 지적) 예전엔 셀 루프 안에서 load_sample_results()로 파일 전체를
+    리스트로 만들어, 셀마다 전체 재스캔(O(셀수 × 행수)) + O(1) 메모리 계약 위반이었다.
+    """
+    from src.runner import _load_cell_rows
+
+    sp = tmp_path / "samples.jsonl"
+    lines = [_sample_row("opus", "TXT-2", i) for i in range(5)]
+    lines += [_sample_row("sol", "TXT-2", i) for i in range(5)]     # 다른 모델
+    lines += [_sample_row("opus", "TXT-9", i) for i in range(5)]    # 다른 태스크
+    sp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    rows = _load_cell_rows(sp, "opus", "TXT-2", "minimal", {0, 2, 4})
+
+    assert set(rows) == {0, 2, 4}, f"다른 셀 행이 섞였거나 누락됐다: {sorted(rows)}"
+    assert all(r.model_id == "opus" and r.task_id == "TXT-2" for r in rows.values())
+
+
+def test_load_cell_rows_handles_missing_file_and_empty_ids(tmp_path):
+    from src.runner import _load_cell_rows
+
+    assert _load_cell_rows(tmp_path / "nope.jsonl", "opus", "T", "minimal", {1}) == {}
+    sp = tmp_path / "samples.jsonl"
+    sp.write_text(_sample_row("opus", "T", 0) + "\n", encoding="utf-8")
+    assert _load_cell_rows(sp, "opus", "T", "minimal", set()) == {}
+
+
+def test_load_cell_rows_skips_corrupt_lines(tmp_path):
+    """손상된 JSON 행은 건너뛴다(그 샘플은 재호출된다) — 셀 전체를 죽이지 않는다."""
+    from src.runner import _load_cell_rows
+
+    sp = tmp_path / "samples.jsonl"
+    sp.write_text(
+        _sample_row("opus", "T", 0) + "\n{not json}\n" + _sample_row("opus", "T", 1) + "\n",
+        encoding="utf-8",
+    )
+    rows = _load_cell_rows(sp, "opus", "T", "minimal", {0, 1})
+    assert set(rows) == {0, 1}
+
+
+# ---------------------------------------------------------------------------
+# tmp 파일 누수 / 재작성 실패 시 원본 보존
+# (adversarial 리뷰 지적: os.replace 실패 시 .tmp가 영구히 남고, _partial_progress가
+#  예외를 던지면 run 전체가 죽는다. 셀마다 호출되므로 누수는 계속 쌓인다.)
+# ---------------------------------------------------------------------------
+
+def test_atomic_write_json_leaves_no_tmp_on_failure(tmp_path, monkeypatch):
+    """os.replace가 실패해도 .tmp를 남기지 않고, 원본은 그대로 유지된다."""
+    target = tmp_path / "scores.json"
+    target.write_text('{"old": true}', encoding="utf-8")
+
+    real_replace = os.replace
+
+    def boom(src, dst):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "replace", boom)
+    with pytest.raises(OSError):
+        runner._atomic_write_json(target, {"new": True})
+    monkeypatch.setattr(os, "replace", real_replace)
+
+    assert not (tmp_path / "scores.json.tmp").exists(), ".tmp가 남으면 셀마다 쌓인다"
+    assert json.loads(target.read_text(encoding="utf-8")) == {"old": True}, "원본이 보존돼야 함"
+
+
+def test_partial_progress_rewrite_failure_preserves_original(tmp_path, monkeypatch, capsys):
+    """재작성이 실패하면 이어달리기를 포기하되(빈 dict), 원본 samples.jsonl은 살아 있다."""
+    samples = tmp_path / "samples.jsonl"
+    rows = [
+        {"model_id": "opus", "task_id": "IMG-1", "reasoning_mode": "minimal",
+         "sample_id": 0, "finish_reason": "stop"},
+        {"model_id": "opus", "task_id": "IMG-1", "reasoning_mode": "minimal",
+         "sample_id": 1, "finish_reason": "stop"},
+    ]
+    samples.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    before = samples.read_text(encoding="utf-8")
+
+    def boom(src, dst):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(os, "replace", boom)
+    progress = runner._partial_progress(samples, set(), drop_keys=set())
+
+    assert progress == {}, "재작성 실패 시 재사용을 포기해야 한다(반쪽 파일로 채점하면 오염)"
+    assert not (tmp_path / "samples.jsonl.tmp").exists(), ".tmp를 남기지 않아야 함"
+    assert samples.read_text(encoding="utf-8") == before, "원본이 그대로 보존돼야 함"
+    assert "재작성 실패" in capsys.readouterr().out, "조용히 넘어가면 안 됨"
+
+
+# ---------------------------------------------------------------------------
+# 완주 판정: 개수 비교가 아니라 키 집합 비교
+# (codex 지적) 옛 run에서 남은 scores 항목이 누락 셀을 벌충해 exit 0이 되고,
+# 그 낡은 항목이 리포트 순위에도 들어간다.
+# ---------------------------------------------------------------------------
+
+def test_stale_score_entry_cannot_mask_missing_cell():
+    """개수는 맞지만 키가 다르면 실패로 판정한다(옛 결과가 섞인 상태)."""
+    expected = {"opus::IMG-1::minimal", "sol::IMG-1::minimal"}
+    scores = {
+        "opus::IMG-1::minimal": _cell(),
+        "glm::TXT-9::minimal": _cell(),   # 이번 매트릭스에 없는 옛 항목
+    }
+    assert _exit_code(scores, expected_cells=2, expected_keys=expected) == 1
+
+
+def test_exact_key_match_passes():
+    expected = {"opus::IMG-1::minimal", "sol::IMG-1::minimal"}
+    scores = {k: _cell() for k in expected}
+    assert _exit_code(scores, expected_cells=2, expected_keys=expected) == 0
+
+
+# ---------------------------------------------------------------------------
+# samples.jsonl 중복 행: 마지막 것만 집계 (재호출 후 append로 생기는 중복)
+# ---------------------------------------------------------------------------
+
+def test_duplicate_sample_rows_counted_once(tmp_path):
+    """같은 (모델·태스크·모드·샘플) 행이 두 번 있으면 마지막 것만 남는다.
+
+    중복을 그대로 세면 시간·비용·토큰·실패율이 그 샘플만큼 부풀려진다.
+    """
+    from src.results import load_sample_results
+
+    def row(out, latency):
+        return {
+            "model_id": "opus", "task_id": "IMG-1", "sample_id": 3,
+            "reasoning_mode": "minimal", "prompt": "p", "model_output": out,
+            "reference": "r", "request_id": None, "finish_reason": "stop",
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            "latency_ms_local": latency, "timestamp": "2026-08-06T00:00:00Z",
+        }
+
+    (tmp_path / "samples.jsonl").write_text(
+        json.dumps(row("옛 응답", 1000.0)) + "\n" + json.dumps(row("새 응답", 2000.0)) + "\n",
+        encoding="utf-8",
+    )
+    rows = load_sample_results(tmp_path)
+    assert len(rows) == 1, "중복 행이 두 번 집계되면 비용·시간이 부풀려진다"
+    assert rows[0].model_output == "새 응답", "실제 채점에 쓰인 마지막 응답이어야 한다"
+    assert rows[0].latency_ms_local == 2000.0
+
+
+# ---------------------------------------------------------------------------
+# .trash 보관: 옛 보관본은 이번 보관본이 완성된 뒤에 지운다
+# ---------------------------------------------------------------------------
+
+def test_purge_keeps_old_backup_until_new_one_is_complete(tmp_path, monkeypatch, capsys):
+    """이동이 중간에 실패하면 옛 보관본이 살아 있어야 한다.
+
+    옛 순서(옛것 삭제 → 이동)에서는 실패 시 옛 보관본도 없고 이번 보관본도 반쪽이 됐다.
+    """
+    import shutil
+
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    (results / "old-run").mkdir(parents=True)
+    (results / "keep-me").mkdir()
+    reports.mkdir()
+    prior = tmp_path / ".trash" / "purged-19990101-000000"
+    prior.mkdir(parents=True)
+    (prior / "marker.txt").write_text("직전 보관본", encoding="utf-8")
+
+    def boom(src, dst):
+        raise OSError("cross-device link failed")
+
+    monkeypatch.setattr(shutil, "move", boom)
+    with pytest.raises(OSError):
+        runner._purge_previous_runs(results, reports, keep_run_id="keep-me")
+
+    assert (prior / "marker.txt").exists(), "이동 실패 시 직전 보관본이 남아 있어야 한다"
+    assert (results / "old-run").exists(), "이동에 실패했으면 원본도 그대로여야 한다"
+
+
+def test_purge_removes_old_backup_after_success(tmp_path, monkeypatch):
+    """정상 이동 후에는 옛 보관본을 정리해 디스크가 무한히 늘지 않는다."""
+    monkeypatch.chdir(tmp_path)
+    results, reports = tmp_path / "results", tmp_path / "reports"
+    (results / "old-run").mkdir(parents=True)
+    (results / "keep-me").mkdir()
+    reports.mkdir()
+    prior = tmp_path / ".trash" / "purged-19990101-000000"
+    prior.mkdir(parents=True)
+
+    runner._purge_previous_runs(results, reports, keep_run_id="keep-me")
+
+    assert not prior.exists(), "성공 후에는 직전 보관본을 정리한다"
+    assert not (results / "old-run").exists(), "옛 run은 이동됐어야 한다"
+    assert (results / "keep-me").exists(), "이번 run은 건드리지 않는다"
+    current = list((tmp_path / ".trash").glob("purged-*"))
+    assert len(current) == 1
+    assert (current[0] / "results" / "old-run").is_dir(), "보관본에 옛 run이 들어 있어야 한다"
