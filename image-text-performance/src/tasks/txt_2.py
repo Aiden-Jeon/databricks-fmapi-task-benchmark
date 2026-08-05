@@ -16,6 +16,7 @@ LLM 판사(judge)를 통한 정성적 평가도 지원한다.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from src.adapters.fmapi import build_text_message, FMAPIClient
@@ -84,9 +85,11 @@ class Txt2Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "test")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # HF 데이터셋 로드 (seed 고정)
-        hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
 
         # 요청보다 적게 로드되면 실패시킨다. 이 미러는 train이 10행뿐이라(실데이터는 test)
         # 예전엔 30샘플 요청에도 조용히 n=10으로 채점되고, 리포트에는 다른 태스크와 같은
@@ -181,28 +184,64 @@ class Txt2Task(Task):
     def build_prompt(self, sample: Sample) -> list[dict[str, Any]]:
         """테이블 QA 프롬프트 구성.
 
-        테이블 마크다운과 질문을 제시하고, 정확한 셀값 추출을 요청한다.
+        **짧은 답만 요구한다 (2026-08-05 수정).** 이전 프롬프트는 "answer the question
+        accurately" + "Answer:"뿐이라 모델이 근거를 곁들인 산문으로 답했다. 정답이
+        `['4']`인데 출력이 "Looking at the table, the parishes founded in the 1800s are:
+        1. **St Mary** (Bacup) – 1852 …"(135토큰)여서 문자열 일치가 0점이 됐다.
+        그 결과 accuracy 0.0~0.1인데 judge는 3.7~4.4로 갈렸다 — 표를 못 읽은 게 아니라
+        형식이 안 맞은 것이다. WikiTableQuestions의 정답은 짧은 셀값이므로 그 형식을 명시한다.
         """
         table = sample.inputs["table"]
         question = sample.inputs["question"]
 
-        prompt = f"""Based on the following table, answer the question accurately.
+        prompt = f"""Based on the following table, answer the question.
 
 Table:
 {table}
 
 Question: {question}
 
+Output ONLY the answer value(s) copied from the table — no explanation, no
+reasoning, no sentence. The answer is short (a cell value such as a name,
+number, or date). If the answer has multiple values, separate them with ", ".
+
 Answer:"""
 
         return build_text_message(prompt)
 
     def parse_output(self, raw_text: str, sample: Sample) -> str:
-        """모델 응답을 정답으로 파싱.
+        """모델 응답에서 답만 뽑는다.
 
-        Token-F1과 정확도 계산을 위해 원문 그대로 반환 (정규화 없음).
+        프롬프트로 짧은 답을 요구하지만 모델이 여전히 설명을 붙일 수 있어(특히 reasoning
+        모델), 마지막 방어선으로 산문에서 답을 추출한다. 순서:
+        1) "Answer:" 뒤가 있으면 그 부분만
+        2) 여러 줄이면 마지막 비어있지 않은 줄(결론이 뒤에 온다)
+        3) 마크다운 장식(**, 백틱, 끝 마침표) 제거
+        원문을 그대로 두면 정답 문자열과 절대 일치하지 않아 accuracy가 0에 고정된다.
         """
-        return raw_text.strip()
+        text = (raw_text or "").strip()
+        if not text:
+            return ""
+
+        # 1) 여러 줄이면 마지막 비어있지 않은 줄부터 본다 — 설명 뒤에 결론이 오는 형태 대응.
+        #    목록 항목(1. / - )으로 끝나면 결론이 아니라 열거이므로 전체를 유지한다.
+        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+        if len(lines) > 1 and not re.match(r"^([-*•]|\d+[.)])\s", lines[-1]):
+            text = lines[-1]
+
+        # 2) "Answer:" 표기가 있으면 그 뒤만 남긴다. 1)보다 뒤에 둬야 한다 — 마지막 줄이
+        #    "**Answer: 2 matches** were played…" 형태로 오는 경우가 실측으로 흔하다.
+        m = re.search(r"(?:final\s+)?answer\s*[:：]\s*(.+)", text, re.IGNORECASE | re.DOTALL)
+        if m:
+            text = m.group(1).strip()
+
+        # 3) 마크다운 장식·후행 구두점 정리. `**`는 짝이 안 맞게 잘려 올 수 있어(예:
+        #    "2 matches** were played") 쌍 제거 후 남은 것도 그냥 지운다.
+        text = text.strip().strip("`").strip()
+        text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+        text = text.replace("**", "").strip()
+        text = re.sub(r"[.]$", "", text).strip()
+        return text
 
     def score(self, parsed: list[str], samples: list[Sample]) -> dict[str, Any]:
         """파싱된 예측 결과를 집계해 정확도와 Token-F1 계산.
@@ -331,6 +370,20 @@ Answer:"""
         return summarize_judge_scores(judge_scores)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """End-to-end 테스트: 3개 WikiTableQuestions 샘플로 accuracy, token_f1, judge 점수 계산."""
     import sys
@@ -369,7 +422,7 @@ if __name__ == "__main__":
     print("=" * 70)
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for sample in samples:
@@ -413,7 +466,7 @@ if __name__ == "__main__":
             print("=" * 70)
 
             try:
-                with FMAPIClient(profile="ai_devtools", timeout_seconds=60) as judge_client:
+                with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=60) as judge_client:
                     judge_result = task.judge_scores(
                         parsed_outputs,
                         samples,

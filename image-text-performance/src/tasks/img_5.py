@@ -53,11 +53,13 @@ class Img5Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "val")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # 보다 더 많은 샘플을 로드해서 클래스 밸런스 확보
         # streaming이므로 load_n을 크게 설정해도 필요한 만큼만 스트리밍 로드
         load_n = max(n * 3, 30)
-        hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name, revision)
 
         samples = []
         sample_id = 0
@@ -191,6 +193,20 @@ class Img5Task(Task):
         return BinaryAccumulator(class_balance_keys=("class_0", "class_1"), include_confusion=True)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """간단한 end-to-end 테스트: 4샘플로 사람 검출 실행."""
     import sys
@@ -259,7 +275,7 @@ if __name__ == "__main__":
     print("Calling FMAPI (databricks-claude-opus-5)...\n")
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for i, sample in enumerate(samples):

@@ -26,6 +26,12 @@ from src.adapters.fmapi import FMAPIClient
 from src.config import load_models_config
 from src.results import RunManifest, git_commit, make_run_id, write_manifest
 
+# 한 셀에서 이 비율을 넘게 호출이 실패하면 그 셀의 점수는 모델 성능이 아니라 장애의 산물로 본다.
+# 실패 응답은 파싱 실패로 0점 채점되지만 예외가 아니라 metrics에 'error'가 없어, 그냥 두면
+# 리포트에 정상 수치처럼 실린다(실측: IMG-6 opus 19/30 실패 → cell_f1 0.290 vs 실제 0.841).
+# `unreliable` 표시 + resume 시 재실행 대상(_poisoned_cells) 판정에 같은 값을 쓴다.
+UNRELIABLE_FAILURE_RATE = 0.5
+
 
 def load_tasks_config(path: str | Path = "config/tasks.yaml") -> dict[str, Any]:
     """태스크 설정을 YAML에서 로드.
@@ -143,6 +149,12 @@ def main() -> int:
         help="per-task LLM-judge 채점 비활성(빠른 실행). 기본은 tasks.yaml의 metrics에 'judge'가 포함된 태스크에 judge를 실행한다.",
     )
     parser.add_argument(
+        "--profile",
+        default=None,
+        help="Databricks CLI 프로파일. 생략 시 config/models.yaml의 profile을 쓴다. "
+             "어느 워크스페이스로 호출·과금되는지 실행마다 명시하고 싶을 때 사용.",
+    )
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="가장 최근 run 디렉터리를 이어서 실행. 이미 끝난 셀(scores.json에 존재)은 건너뛴다. --fresh와 함께 쓸 수 없음.",
@@ -250,6 +262,7 @@ def main() -> int:
         pricing=pricing_snapshot,
         samples_per_task=args.samples or defaults.get("samples", 50),
         seed=defaults.get("seed", 42),
+        profile=args.profile or models_cfg.profile,
         notes="dry-run" if args.dry_run else "full run",
     )
 
@@ -289,9 +302,16 @@ def main() -> int:
     print("실제 샘플 루프 시작...")
     print("=" * 70)
 
+    # 프로파일은 여기서 한 번 확정하고 아래로 전달한다(모델 호출·judge가 같은 값을 쓰도록).
+    # --profile이 config를 덮어쓴다. 어느 워크스페이스로 호출·과금되는지 실행 로그에 남긴다 —
+    # 잘못된 프로파일은 엉뚱한 워크스페이스에 과금되고 IP ACL 403 같은 실패의 원인도 흐린다.
+    profile = args.profile or models_cfg.profile
+    print(f"Databricks 프로파일: {profile}"
+          + (" (--profile로 지정)" if args.profile else " (config/models.yaml 기본값)"))
+
     try:
         fmapi = FMAPIClient(
-            profile=models_cfg.profile,
+            profile=profile,
             timeout_seconds=models_cfg.runtime.timeout_seconds,
             max_retries=models_cfg.runtime.max_retries,
             backoff_initial_seconds=models_cfg.runtime.backoff_initial_seconds,
@@ -310,6 +330,7 @@ def main() -> int:
             sample_cap=args.samples,
             enable_judge=not args.no_judge,
             resume=resuming,
+            profile=profile,
         )
     finally:
         fmapi.close()
@@ -327,6 +348,7 @@ def _run_samples(
     sample_cap: int | None,
     enable_judge: bool = True,
     resume: bool = False,
+    profile: str | None = None,
 ) -> int:
     """**태스크-메이저 스트리밍**으로 각 (모델×태스크×reasoning×샘플)을 호출·채점·저장.
 
@@ -411,7 +433,8 @@ def _run_samples(
     if enable_judge:
         try:
             judge_client = FMAPIClient(
-                profile=models_cfg.profile,
+                # 호출부에서 확정한 프로파일을 쓴다(--profile 반영). 없으면 config 기본값.
+                profile=profile or models_cfg.profile,
                 timeout_seconds=max(60, models_cfg.runtime.timeout_seconds),
                 max_retries=models_cfg.runtime.max_retries,
                 backoff_initial_seconds=models_cfg.runtime.backoff_initial_seconds,
@@ -481,6 +504,7 @@ def _run_samples(
                     and want_judge and hasattr(inst, "judge_scores")
                 )
                 cell_results: list[SampleResult] = []
+                n_call_failed = 0   # 이 셀의 호출 실패 수 → 점수와 함께 기록(아래 주석 참고)
                 print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 실행...", flush=True)
 
                 for s in samples:
@@ -527,6 +551,8 @@ def _run_samples(
                         per_task_outputs.setdefault(s.sample_id, {})[model.id] = _truncate(
                             str(output_text).replace("\n", " "), 200
                         )
+                    else:
+                        n_call_failed += 1
                     executed += 1
 
                 # 셀 완료: 결과 증분 저장(크래시 대비) 후 버림
@@ -555,10 +581,26 @@ def _run_samples(
                     except Exception as e:
                         metrics["judge_error"] = f"{type(e).__name__}: {e}"
 
-                scores[key] = {
+                # 호출 실패 수를 점수와 **같은 자리에** 남긴다. 실패 응답("__ERROR__: ...")은
+                # 파싱이 실패해 0점으로 채점되는데, 예외가 아니라서 metrics에 'error' 키가 없다
+                # → 리포트에 정상 수치처럼 실린다. 실측 사고: IMG-6가 15s 타임아웃으로 opus
+                # 19/30 실패했는데 cell_f1 0.290이 "성능 낮음"으로 읽혔다(실제는 0.841).
+                # n_call_failed / call_failure_rate로 리포트가 신뢰도를 판단할 수 있게 한다.
+                entry: dict[str, Any] = {
                     "model_id": model.id, "task_id": task_id, "reasoning_mode": mode,
                     "n": len(samples), "metrics": metrics,
                 }
+                if n_call_failed:
+                    entry["n_call_failed"] = n_call_failed
+                    entry["call_failure_rate"] = round(n_call_failed / max(1, len(samples)), 4)
+                    if n_call_failed / max(1, len(samples)) > UNRELIABLE_FAILURE_RATE:
+                        # 절반 이상 실패한 셀의 점수는 모델 성능이 아니라 장애의 산물이다.
+                        entry["unreliable"] = True
+                        print(f"    ⚠️  [{key}] 호출 {n_call_failed}/{len(samples)} 실패 "
+                              f"→ 점수 신뢰불가로 표시(리포트에 경고 표기)")
+                    else:
+                        print(f"    [{key}] 호출 실패 {n_call_failed}/{len(samples)}")
+                scores[key] = entry
                 _atomic_write_json(scores_path, scores)  # 셀마다 체크포인트
 
             # 태스크 종료: 갤러리 top-1(모델 간 최다 상이) 기록 후 버퍼 비움.
@@ -580,6 +622,32 @@ def _run_samples(
           + (f", resume 스킵 {resume_skipped}셀" if resume_skipped else "")
           + (f", 미구현/로드실패 스킵 {skipped_cells}셀" if skipped_cells else ""))
     print(f"결과 저장: {samples_path}")
+
+    # 실패 요약을 종료 직전에 한 번 더 모아 보여준다. 셀별 경고는 긴 로그에 묻히기 쉬운데,
+    # 실패를 못 보고 리포트를 그대로 신뢰하는 것이 이 벤치마크의 반복된 사고 원인이었다.
+    failed_cells = {k: v for k, v in scores.items() if v.get("n_call_failed")}
+    if failed_cells:
+        unreliable = [k for k, v in failed_cells.items() if v.get("unreliable")]
+        print(f"\n⚠️  호출 실패가 있는 셀 {len(failed_cells)}개:")
+        for k in sorted(failed_cells):
+            v = failed_cells[k]
+            mark = " ← 신뢰불가(순위 제외)" if v.get("unreliable") else ""
+            print(f"   {k}: {v['n_call_failed']}/{v['n']} "
+                  f"({v['call_failure_rate']:.1%}){mark}")
+        if unreliable:
+            print(f"   → 신뢰불가 {len(unreliable)}셀은 리포트 순위·요약에서 제외된다. "
+                  f"timeout_seconds 상향 후 --resume으로 재실행 권장.")
+    judge_failed = {
+        k: (v["metrics"].get("judge_detail") or {}).get("n_failed")
+        for k, v in scores.items()
+        if isinstance(v.get("metrics"), dict)
+        and (v["metrics"].get("judge_detail") or {}).get("n_failed")
+    }
+    if judge_failed:
+        print(f"\n⚠️  judge 파싱 실패가 있는 셀 {len(judge_failed)}개 "
+              f"(해당 샘플은 평균에서 제외됨):")
+        for k in sorted(judge_failed):
+            print(f"   {k}: {judge_failed[k]}건")
 
     # 리포트 생성: 실행 루프 밖에서 samples.jsonl을 1회 로드(여기서만 전체 메모리 사용).
     try:
@@ -637,7 +705,7 @@ def _atomic_write_json(path: Path, obj: Any) -> None:
     os.replace(tmp, path)
 
 
-def _poisoned_cells(samples_path: Path, threshold: float = 0.5) -> set[str]:
+def _poisoned_cells(samples_path: Path, threshold: float = UNRELIABLE_FAILURE_RATE) -> set[str]:
     """samples.jsonl을 훑어 모델 응답이 __ERROR__인 비율이 threshold를 넘는 셀 key를 반환.
 
     IP ACL 403·엔드포인트 장애 등으로 한 셀의 응답이 대량 실패하면, 그 셀의 지표는
@@ -741,6 +809,9 @@ def _reproducibility_meta(all_tasks: list[dict[str, Any]]) -> tuple[dict[str, An
                     "hf_id": entry.get("hf_id"),
                     "split": entry.get("split"),
                     "config": entry.get("config"),
+                    # revision(HF 커밋 SHA)까지 스냅샷해야 이 run이 어떤 데이터로 돌았는지
+                    # 사후에 확정할 수 있다. 로더가 실제로 이 값으로 고정해 로드한다.
+                    "revision": entry.get("revision"),
                 }
     except Exception:
         pass

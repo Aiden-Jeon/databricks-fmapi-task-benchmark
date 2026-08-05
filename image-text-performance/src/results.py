@@ -80,6 +80,9 @@ class RunManifest:
     pricing: dict[str, Any] = field(default_factory=dict)    # usd_per_dbu 등 (비용 재현 §12)
     samples_per_task: int | None = None                       # 태스크당 샘플 수
     seed: int | None = None                                   # subset 고정 seed
+    # 어느 Databricks 워크스페이스로 호출·과금됐는지. 프로파일이 다르면 엔드포인트 가용성·
+    # 지연·단가가 달라져 run 간 비교의 전제가 바뀐다 → 재현성 메타에 포함.
+    profile: str | None = None
     notes: str = ""                    # 추가 메모 (선택)
 
     def to_dict(self) -> dict[str, Any]:

@@ -48,9 +48,11 @@ class Txt4Task(Task):
         # 여기서는 명시적으로 validation 사용 (테스트용)
         split = dataset_entry.get("split", "train")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # HF 데이터셋 로드 (seed 고정)
-        hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
 
         samples = []
         for sample_id, row in enumerate(hf_ds):
@@ -239,6 +241,20 @@ class Txt4Task(Task):
         return summarize_judge_scores(judge_scores)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """End-to-end 테스트: 4개 KorQuAD 샘플로 token_f1, exact_match, judge 점수 계산."""
     import sys
@@ -274,7 +290,7 @@ if __name__ == "__main__":
     print("=" * 70)
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for sample in samples:
@@ -318,7 +334,7 @@ if __name__ == "__main__":
             print("=" * 70)
 
             try:
-                with FMAPIClient(profile="ai_devtools", timeout_seconds=60) as judge_client:
+                with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=60) as judge_client:
                     judge_result = task.judge_scores(
                         parsed_outputs,
                         samples,

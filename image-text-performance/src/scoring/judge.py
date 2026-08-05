@@ -8,11 +8,11 @@ and produces 1–5 scores.
 Key components:
 - JUDGE_MAX_TOKENS: 모든 judge 호출이 공유하는 max_tokens. 아래 "잘림" 주석 참고.
 - parse_judge_score: 판정 텍스트에서 1–5 점수를 추출. **없으면 None**(지어내지 않음).
+- run_judge: judge 1회 호출 + 파싱. 실패는 None(전 태스크가 공유하는 단일 경로).
+- summarize_judge_scores: None(실패) 제외 평균 + 실패 건수.
 - load_rubrics: Load task-specific scoring rubrics from YAML config.
 - build_judge_prompt: Compose a scoring prompt with anchored rubric to
   mitigate position and verbosity bias.
-- score_with_judge: **Phase 1 stub** that will call the judge via FMAPIClient
-  and parse the result.
 
 See plan.md appendix "채점 방법론 상세" (P0) for judge parsing strategy and
 bias mitigation (position/verbosity).
@@ -252,42 +252,3 @@ Please evaluate the candidate output against the reference and provide a score f
 Include brief reasoning, then state your final score clearly (e.g., "Score: 4").
 """
     return prompt
-
-
-def score_with_judge(
-    task_id: str,
-    question: str,
-    reference: str,
-    candidate: str,
-    rubric: dict,
-    judge_model_endpoint: str = "databricks-gemini-3-1-pro",
-) -> Optional[int]:
-    """
-    Call the judge model and parse the score.
-
-    **Phase 1 stub**: This function will:
-    1. Build the judge prompt via build_judge_prompt().
-    2. Call the judge model (FMAPI client) with the prompt.
-    3. Parse the response via parse_judge_score().
-    4. Return the 1–5 score, or None on failure.
-
-    Implementation will integrate with the FMAPI adapter and handle
-    retries/timeouts (see plan.md §11 runtime policy).
-
-    Args:
-        task_id: Task identifier.
-        question: Question/context.
-        reference: Ground truth.
-        candidate: Candidate output.
-        rubric: Scoring rubric.
-        judge_model_endpoint: Endpoint name for the judge model.
-
-    Returns:
-        Judge score (1–5), or None if judge call fails.
-
-    Raises:
-        NotImplementedError: Phase 1 implementation pending.
-    """
-    raise NotImplementedError(
-        "Phase 1: judge 호출 연결 (FMAPI 어댑터 + 파싱) 구현 필요"
-    )

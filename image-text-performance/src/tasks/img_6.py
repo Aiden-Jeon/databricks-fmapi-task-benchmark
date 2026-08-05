@@ -89,10 +89,12 @@ class Img6Task(Task):
             hf_id = entry["hf_id"]
             split = entry.get("split", "validation")
             config_name = entry.get("config")
+            # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+            revision = entry.get("revision")
             img_col = entry.get("image_column")
             html_col = entry.get("html_column")
 
-            hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name)
+            hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name, revision)
             if not hf_ds:
                 continue
             if img_col is None:

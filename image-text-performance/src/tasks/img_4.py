@@ -50,12 +50,16 @@ class Img4Task(Task):
         print("[IMG-4] Loading %d NSFW samples from DarkyMan/nsfw-image-classification..." % n_pos)
         nsfw_samples = []
         try:
+            # hf_id·revision은 registry에서 읽는다(예전엔 하드코딩돼 registry를 바꿔도
+            # 반영되지 않았고 revision 고정도 불가했다). split은 이 미러가 train만 제공.
+            nsfw_entry = resolve_dataset_entry(registry, "nsfw")
             nsfw_ds = load_hf_split(
-                "DarkyMan/nsfw-image-classification",
+                nsfw_entry["hf_id"],
                 "train",
                 n_pos,
                 seed,
-                config=None
+                config=nsfw_entry.get("config"),
+                revision=nsfw_entry.get("revision"),
             )
 
             # 첫 행의 구조 검사 (사용자 지시사항)
@@ -81,12 +85,16 @@ class Img4Task(Task):
         print("[IMG-4] Loading %d SFW samples from detection-datasets/coco..." % n_neg)
         sfw_samples = []
         try:
+            # SFW(음성 클래스)는 COCO에서 가져온다 — nsfw 미러가 단일 클래스라 이진 구성이
+            # 불가하기 때문(CLAUDE.md 회귀 주의 5). 여기도 registry 기준으로 읽는다.
+            coco_entry = resolve_dataset_entry(registry, "img_tags")
             coco_ds = load_hf_split(
-                "detection-datasets/coco",
-                "val",
+                coco_entry["hf_id"],
+                coco_entry.get("split", "val"),
                 n_neg,
                 seed,
-                config="default"
+                config=coco_entry.get("config"),
+                revision=coco_entry.get("revision"),
             )
 
             for idx, row in enumerate(coco_ds):
@@ -246,6 +254,20 @@ class Img4Task(Task):
         return BinaryAccumulator(class_balance_keys=("sfw_count", "nsfw_count"), include_confusion=True)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """인라인 테스트: 6샘플(3 NSFW + 3 SFW)로 end-to-end 실행.
 
@@ -279,11 +301,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # FMAPI 호출 및 파싱
-    print("\n[2] Building prompts and calling FMAPIClient (profile=ai_devtools)...")
+    print("\n[2] Building prompts and calling FMAPIClient (profile=%s)..." % _selfcheck_profile())
     parsed_outputs = []
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=60) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=60) as client:
             for i, sample in enumerate(samples):
                 label = sample.reference
                 source = sample.meta.get("source", "unknown")

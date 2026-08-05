@@ -107,7 +107,11 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 설치·모델 추가·실험 실행·리포트 생성·결과 해석까지 아래 명령들을 그대로 붙여넣으면 된다.
 (에이전트가 내부적으로 의존성 설치, `config/*.yaml` 편집, 벤치마크 실행, 리포트·프레젠테이션 생성을 수행한다.)
 
-**전제**: Databricks CLI 프로파일(기본 `ai_devtools`)이 설정돼 있어야 한다(FMAPI 호출·`system.ai_gateway.usage` 조회용).
+**전제**: Databricks CLI 프로파일이 설정돼 있어야 한다(FMAPI 호출용). 기본값은
+`config/models.yaml`의 `profile`(현재 `ai_devtools`)이고, 실행할 때
+**`--profile <name>`으로 덮어쓸 수 있다**. 어느 워크스페이스로 호출·과금되는지는 실행 로그와
+각 run의 `manifest.json`(`profile` 필드)에 기록된다 — 다른 워크스페이스로 돌린 run은
+엔드포인트 가용성·지연·단가가 달라 비교의 전제가 바뀐다.
 
 ### 1) 최초 설치·환경 준비
 
@@ -162,9 +166,14 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 ## 비용·시간 측정
 
-각 FMAPI 호출의 `request_id`를 기록해 두고, `system.ai_gateway.usage` 테이블과 조인하여
-`latency_ms`·토큰 사용량을 실측한 뒤 `config/pricing.yaml`의 DBU 단가로 USD를 환산한다.
-(`system.billing`은 현재 권한이 없어 `ai_gateway.usage`를 쓴다.)
+**현재 방식(실제 동작)**: 각 호출의 응답에 담긴 `usage` 토큰 수와 **클라이언트 벽시계 지연**
+(`latency_ms_local`)을 기록하고, `config/pricing.yaml`의 DBU 단가로 USD를 환산한다.
+리포트의 시간·비용은 이 값 기준의 **추정치**다.
+
+**아직 미구현**: `system.ai_gateway.usage` 조인(`src/cost/usage.py:fetch_usage`가
+`NotImplementedError`). 조인하면 서버 측 `latency_ms`·`token_details`(캐시·reasoning 분해)를
+실측할 수 있다. 각 호출의 `request_id`는 이미 결과에 저장하고 있어 조인 준비는 돼 있다.
+(`system.billing`은 워크스페이스 권한이 없어 쓸 수 없다.)
 
 - **비용 공식**: `usd = usd_per_dbu × (billable_input×dbu_in + billable_output×dbu_out + cache…) / 1e6`
 - **reasoning 토큰 주의**: `billable_output = completion_tokens + reasoning_tokens`. reasoning 토큰이

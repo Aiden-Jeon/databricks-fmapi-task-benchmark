@@ -16,8 +16,14 @@ from typing import Any
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
+from src.scoring.metrics import bertscore_f1
 from src.scoring.tokenizers import korean_tokenizer_backend, tokenize
 from src.tasks.base import Task, Sample, register
+
+# BERTScore용 버퍼 상한. 배치 메트릭이라 전체를 모아야 하는데, 러너의 O(1) 스트리밍
+# 설계를 깨지 않도록 상한을 둔다. 요약문은 짧아 이 정도는 메모리에 부담이 없고,
+# 기본 실행 규모(태스크당 30~50샘플)는 전부 포함된다.
+BERTSCORE_MAX_PAIRS = 200
 
 
 def _compute_rouge(pred: str, gold: str, lang: str) -> dict[str, float]:
@@ -98,9 +104,11 @@ class Txt5Task(Task):
             hf_id = dataset_entry["hf_id"]
             split = dataset_entry.get("split", "train")
             config_name = dataset_entry.get("config")
+            # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+            revision = dataset_entry.get("revision")
 
             # HF 데이터셋 로드 (seed 고정)
-            hf_ds = load_hf_split(hf_id, split, n_lang, seed, config_name)
+            hf_ds = load_hf_split(hf_id, split, n_lang, seed, config_name, revision)
 
             # 컬럼명 자동 감지
             col_article = self._detect_article_column(hf_ds)
@@ -248,15 +256,20 @@ Summary:"""
             overall_rouge2 = 0.0
             overall_rougeL = 0.0
 
-        return {
+        out = {
             "rouge1": overall_rouge1,
             "rouge2": overall_rouge2,
             "rougeL": overall_rougeL,
             "n_evaluated": len(parsed),
             "per_language": per_language,
-            "bertscore": "deferred (torch 미설치)",
             "korean_backend": korean_tokenizer_backend(),
         }
+        # 누적기 경로(finalize)와 같은 값이 나와야 한다 — 같은 상한·같은 함수를 쓴다.
+        pairs = [(str(p or ""), str(s.reference or "")) for p, s in zip(parsed, samples)][
+            :BERTSCORE_MAX_PAIRS
+        ]
+        out.update(bertscore_f1([c for c, _ in pairs], [r for _, r in pairs]))
+        return out
 
     def make_accumulator(self) -> "_Txt5Accumulator":
         """스트리밍 O(1) 채점기. score()와 동일(overall rouge1/2/L + per_language + bertscore + korean_backend)."""
@@ -349,6 +362,11 @@ class _Txt5Accumulator:
         self._sum = {"en": {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0},
                      "ko": {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}}
         self._n = {"en": 0, "ko": 0}
+        # BERTScore는 배치 메트릭이라 스트리밍 누적이 불가하다. 요약문은 짧아서
+        # (수백 자) 상한을 두고 버퍼링하면 메모리가 문제되지 않는다.
+        # 상한을 넘으면 그 이후 샘플은 BERTScore에서만 빠지고(ROUGE는 전부 반영),
+        # 몇 쌍으로 계산했는지 bertscore_n으로 리포트에 드러난다.
+        self._bs_pairs: list[tuple[str, str]] = []
 
     def add(self, parsed: Any, sample: Sample) -> None:
         lang = sample.lang if sample.lang in self._sum else "en"
@@ -356,6 +374,8 @@ class _Txt5Accumulator:
         for k in ("rouge1", "rouge2", "rougeL"):
             self._sum[lang][k] += rouge[k]
         self._n[lang] += 1
+        if len(self._bs_pairs) < BERTSCORE_MAX_PAIRS:
+            self._bs_pairs.append((str(parsed or ""), str(sample.reference or "")))
 
     def finalize(self) -> dict[str, Any]:
         per_language = {}
@@ -378,16 +398,33 @@ class _Txt5Accumulator:
         else:
             overall = {"rouge1": 0.0, "rouge2": 0.0, "rougeL": 0.0}
 
-        return {
+        out = {
             "rouge1": overall["rouge1"],
             "rouge2": overall["rouge2"],
             "rougeL": overall["rougeL"],
             "n_evaluated": total_n,
             "per_language": per_language,
-            "bertscore": "deferred (torch 미설치)",
             "korean_backend": korean_tokenizer_backend(),
         }
+        # 실제로 계산한다. 예전엔 "deferred (torch 미설치)"를 하드코딩해 torch가 설치된
+        # 환경에서도 값이 안 나왔다. 불가하면 bertscore_f1()이 이유를 담아 돌려준다.
+        out.update(bertscore_f1([c for c, _ in self._bs_pairs], [r for _, r in self._bs_pairs]))
+        return out
 
+
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
 
 if __name__ == "__main__":
     """
@@ -434,7 +471,7 @@ if __name__ == "__main__":
 
     try:
         with FMAPIClient(
-            profile="ai_devtools", timeout_seconds=30, max_retries=3
+            profile=_selfcheck_profile(), timeout_seconds=30, max_retries=3
         ) as client:
             parsed_outputs = []
 

@@ -21,7 +21,9 @@ runtime:
                                         # 채점돼 "성능 낮음"처럼 보였다. 긴 출력 태스크 여유분으로 60s.
   max_retries: 3                        # 지수 backoff
   backoff_initial_seconds: 0.5
-  max_concurrency: 8                    # rate limit 넉넉(429 미관측), 5~10 안전
+  # ⚠️ max_concurrency는 **현재 미사용**이다(러너가 순차 실행). 값을 올려도 빨라지지 않는다.
+  # 병렬화 시 참고용으로만 남겨둔다(실측: rate limit 넉넉, 429 미관측 → 5~10 안전).
+  max_concurrency: 8
   max_tokens: 1024                      # reasoning 모델이 사고에 소진하지 않도록 충분히
 
 models:

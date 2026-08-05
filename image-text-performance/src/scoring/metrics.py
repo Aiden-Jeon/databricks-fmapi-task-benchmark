@@ -282,3 +282,61 @@ def classification_metrics(preds: list[int], golds: list[int]) -> dict:
         "accuracy": float(acc),
         "macro_f1": float(macro_f1),
     }
+
+
+# BERTScore 설정. 한국어를 포함하므로 **다국어 모델**을 명시한다(기본 roberta-large는 영어
+# 전용이라 한국어 점수가 무의미해진다 — plan 부록의 "BERTScore 다국어 모델 지정" 항목).
+# num_layers는 이 모델의 권장값(bert_score 기본 매핑에 mBERT 항목이 있으나 명시해 고정).
+BERTSCORE_MODEL = "bert-base-multilingual-cased"
+BERTSCORE_LAYERS = 9
+
+_bertscore_unavailable: str | None = None
+
+
+def bertscore_f1(cands: list[str], refs: list[str]) -> dict:
+    """BERTScore F1 평균. torch·bert_score가 없으면 이유를 담은 dict를 돌려준다.
+
+    2026-08-05까지 태스크들이 `"deferred (torch 미설치)"`를 **하드코딩**해서, torch가
+    설치된 환경에서도 계산하지 않았다. 여기서 실제로 시도하고, 불가할 때만 그 사실을
+    (추측이 아닌 실제 예외 메시지로) 남긴다.
+
+    첫 호출은 모델 다운로드·로드로 수십 초 걸리고 이후 캐시된다. 배치 메트릭이라
+    스트리밍 누적이 불가해 태스크 끝에서 전체를 한 번에 계산한다.
+
+    Returns:
+        {"bertscore_f1": float, "bertscore_model": str} 또는
+        {"bertscore": "unavailable (<이유>)"}
+    """
+    global _bertscore_unavailable
+
+    pairs = [(c, r) for c, r in zip(cands, refs) if str(c or "").strip() and str(r or "").strip()]
+    if not pairs:
+        return {"bertscore": "unavailable (빈 입력)"}
+    if _bertscore_unavailable:
+        return {"bertscore": f"unavailable ({_bertscore_unavailable})"}
+
+    try:
+        import warnings
+
+        from bert_score import score as _bs
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _, _, f1 = _bs(
+                [c for c, _ in pairs],
+                [r for _, r in pairs],
+                model_type=BERTSCORE_MODEL,
+                num_layers=BERTSCORE_LAYERS,
+                verbose=False,
+                batch_size=16,
+            )
+        return {
+            "bertscore_f1": round(float(f1.mean()), 4),
+            "bertscore_model": BERTSCORE_MODEL,
+            "bertscore_n": len(pairs),
+        }
+    except Exception as e:
+        # 한 번 실패하면(미설치·다운로드 불가 등) 이후 호출은 재시도하지 않는다 —
+        # 태스크마다 수십 초를 낭비하지 않기 위해.
+        _bertscore_unavailable = f"{type(e).__name__}: {e}"[:120]
+        return {"bertscore": f"unavailable ({_bertscore_unavailable})"}

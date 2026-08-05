@@ -60,6 +60,8 @@ class Img3Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "validation")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # 무기/위협 클래스 ID (WeaponDetection 데이터셋)
         WEAPON_CLASS_IDS = {3, 4, 6, 7, 8, 9, 10, 12, 13, 14, 19, 23, 24, 25, 26, 28}
@@ -67,7 +69,7 @@ class Img3Task(Task):
         # HF 데이터셋 로드 (큰 데이터셋이므로 더 큰 슬라이스를 로드한 후 필터링)
         # 밸런스 확보를 위해 더 많이 로드
         load_n = max(n * 3, 150)
-        hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, load_n, seed, config_name, revision)
 
         samples = []
         sample_id = 0
@@ -204,6 +206,20 @@ class Img3Task(Task):
         return BinaryAccumulator(class_balance_keys=("class_0", "class_1"), include_confusion=True)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """간단한 end-to-end 테스트: 4샘플로 무기 검출 실행."""
     import sys
@@ -247,7 +263,7 @@ if __name__ == "__main__":
     print("Calling FMAPI (databricks-claude-opus-5)...\n")
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for i, sample in enumerate(samples):

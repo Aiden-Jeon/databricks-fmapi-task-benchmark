@@ -95,6 +95,12 @@ def generate_report(
 
     md.append("## 정량 결과 (태스크 × 모델)\n")
     md.append(_quant_table(scores, task_labels) + "\n")
+    md.append(_scoring_notes(scores) + "\n")
+
+    sig = _significance_table(scores, task_labels)
+    if sig:
+        md.append("### 통계 유의성 (judge 점수, Wilcoxon signed-rank)\n")
+        md.append(sig + "\n")
 
     md.append("## 성능: 수행시간·비용 (모델별)\n")
     md.append(_perf_table(perf) + "\n")
@@ -298,9 +304,16 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
     # 태스크별 대표 점수(모델→점수) 뽑기 — 대표 메트릭 우선순위
     metric_priority = _METRIC_PRIORITY
     per_task: dict[str, dict[str, float]] = {}
+    excluded: list[str] = []
     for _, entry in scores.items():
         m = entry["metrics"]
         if not isinstance(m, dict) or "error" in m:
+            continue
+        # 호출이 절반 이상 실패한 셀은 점수가 장애의 산물이라 순위·요약에서 제외한다.
+        # (남겨두면 "성능 낮음"으로 집계돼 Executive Summary가 사실과 다른 결론을 낸다 —
+        #  실측: IMG-6 opus 19/30 실패 시 sol이 이긴 것처럼 보였으나 재실행하면 opus 승.)
+        if entry.get("unreliable"):
+            excluded.append(f"{entry['task_id']}/{entry['model_id']}")
             continue
         val = next((m[k] for k in metric_priority if isinstance(m.get(k), (int, float))), None)
         if val is None:
@@ -308,16 +321,23 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
         key = f"{entry['task_id']}/{entry['reasoning_mode']}"
         per_task.setdefault(key, {})[entry["model_id"]] = round(float(val), 4)
 
-    # 태스크별 1위 모델
-    winners = {}
+    # 태스크별 1위 모델. **동점은 공동 1위**로 둔다 — 옛 구현의 max(mv, key=mv.get)는
+    # 동점일 때 dict 첫 모델(순회 순서상 대개 opus)에만 승리를 줘서 1위 횟수가 부풀었다.
+    winners: dict[str, list[str]] = {}
     for tk, mv in per_task.items():
-        if mv:
-            winners[tk] = max(mv, key=mv.get)
+        if not mv:
+            continue
+        top = max(mv.values())
+        winners[tk] = sorted(k for k, v in mv.items() if v == top)
 
-    # 모델별 1위 횟수
+    # 모델별 1위 횟수(공동 1위는 각자 1회). 동점 태스크 수도 함께 남겨 해석을 돕는다.
     win_counts: dict[str, int] = {}
-    for w in winners.values():
-        win_counts[w] = win_counts.get(w, 0) + 1
+    n_ties = 0
+    for ws in winners.values():
+        if len(ws) > 1:
+            n_ties += 1
+        for w in ws:
+            win_counts[w] = win_counts.get(w, 0) + 1
 
     # 비용·속도 최고/최저
     cheapest = min(perf, key=lambda k: perf[k]["total_usd"]) if perf else None
@@ -328,8 +348,10 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
     )
     return {
         "per_task_scores": per_task,
-        "task_winners": winners,
-        "win_counts": win_counts,
+        "task_winners": winners,          # {task/mode: [공동 1위 모델...]}
+        "win_counts": win_counts,         # 공동 1위는 각 모델에 1회씩
+        "n_tied_tasks": n_ties,
+        "excluded_unreliable": excluded,  # 실패율 과다로 순위에서 뺀 셀
         "cheapest_model": cheapest,
         "fastest_model": fastest,
         "perf": perf,
@@ -364,8 +386,22 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
     wc = facts.get("win_counts", {})
     parts = []
     if wc:
-        top = max(wc, key=wc.get)
-        parts.append(f"태스크별 1위 횟수는 {', '.join(f'{k} {v}회' for k, v in sorted(wc.items(), key=lambda x: -x[1]))}로 **{top}**가 가장 많다.")
+        # 1위 횟수 최댓값이 여럿이면 단독 1위라고 쓰지 않는다(동점을 공동 1위로 세므로 발생 가능).
+        best = max(wc.values())
+        tops = sorted(k for k, v in wc.items() if v == best)
+        counts = ", ".join(f"{k} {v}회" for k, v in sorted(wc.items(), key=lambda x: -x[1]))
+        if len(tops) == 1:
+            parts.append(f"태스크별 1위 횟수는 {counts}로 **{tops[0]}**가 가장 많다.")
+        else:
+            parts.append(f"태스크별 1위 횟수는 {counts}로 **{', '.join(tops)}**가 공동 최다다.")
+    if facts.get("n_tied_tasks"):
+        parts.append(f"이 중 {facts['n_tied_tasks']}개 태스크는 동점이라 공동 1위로 집계했다.")
+    if facts.get("excluded_unreliable"):
+        # 제외 사실을 요약에 남긴다 — 조용히 빼면 "왜 이 태스크가 없나"를 알 수 없다.
+        parts.append(
+            f"호출 실패가 과다한 셀 {len(facts['excluded_unreliable'])}개"
+            f"({', '.join(facts['excluded_unreliable'])})는 점수가 장애의 산물이라 순위에서 제외했다."
+        )
     if facts.get("fastest_model"):
         f = facts["fastest_model"]
         parts.append(f"응답 속도는 **{f}**가 가장 빠르다(median {facts['perf'][f]['latency_ms_median']}ms).")
@@ -375,9 +411,132 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
     return " ".join(parts) if parts else "집계할 결과가 없습니다."
 
 
+def _significance_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
+    """모델 쌍별 judge 점수 차이의 유의성(Wilcoxon signed-rank).
+
+    plan §7·README가 "통계 유의성 병기"를 명시하는데 `wilcoxon_test()`가 구현만 되고
+    리포트에서 호출되지 않았다(이슈 F). 생성 태스크의 judge 점수는 샘플당 값이 남아
+    있어(judge_detail.scores) 짝지어 검정할 수 있다.
+
+    per-sample 점수가 있는 판정만 다룬다 — 정량 메트릭은 셀 단위 평균만 저장돼
+    (스트리밍 O(1) 설계) 짝지을 수 없다. 그 사실을 표 아래에 명시한다.
+    """
+    from src.scoring.stats import wilcoxon_test
+
+    # (task, mode) → {model: [per-sample judge 점수]}
+    by_task: dict[tuple[str, str], dict[str, list]] = {}
+    for e in scores.values():
+        m = e.get("metrics")
+        if not isinstance(m, dict) or e.get("unreliable"):
+            continue
+        arr = (m.get("judge_detail") or {}).get("scores")
+        if isinstance(arr, list) and any(x is not None for x in arr):
+            by_task.setdefault((e["task_id"], e["reasoning_mode"]), {})[e["model_id"]] = arr
+
+    rows = []
+    for (tid, mode), per_model in sorted(by_task.items()):
+        models = sorted(per_model)
+        for i in range(len(models)):
+            for j in range(i + 1, len(models)):
+                a, b = models[i], models[j]
+                # judge 실패(None)가 있는 샘플은 짝을 만들 수 없어 제외한다.
+                pairs = [
+                    (x, y) for x, y in zip(per_model[a], per_model[b])
+                    if x is not None and y is not None
+                ]
+                if len(pairs) < 2:
+                    continue
+                res = wilcoxon_test([x for x, _ in pairs], [y for _, y in pairs])
+                mean_a = sum(x for x, _ in pairs) / len(pairs)
+                mean_b = sum(y for _, y in pairs) / len(pairs)
+                pval = res.get("pval")
+                if pval is None:
+                    verdict = "판정 불가(차이 없음/표본 부족)"
+                elif res.get("significant"):
+                    winner = a if mean_a > mean_b else b
+                    verdict = f"**유의** (p={pval:.4f}) → {winner} 우세"
+                else:
+                    verdict = f"유의하지 않음 (p={pval:.4f})"
+                desc = task_labels.get(tid, "")
+                label = f"{tid} · {desc}" if desc else tid
+                rows.append(
+                    f"| {label} | {a} vs {b} | {mean_a:.2f} vs {mean_b:.2f} | {len(pairs)} | {verdict} |"
+                )
+
+    if not rows:
+        return ""
+    header = [
+        "| 태스크 | 모델 쌍 | judge 평균 | n(짝) | 판정 |",
+        "|---|---|---|---|---|",
+    ]
+    footer = (
+        "\n> Wilcoxon signed-rank(양측, α=0.05). **judge 점수에만** 적용한다 — 정량 메트릭은 "
+        "셀 단위 평균만 저장해(스트리밍 O(1) 설계) 샘플을 짝지을 수 없다. "
+        "'유의하지 않음'은 두 모델이 같다는 뜻이 아니라 이 표본에서 차이를 확인할 수 없다는 뜻이다."
+    )
+    return "\n".join(header + rows) + "\n" + footer
+
+
+def _scoring_notes(scores: dict[str, Any]) -> str:
+    """정량표 아래에 붙는 채점 조건 주석.
+
+    수치를 어떤 조건으로 냈는지(한국어 토큰화 백엔드, 실패 처리 규칙)를 표 바로 옆에
+    둔다. 이 정보가 멀리 떨어져 있으면 표만 보고 해석해 오독이 생긴다 — 실측 사고:
+    음절 폴백으로 채점된 TXT-4 token_f1을 형태소 기준으로 읽었고, 호출 실패로 0점이
+    된 IMG-6를 성능으로 읽었다.
+    """
+    notes = ["> **채점 조건**"]
+
+    # 한국어 토큰화 백엔드: 형태소(mecab) vs 음절 폴백 — 한국어 점수 해석이 달라진다.
+    # 'unknown'은 tokenize(ko) 호출 전에 읽힌 값(그 셀은 한국어 채점을 안 했다는 뜻)이라 제외.
+    backends = {
+        m["korean_backend"]
+        for e in scores.values()
+        if isinstance(m := e.get("metrics"), dict)
+        and isinstance(m.get("korean_backend"), str)
+        and m["korean_backend"] != "unknown"
+    }
+    if backends:
+        b = ", ".join(sorted(backends))
+        if backends == {"mecab"}:
+            notes.append(f"> - 한국어 토큰화: **형태소(mecab)** — ROUGE·Token-F1이 형태소 기준이다.")
+        else:
+            notes.append(
+                f"> - 한국어 토큰화: **{b}** — `syllable`은 mecab 미설치 시 음절 단위 폴백이라 "
+                f"형태소 기준이 아니다(점수가 관대해질 수 있음)."
+            )
+
+    # 실패 처리 규칙
+    n_unreliable = sum(1 for e in scores.values() if e.get("unreliable"))
+    n_failed_cells = sum(1 for e in scores.values() if e.get("n_call_failed"))
+    if n_failed_cells:
+        notes.append(
+            f"> - 호출 실패: {n_failed_cells}개 셀에 실패가 있다(위 '실패' 열). 실패 응답은 0점으로 "
+            f"채점되므로 실패가 많은 셀의 점수는 모델 성능이 아니다."
+        )
+    if n_unreliable:
+        notes.append(
+            f"> - ⚠️ 실패율 50% 초과 **{n_unreliable}개 셀은 순위·요약에서 제외**했다"
+            f"(점수가 장애의 산물). `timeout_seconds` 상향 후 재실행 권장."
+        )
+    notes.append(
+        "> - judge 실패(응답 잘림·형식 이탈)는 해당 샘플을 평균에서 **제외**하고 위 표에 건수를 "
+        "표기한다. 중간값으로 메우지 않는다."
+    )
+    return "\n".join(notes)
+
+
 def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
-    """태스크×모델×모드 점수 표(markdown). 태스크는 'ID · 설명'으로 사람이 구분 가능하게."""
-    rows = ["| 태스크 | 모델 | reasoning | 대표 메트릭 |", "|---|---|---|---|"]
+    """태스크×모델×모드 점수 표(markdown). 태스크는 'ID · 설명'으로 사람이 구분 가능하게.
+
+    **실패 열을 반드시 함께 보여준다.** 호출이 실패하면 그 샘플은 0점으로 채점되는데
+    예외가 아니라서 점수만 보면 "성능이 낮다"로 읽힌다(실측: IMG-6 opus 19/30 타임아웃
+    실패 → cell_f1 0.290, 실제는 0.841). judge 실패도 같은 이유로 노출한다.
+    """
+    rows = [
+        "| 태스크 | 모델 | reasoning | 대표 메트릭 | 실패 |",
+        "|---|---|---|---|---|",
+    ]
     for _, e in sorted(scores.items()):
         m = e["metrics"]
         if isinstance(m, dict) and "error" not in m:
@@ -388,7 +547,25 @@ def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
         tid = e["task_id"]
         desc = task_labels.get(tid, "")
         task_col = f"{tid} · {desc}" if desc else tid
-        rows.append(f"| {task_col} | {e['model_id']} | {e['reasoning_mode']} | {cell} |")
+
+        # 실패 요약: 호출 실패(모델 응답 자체 실패) + judge 실패(채점 불가)를 한 칸에.
+        notes = []
+        n = e.get("n") or 0
+        n_fail = e.get("n_call_failed") or 0
+        if n_fail:
+            notes.append(f"호출 {n_fail}/{n}")
+        jd = m.get("judge_detail") if isinstance(m, dict) else None
+        j_fail = (jd or {}).get("n_failed") or 0
+        if j_fail:
+            notes.append(f"judge {j_fail}")
+        fail_col = ", ".join(notes) if notes else "—"
+        if e.get("unreliable"):
+            # 절반 이상 실패 → 점수를 성능으로 읽으면 안 된다는 신호를 같은 줄에 박아둔다.
+            fail_col = f"⚠️ **{fail_col} — 신뢰불가**"
+
+        rows.append(
+            f"| {task_col} | {e['model_id']} | {e['reasoning_mode']} | {cell} | {fail_col} |"
+        )
     return "\n".join(rows)
 
 

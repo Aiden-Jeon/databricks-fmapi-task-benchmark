@@ -18,9 +18,52 @@ from src.adapters.fmapi import build_image_message, FMAPIClient
 from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MeanAccumulator
-from src.scoring.metrics import token_f1
+from src.scoring.metrics import bertscore_f1, token_f1
 from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
+
+# BERTScore용 버퍼 상한 (TXT-5와 동일 이유 — 배치 메트릭이라 모아야 하는데 O(1) 스트리밍을
+# 깨지 않도록 상한을 둔다). 캡션은 한 문장이라 메모리 부담이 없다.
+BERTSCORE_MAX_PAIRS = 200
+
+
+def _first_ref(reference: Any) -> str:
+    """캡션 참조는 이미지당 5개다. BERTScore는 다중참조를 직접 지원하지 않고 최대값을
+    쓰면 점수가 낙관적으로 치우치므로 **첫 참조**로 고정한다(token_f1은 5개 중 최고를 쓴다 —
+    두 지표의 참조 정책이 다른 점은 리포트 해석 시 유의)."""
+    if isinstance(reference, list):
+        return str(reference[0]) if reference else ""
+    return str(reference or "")
+
+
+def _caption_bertscore(parsed: list[str], samples: list[Sample]) -> dict:
+    """캡션 BERTScore. score()와 누적기가 같은 값을 내도록 이 함수를 공유한다."""
+    pairs = [
+        (str(p or ""), _first_ref(s.reference)) for p, s in zip(parsed, samples)
+    ][:BERTSCORE_MAX_PAIRS]
+    return bertscore_f1([c for c, _ in pairs], [r for _, r in pairs])
+
+
+class _Img1Accumulator:
+    """MeanAccumulator(token_f1)를 감싸고 BERTScore용 쌍을 상한까지 버퍼링한다.
+
+    BERTScore는 배치 메트릭이라 per-sample 누적이 불가해, 러너의 스트리밍 계약
+    (add/finalize)은 유지하면서 텍스트만 제한적으로 모아 finalize에서 한 번 계산한다.
+    """
+
+    def __init__(self, inner: MeanAccumulator) -> None:
+        self._inner = inner
+        self._pairs: list[tuple[str, str]] = []
+
+    def add(self, parsed: Any, sample: Any) -> None:
+        self._inner.add(parsed, sample)
+        if len(self._pairs) < BERTSCORE_MAX_PAIRS:
+            self._pairs.append((str(parsed or ""), _first_ref(sample.reference)))
+
+    def finalize(self) -> dict[str, Any]:
+        out = self._inner.finalize()
+        out.update(bertscore_f1([c for c, _ in self._pairs], [r for _, r in self._pairs]))
+        return out
 
 
 @register
@@ -44,9 +87,11 @@ class Img1Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "validation")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # HF 데이터셋 로드
-        hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
 
         samples = []
         for idx, row in enumerate(hf_ds):
@@ -105,17 +150,18 @@ class Img1Task(Task):
         return raw_text.strip()
 
     def score(self, parsed: list[str], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 캡션을 참고 캡션과 비교해 token_f1 계산.
+        """파싱된 캡션을 참고 캡션과 비교해 token_f1 + BERTScore 계산.
 
         각 샘플마다 생성된 캡션과 5개 참고 캡션 중 최고 F1을 선택.
-        평균 token_f1을 메인 메트릭으로, bertscore는 torch 미설치로
-        아직 계산 불가 (장기 계획).
+        BERTScore는 실제로 계산한다(예전엔 "deferred (torch 미설치)"를 하드코딩해
+        torch가 설치된 환경에서도 값이 안 나왔다). 불가하면 그 이유가 값으로 들어온다.
+        캡션은 참조가 5개라 BERTScore는 **첫 참조**를 쓴다(다중참조 BERTScore는
+        bert_score가 직접 지원하지 않고, 최대값을 쓰면 점수가 낙관적으로 치우친다).
         """
         if not parsed or not samples:
             return {
                 "caption_token_f1": 0.0,
                 "n_evaluated": 0,
-                "notes": "bertscore deferred (torch 미설치)",
             }
 
         valid_count = 0
@@ -141,11 +187,12 @@ class Img1Task(Task):
 
         mean_f1 = total_f1 / valid_count if valid_count > 0 else 0.0
 
-        return {
+        out: dict[str, Any] = {
             "caption_token_f1": float(mean_f1),
             "n_evaluated": valid_count,
-            "notes": "bertscore deferred (torch 미설치)",
         }
+        out.update(_caption_bertscore(parsed, samples))
+        return out
 
     def make_accumulator(self) -> MeanAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일(caption_token_f1 + n_evaluated).
@@ -162,11 +209,8 @@ class Img1Task(Task):
                 best = max(best, token_f1(pred, ref, lang=sample.lang))
             return best
 
-        return MeanAccumulator(
-            out_key="caption_token_f1",
-            value_fn=value_fn,
-            count_all=False,
-            static={"notes": "bertscore deferred (torch 미설치)"},
+        return _Img1Accumulator(
+            MeanAccumulator(out_key="caption_token_f1", value_fn=value_fn, count_all=False)
         )
 
     def judge_scores(
@@ -245,6 +289,20 @@ class Img1Task(Task):
         }
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """간단한 end-to-end 테스트: 2샘플로 캡셔닝 실행."""
     import sys
@@ -280,7 +338,7 @@ if __name__ == "__main__":
     print("Calling FMAPI (claude-opus-5)...\n")
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for i, sample in enumerate(samples):

@@ -16,7 +16,7 @@ class RuntimeConfig(BaseModel):
     timeout_seconds: float = 15.0
     max_retries: int = 3
     backoff_initial_seconds: float = 0.5
-    max_concurrency: int = 8
+    max_concurrency: int = 8   # 미사용(러너는 순차 실행) — 병렬화 시 사용 예정
     max_tokens: int = 1024
 
 

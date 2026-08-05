@@ -113,7 +113,7 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 - **모델 어댑터**: FMAPI 호출 단일 인터페이스. `capabilities`(vision/text)·reasoning 모드 선언, 응답 스키마 정규화, 타임아웃/재시도, `request_id` 기록.
 - **태스크 러너**: (모델 × 태스크 × 샘플 × reasoning{on,off}) 매트릭스 순회. 미지원 조합 N/A 스킵.
 - **채점기**: 정량 메트릭(한국어 Mecab 전처리) + LLM-judge(루브릭·리스트응답 파싱) + Wilcoxon 유의성.
-- **비용/시간 조인**: `system.ai_gateway.usage`에서 request_id로 latency·토큰 조인 → `pricing.yaml`로 USD 환산(§10).
+- **비용/시간 조인**: `system.ai_gateway.usage`에서 request_id로 latency·토큰 조인 → `pricing.yaml`로 USD 환산(§10). **[상태: 미구현]** `src/cost/usage.py:fetch_usage`가 `NotImplementedError`. 현재 리포트는 응답 `usage` 토큰 + 클라이언트 벽시계(`latency_ms_local`) 기반 **추정치**를 쓴다. request_id는 이미 저장돼 조인 준비만 된 상태.
 - **리포트 생성기**: Executive Summary(하이브리드 D14) + 정량 표·그래프 + 정성 갤러리 + 시간·비용 리포트.
 
 ---
@@ -206,7 +206,7 @@ models:
    - "샘플은 예시일 뿐 평균 성능이 아니다" 디스클레이머 명시.
 3. **성능 리포트 (시간·비용 — D11, 신규 요구)**
    - 모델별 **수행시간**(태스크별·전체, median/p95), **USD 비용**(입력·출력·reasoning·캐시 분해), 토큰 사용량.
-   - 소스: 벤치마크가 각 호출의 `request_id`를 기록 → `system.ai_gateway.usage`와 조인해 `latency_ms`·토큰 실측, `config/pricing.yaml`로 USD 환산.
+   - 소스: 벤치마크가 각 호출의 `request_id`를 기록 → `system.ai_gateway.usage`와 조인해 `latency_ms`·토큰 실측, `config/pricing.yaml`로 USD 환산. **[현재: 조인 미구현 — 응답 `usage` 토큰 + 벽시계 지연 기반 추정치]**
    - **reasoning ON vs OFF의 시간·비용 delta를 명시**(reasoning의 실질 비용을 드러냄).
    - **billable_output = completion_tokens + reasoning_tokens** (reasoning 토큰이 completion에 미포함 — 실측 확인, 누락 시 비용 과소계상).
 4. **원시 결과**: 재현·감사용 JSON/CSV(`results/<run-id>/`) 커밋. usage 원본(raw) 보존.

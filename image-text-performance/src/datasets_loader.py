@@ -34,6 +34,7 @@ def load_hf_split(
     n: int,
     seed: int,
     config: str | None = None,
+    revision: str | None = None,
 ):
     """HF 데이터셋에서 seed 고정 subset n개를 로드.
 
@@ -43,12 +44,17 @@ def load_hf_split(
 
     재현성: streaming은 buffer shuffle(seed 고정) 후 take(n). buffer를 넉넉히 잡아
     앞쪽 편향을 줄인다. 반환: list[dict] (streaming) 또는 datasets.Dataset(폴백).
+
+    `revision`(커밋 SHA/태그)을 주면 그 시점 데이터로 **고정**한다. registry의
+    `revision:` 필드를 태스크가 그대로 넘긴다. 이게 없으면 HF main이 갱신될 때 같은
+    seed·같은 코드로도 다른 데이터가 와서 run 간 비교가 조용히 깨진다
+    (2026-08-05까지 registry에 revision을 적어놓고도 로더가 인자를 안 받아 미사용이었다).
     """
     from datasets import load_dataset
 
     # 1) streaming 시도 (다운로드 최소화)
     try:
-        ds = load_dataset(hf_id, name=config, split=split, streaming=True)
+        ds = load_dataset(hf_id, name=config, split=split, streaming=True, revision=revision)
         # buffer shuffle로 앞쪽 편향 완화(전체 셔플은 streaming서 불가).
         # buffer가 크면 다운로드가 많아 느려짐 → n의 소배수로 제한(속도·편향 균형).
         buffer = min(max(50, n * 3), 500)
@@ -61,7 +67,9 @@ def load_hf_split(
         pass
 
     # 2) 폴백: 일반 로드 (작은 데이터셋·mirror parquet). 캐시는 .cache/hf.
-    ds = load_dataset(hf_id, name=config, split=split, cache_dir=_hf_cache_dir())
+    ds = load_dataset(
+        hf_id, name=config, split=split, cache_dir=_hf_cache_dir(), revision=revision
+    )
     if n and n < len(ds):
         ds = ds.shuffle(seed=seed).select(range(n))
     # list[dict]로 정규화(streaming 경로와 반환 형식 통일 → 태스크 코드 단순화)

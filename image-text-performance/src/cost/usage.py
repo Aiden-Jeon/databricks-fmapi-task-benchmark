@@ -90,14 +90,16 @@ ORDER BY event_time DESC
 
 def fetch_usage(
     request_ids: list[str],
-    profile: str = "ai_devtools",
+    profile: str | None = None,
     warehouse_id: str = "2c4aa6fec2649553",
 ) -> list[dict[str, Any]]:
     """system.ai_gateway.usage에서 usage 행 조회 (Phase 1).
 
     Args:
         request_ids: 조회할 request_id 리스트
-        profile: Databricks CLI 프로파일명 (기본값: ai_devtools)
+        profile: Databricks CLI 프로파일명. **필수로 명시**한다(기본값 없음) — 프로파일을
+            숨긴 기본값으로 두면 엉뚱한 워크스페이스를 조회하고도 눈치채기 어렵다.
+            호출부(러너)가 `--profile`/config에서 확정한 값을 넘긴다.
         warehouse_id: 실행할 warehouse ID (기본값: plan §10 공식값)
 
     Returns:

@@ -57,9 +57,11 @@ class Txt8Task(Task):
             hf_id = dataset_entry["hf_id"]
             split = dataset_entry.get("split", "train")
             config_name = dataset_entry.get("config")
+            # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+            revision = dataset_entry.get("revision")
 
             # HF 데이터셋 로드 (seed 고정)
-            hf_ds = load_hf_split(hf_id, split, n_lang, seed, config_name)
+            hf_ds = load_hf_split(hf_id, split, n_lang, seed, config_name, revision)
 
             # 컬럼명 자동 감지
             col_text = self._detect_text_column(hf_ds, lang)
@@ -311,6 +313,20 @@ class _Txt8Accumulator:
         }
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """간단한 인라인 테스트: 6샘플(영어 3, 한국어 3)로 end-to-end 실행."""
     import sys
@@ -341,7 +357,7 @@ if __name__ == "__main__":
     print("\nBuilding prompts and calling FMAPIClient...")
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for sample in samples:

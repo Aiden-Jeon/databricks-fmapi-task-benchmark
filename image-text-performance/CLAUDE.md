@@ -10,7 +10,10 @@ Databricks FMAPI 모델(opus·sol·glm)의 이미지·텍스트 성능을 표준
 **14개 태스크**(IMG-1~6, TXT-1~8) → glm vision 미지원으로 이미지 6태스크 N/A → 실행 **36셀**.
 
 ## 전제
-- Databricks CLI 프로파일 필요(기본 `ai_devtools`). FMAPI 호출 + `system.ai_gateway.usage` 조회용.
+- Databricks CLI 프로파일 필요. 기본값은 `config/models.yaml`의 `profile`(현재 `ai_devtools`)이고
+  실행 시 **`--profile <name>`으로 덮어쓴다**. 프로파일은 추측하지 말고 사용자에게 확인받을 것 —
+  잘못된 프로파일은 엉뚱한 워크스페이스에 과금되고 실패 원인(IP ACL 403 등) 파악도 흐려진다.
+  실행 로그와 run의 `manifest.json`(`profile`)에 어느 프로파일로 돌았는지 기록된다.
 - 데이터셋은 HuggingFace **streaming**으로 필요한 샘플만 받음(전체 다운로드 X). `.cache/`(gitignore).
 - 의존성은 `pip install -e .`. 선택: mecab(한국어 형태소, 없으면 음절 fallback), bert-score+torch(없으면 deferred).
 

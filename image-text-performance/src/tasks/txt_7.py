@@ -68,9 +68,11 @@ class Txt7Task(Task):
             hf_id = dataset_entry["hf_id"]
             split = dataset_entry.get("split", "test")
             config_name = dataset_entry.get("config", None)
+            # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+            revision = dataset_entry.get("revision")
 
             # 실제 데이터셋 로드 (실패 시 예외 발생)
-            hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+            hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
 
             # 컬럼명 감지
             col_title = self._detect_title_column(hf_ds)
@@ -342,6 +344,20 @@ class _Txt7Accumulator:
         }
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """End-to-end 테스트: 3샘플로 FMAPI 호출 및 P-R-F1 계산."""
     import sys
@@ -378,7 +394,7 @@ if __name__ == "__main__":
         print("=" * 70)
 
         with FMAPIClient(
-            profile="ai_devtools", timeout_seconds=30, max_retries=3
+            profile=_selfcheck_profile(), timeout_seconds=30, max_retries=3
         ) as client:
             parsed_outputs = []
 

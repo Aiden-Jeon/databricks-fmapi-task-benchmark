@@ -67,9 +67,11 @@ class Txt1Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "test")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # HF 데이터셋 로드 (seed 고정)
-        hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
         if not hf_ds:
             raise ValueError(f"TXT-1: {hf_id}[{split}]에서 샘플을 로드하지 못했습니다")
 
@@ -312,6 +314,20 @@ Answer:"""
         return summarize_judge_scores(judge_scores)
 
 
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
+
 if __name__ == "__main__":
     """End-to-end 테스트: 3개 DocumentVQA 샘플로 token_f1, exact_match, judge 점수 계산."""
     import sys
@@ -349,7 +365,7 @@ if __name__ == "__main__":
     print("=" * 70)
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for sample in samples:
@@ -404,7 +420,7 @@ if __name__ == "__main__":
             print("=" * 70)
 
             try:
-                with FMAPIClient(profile="ai_devtools", timeout_seconds=60) as judge_client:
+                with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=60) as judge_client:
                     judge_result = task.judge_scores(
                         parsed_outputs,
                         samples,

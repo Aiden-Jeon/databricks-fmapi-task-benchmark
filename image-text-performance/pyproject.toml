@@ -19,7 +19,12 @@ dependencies = [
     "scipy>=1.11",
     "fuzzywuzzy>=0.18",
     "python-Levenshtein>=0.21",
-    # 한국어 형태소 토큰화 (시스템 의존성 mecab, mecab-ko-dic 별도 설치 — README 참고)
+    # 한국어 형태소 토큰화. mecab-ko/mecab-ko-dic은 **사전까지 wheel에 포함**돼 시스템
+    # 패키지 없이 붙는다(2026-08-05 확인: konlpy+brew 경로는 mecab/mecab-ko 충돌·mecabrc
+    # dicdir·Apple Silicon 경로 문제로 잘 깨진다 — src/scoring/tokenizers.py docstring 참고).
+    # konlpy는 시스템 mecab이 있는 환경을 위한 2순위 경로로 유지.
+    "mecab-ko>=1.0",
+    "mecab-ko-dic>=1.0",
     "konlpy>=0.6",
     # 문서·표 태스크
     "pdfplumber>=0.11",

@@ -39,6 +39,60 @@ COCO_CATEGORY_MAP = {
 }
 
 
+COCO_LABELS = frozenset(COCO_CATEGORY_MAP.values())
+
+# 복수형 규칙으로 안 잡히는 실측 변형만 최소한으로 매핑한다. 동의어를 넓게 받으면
+# "COCO 어휘를 아는지"가 아니라 매핑 테이블 품질을 재게 되므로, 불규칙 복수와
+# 명백한 동일 지시어에 한정한다.
+_COCO_ALIASES = {
+    "people": "person", "men": "person", "women": "person", "man": "person",
+    "woman": "person", "child": "person", "children": "person", "boy": "person",
+    "girl": "person", "kid": "person", "kids": "person",
+    "knives": "knife", "sheeps": "sheep", "buses": "bus", "sandwiches": "sandwich",
+    "benches": "bench", "glasses": "wine glass", "couches": "couch",
+    "television": "tv", "televisions": "tv", "tvs": "tv", "monitor": "tv",
+    "motorbike": "motorcycle",
+    "plane": "airplane", "aeroplane": "airplane", "airplanes": "airplane",
+    "table": "dining table", "tables": "dining table", "plant": "potted plant",
+    "plants": "potted plant", "flower vase": "vase", "bicycles": "bicycle",
+    "bike": "bicycle", "bikes": "bicycle", "hairdryer": "hair drier",
+    "hair dryer": "hair drier", "sports balls": "sports ball", "ball": "sports ball",
+}
+
+
+def _normalize_coco_tag(tag: str) -> str | None:
+    """모델이 낸 태그를 COCO 라벨로 정규화. 어휘 밖이면 None.
+
+    순서: 소문자·공백 정리 → 그대로 일치 → alias 표 → 규칙적 복수형(-s/-es/-ies) 제거.
+    gold가 COCO 80클래스라 어휘 밖 단어(`ocean`, `sky`)는 어차피 오답이므로 버린다.
+    """
+    t = " ".join((tag or "").lower().split())
+    if not t:
+        return None
+    if t in COCO_LABELS:
+        return t
+    # alias 타깃도 라벨 집합에 있는지 확인한다 — COCO_CATEGORY_MAP은 일부 id가 빠진
+    # 78개짜리라, 표에만 있고 실제로는 없는 라벨(예: cell phone)을 내보내면 영원히 오답이 된다.
+    alias = _COCO_ALIASES.get(t)
+    if alias and alias in COCO_LABELS:
+        return alias
+    # 규칙적 복수형: umbrellas→umbrella, buses→bus, berries→berry
+    for cand in (
+        t[:-1] if t.endswith("s") else None,
+        t[:-2] if t.endswith("es") else None,
+        (t[:-3] + "y") if t.endswith("ies") else None,
+    ):
+        if cand and cand in COCO_LABELS:
+            return cand
+    # 복수형이 여러 단어의 마지막에 붙은 경우(traffic lights → traffic light)
+    parts = t.split()
+    if len(parts) > 1 and parts[-1].endswith("s"):
+        cand = " ".join(parts[:-1] + [parts[-1][:-1]])
+        if cand in COCO_LABELS:
+            return cand
+    return None
+
+
 @register
 class Img2Task(Task):
     """이미지 태그 추출 multilabel 태스크 (IMG-2)."""
@@ -61,6 +115,8 @@ class Img2Task(Task):
         hf_id = dataset_entry["hf_id"]
         split = dataset_entry.get("split", "val")
         config_name = dataset_entry.get("config")
+        # revision을 넘겨 데이터를 그 시점으로 고정한다(registry의 revision 필드). 없으면 None.
+        revision = dataset_entry.get("revision")
 
         # 라벨 이름 얻기 (streaming 메타만 조회, 데이터 다운로드 없음)
         label_names = get_label_names(hf_id, split, config_name, "objects.category")
@@ -73,7 +129,7 @@ class Img2Task(Task):
             category_map = COCO_CATEGORY_MAP
 
         # HF 데이터셋 로드 (list[dict] 반환)
-        hf_ds = load_hf_split(hf_id, split, n, seed, config_name)
+        hf_ds = load_hf_split(hf_id, split, n, seed, config_name, revision)
 
         samples = []
         sample_id = 0
@@ -124,12 +180,24 @@ class Img2Task(Task):
     def build_prompt(self, sample: Sample) -> list[dict[str, Any]]:
         """이미지에서 주요 객체를 태그로 추출하는 프롬프트.
 
-        PIL 이미지를 data URL로 변환 후 멀티모달 메시지 구성.
+        **닫힌 어휘(COCO 80클래스)를 프롬프트에 제공한다 (2026-08-05 수정).**
+        이전에는 "simple nouns"만 요구해서 모델이 자유 명사로 답했고(`cruise ships,
+        ocean, sky, pier, umbrellas`), 정답은 COCO 80클래스라 단복수 차이(`umbrellas`
+        ≠ `umbrella`)나 어휘 밖 단어(`ocean`, `sky`)가 전부 오답으로 집계돼 micro_f1이
+        0.2에 눌렸다. 그건 "태그 추출 능력"이 아니라 "COCO 어휘 맞히기"를 잰 것이다.
+        멀티라벨 분류의 표준 관례대로 후보 라벨을 주고 그 안에서만 고르게 한다.
         """
         image = sample.inputs["image"]
         image_url = pil_to_data_url(image, max_side=768)
 
-        prompt = "List the main objects visible in this image as a comma-separated list of simple nouns."
+        labels = ", ".join(sorted(COCO_CATEGORY_MAP.values()))
+        prompt = (
+            "List every object from the label set below that is visible in this image.\n\n"
+            f"Label set: {labels}\n\n"
+            "Rules: output ONLY a comma-separated list of labels copied exactly from the "
+            "label set above (same spelling, singular form). Do not invent labels that are "
+            "not in the set. No explanation, no counts, no other text."
+        )
         return build_image_message(prompt, image_url)
 
     def parse_output(self, raw_text: str, sample: Sample) -> set[str]:
@@ -172,10 +240,15 @@ class Img2Task(Task):
 
                 # 기호 제거 (마침표, 물음표 등)
                 tag = re.sub(r"[.!?;:()]", "", tag).strip()
+                # 목록 기호·번호 제거("- person", "1. person")
+                tag = re.sub(r"^([-*•]|\d+[.)])\s*", "", tag).strip()
                 if tag:
                     tags.append(tag)
 
-        return set(tags)
+        # 어휘 정규화: 프롬프트로 COCO 라벨을 요구하지만 모델이 복수형·동의어로 답할 수
+        # 있어(실측: `umbrellas`, `tvs`, `people`) 라벨 집합에 맞춰 붙인다. 어휘 밖 단어는
+        # 버린다 — gold가 COCO 80클래스뿐이라 남겨두면 precision만 깎는 잡음이다.
+        return {norm for norm in (_normalize_coco_tag(t) for t in tags) if norm}
 
     def score(self, parsed: list[set[str]], samples: list[Sample]) -> dict[str, Any]:
         """파싱된 태그 set을 multilabel_prf로 평가.
@@ -226,6 +299,20 @@ class Img2Task(Task):
         """
         return MultilabelAccumulator(valid_fn=lambda p, s: p is not None and bool(s.reference))
 
+
+
+def _selfcheck_profile() -> str:
+    """자체점검(__main__)용 프로파일. config/models.yaml을 읽어 하드코딩을 피한다.
+
+    프로파일을 코드에 박아두면 다른 워크스페이스에서 이 파일을 직접 실행할 때
+    엉뚱한 곳으로 호출·과금된다. 러너 본체는 `--profile`/config를 쓰므로 여기도 맞춘다.
+    """
+    try:
+        from src.config import load_models_config
+
+        return load_models_config().profile
+    except Exception:
+        return "DEFAULT"
 
 if __name__ == "__main__":
     """간단한 end-to-end 테스트: 2샘플로 태그 추출 실행."""
@@ -294,7 +381,7 @@ if __name__ == "__main__":
     print("Calling FMAPI (claude-opus-5)...\n")
 
     try:
-        with FMAPIClient(profile="ai_devtools", timeout_seconds=30) as client:
+        with FMAPIClient(profile=_selfcheck_profile(), timeout_seconds=30) as client:
             parsed_outputs = []
 
             for i, sample in enumerate(samples):

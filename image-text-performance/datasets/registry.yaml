@@ -1,61 +1,65 @@
-# Dataset registry (plan §5). Immutable standard: pin id+split+sha256. NSFW media = cache-only, never commit (D3).
+# Dataset registry (plan §5). 표준·불변 데이터셋을 hf_id + config + split + **revision**
+# (HF 커밋 SHA)으로 고정한다. revision을 로더(load_hf_split)가 실제로 사용하므로,
+# HF main이 갱신돼도 같은 seed·같은 코드면 같은 데이터가 온다.
+# (옛 expected_sha256 필드는 전부 null이고 코드에서 쓰지 않아 제거했다 — revision이 그 역할.)
+# NSFW media = cache-only, never commit (D3).
 # Mirror datasets (script-based originals disabled): license may differ from original → both recorded.
 
 img_caption:
   hf_id: "yerevann/coco-karpathy"
+  revision: "448fdb1bc7b2d09e46881c4541a14d796a3d41e8"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "CC-BY-4.0 (annotations); images under Flickr terms"
   commercial_ok: unknown
   languages: [en]
   split: "validation"
-  expected_sha256: null
 
 img_tags:
   hf_id: "detection-datasets/coco"
+  revision: "cf0b22332314a937e9dc8a1957b21725430bb41d"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "default"
   license: "CC-BY-4.0 (annotations)"
   commercial_ok: unknown
   languages: [en]
   split: "val"
-  expected_sha256: null
 
 img_person:
   hf_id: "detection-datasets/coco"
+  revision: "cf0b22332314a937e9dc8a1957b21725430bb41d"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "default"
   license: "CC-BY-4.0 (annotations)"
   commercial_ok: unknown
   languages: [en]
   split: "val"
   note: "person=class 0 derived binary"
-  expected_sha256: null
 
 weapon:
   hf_id: "Subh775/WeaponDetection"
+  revision: "4d890abee5b4fbdfac310cf83122f70b05657b57"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "CC-BY-4.0"
   commercial_ok: true
   languages: [en]
   split: "validation"
   note: "Severity labels absent → binary classification (weapon/threat presence). Still-image ungated."
-  expected_sha256: null
 
 nsfw:
   hf_id: "DarkyMan/nsfw-image-classification"
+  revision: "9269f2f123b529a706d037cd7901e6afbf622d50"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "cc (variant unspecified)"
   commercial_ok: unknown
   languages: [en]
   split: "default"
   sensitive: true
   note: "NSFW images: cache-only, never commit repo (D3). Labels via folder names post-download. Ungated."
-  expected_sha256: null
 
 doc_vqa:
   hf_id: "nielsr/docvqa_1200_examples"
+  revision: "dc77ab0c3d98855d0f3cb3a00832f2423fbe7528"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "unspecified on mirror / original DocVQA research-use"
   commercial_ok: false
   languages: [en]
   split: "test"
   question_column: "query.en"   # query는 dict(de/en/es/fr/it) → en만 사용
   ocr_column: "words"           # OCR 토큰 list → 문서 컨텍스트로 결합(TXT-1은 텍스트 태스크)
-  revision: "dc77ab0c3d98855d0f3cb3a00832f2423fbe7528"   # 기록용(로더 미사용 — 이슈 J)
   mirror_of: >-
     DocVQA(Biten et al., ICCV 2019) 1200건 서브셋. 이전에 쓴 HuggingFaceM4/DocumentVQA는
     OCR 텍스트 컬럼이 없어(features: questionId/question/question_types/image/docId/ucsf_*/answers)
@@ -63,20 +67,20 @@ doc_vqa:
     full-size 미러(lmms-lab/DocVQA 등)도 페이지 이미지만 제공하고 OCR은 없어, OCR(words)을
     가진 이 서브셋으로 교체했다. 원본 라이선스는 research-use.
   note: "splits: train 1000 / test 200. 평가는 test 사용. words는 페이지 OCR 토큰이라 원문 레이아웃은 소실됨."
-  expected_sha256: null
 
 table_struct:
   hf_id: "apoidea/pubtabnet-html"
+  revision: "0d58324674ff93825c972f7fdfd2887e0ae0a247"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "default"
   license: "CDLA-Permissive-1.0"
   commercial_ok: true
   languages: [en]
   split: "validation"
   note: "html_table config provides GT HTML structure for TEDS-ready evaluation."
-  expected_sha256: null
 
 table_image:
   hf_id: "apoidea/pubtabnet-html"
+  revision: "0d58324674ff93825c972f7fdfd2887e0ae0a247"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "default"
   license: "CDLA-Permissive-1.0"
   commercial_ok: true
@@ -85,10 +89,10 @@ table_image:
   image_column: "image"        # PIL.Image (렌더된 표 PNG) — IMG-6 vision 입력
   html_column: "html_table"    # 정답 HTML(<table>…) — Cell-F1 채점(TXT-3와 동일 로직)
   note: "TXT-3(table_struct)와 같은 PubTabNet이지만 image+html_table을 함께 사용(표 이미지→HTML). 다양한 행/열·colspan 포함."
-  expected_sha256: null
 
 table_qa:
   hf_id: "lighteval/wikitablequestions"
+  revision: "67b828bd683501fd24e8a5ce34d3886614e46898"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "mirror CC-BY-4.0 / original CC-BY-4.0"
   commercial_ok: unknown
   languages: [en]
@@ -99,83 +103,82 @@ table_qa:
     (load_dataset_builder().info.splits 실측: train 10 / test 18486). 이전에는 split이
     "default"(=config 이름이지 split이 아님)로 적혀 있고 txt_2.py가 그걸 train으로 치환해,
     30샘플을 요청해도 항상 10샘플만 채점됐다(2026-08-05 수정). 유효 split은 train/test뿐.
-  expected_sha256: null
 
 korquad:
   hf_id: "KorQuAD/squad_kor_v1"
+  revision: "01aad23853355e5f4f6317eeaaa8186811424834"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "CC-BY-ND-4.0"
   commercial_ok: false
   languages: [ko]
   split: "train"
   note: "ND=no derivative works/redistribution. Record license restriction."
-  expected_sha256: null
 
 klue_mrc:
   hf_id: "klue/klue"
+  revision: "349481ec73fff722f88e0453ca05c77a447d967c"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "mrc"
   license: "CC-BY-SA"
   commercial_ok: false
   languages: [ko]
   split: "train"
-  expected_sha256: null
 
 summarization_en:
   hf_id: "abisee/cnn_dailymail"
+  revision: "96df5e686bee6baa90b8bee7c28b81fa3fa6223d"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   config: "3.0.0"
   license: "apache-2.0"
   commercial_ok: true
   languages: [en]
   split: "validation"
-  expected_sha256: null
 
 summarization_ko:
   hf_id: "daekeun-ml/naver-news-summarization-ko"
+  revision: "916dfe6aed651b2ecd9d04fa0a704f8953e90762"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "apache-2.0"
   commercial_ok: true
   languages: [ko]
   split: "train"
-  expected_sha256: null
 
 sentiment_en:
   hf_id: "stanfordnlp/sst2"
+  revision: "8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "GLUE"
   commercial_ok: unknown
   languages: [en]
   split: "validation"
-  expected_sha256: null
 
 sentiment_ko:
   hf_id: "Blpeng/nsmc"
+  revision: "5d5e4a5187d8f54ace4d58e275f9df4cccc3ff59"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "mirror CC-BY-2.0 / original CC-BY-2.0"
   commercial_ok: unknown
   languages: [ko]
   split: "train"
   mirror_of: "Original e9t/nsmc script-based; parquet mirror enabled."
-  expected_sha256: null
 
 keyphrase:
   hf_id: "memray/inspec"
+  revision: "ec922df510368d1bab299d0ec8ba1611aae282bc"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "unknown (research-use)"
   commercial_ok: false
   languages: [en]
   split: "test"
   note: "Parquet-based mirror of INSPEC (taln-ls2n/inspec script-based version no longer supported). Korean keyphrase dataset absent (D7) — EN only."
-  expected_sha256: null
 
 toxicity_en:
   hf_id: "thesofakillers/jigsaw-toxic-comment-classification-challenge"
+  revision: "50f3c926ec8c07b440cb17b55d8cd80e8484497e"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "mirror CC-BY-SA / original CC-BY-SA (Wikipedia text) + CC0 (annotations)"
   commercial_ok: true
   languages: [en]
   split: "train"                      # test split은 라벨이 없어 train 사용 (실측)
   label_column: "toxic"
   mirror_of: "Canonical google/jigsaw_toxicity_pred is script-based; this is a parquet mirror."
-  expected_sha256: null
 
 toxicity_ko:
   hf_id: "jason9693/APEACH"
+  revision: "e57e10cf1f793a854486c7dc040ac18d59595199"   # HF 커밋 SHA — 로더가 이 시점으로 고정
   license: "CC-BY-SA-4.0"
   commercial_ok: false
   languages: [ko]
   split: "train"
-  expected_sha256: null
