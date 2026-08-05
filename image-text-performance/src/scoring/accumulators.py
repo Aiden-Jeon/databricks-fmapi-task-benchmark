@@ -170,7 +170,15 @@ class MultiMeanAccumulator:
 # 이진 분류: tn/fp/fn/tp. sklearn binary_metrics와 수치 동일.
 # ─────────────────────────────────────────────────────────────────────────────
 class BinaryAccumulator:
-    """이진(0/1) 분류. parsed가 None이면 무효(n_unparsed로 집계, 채점 제외).
+    """이진(0/1) 분류.
+
+    - `CALL_FAILED`(호출 실패, 인프라) → 채점 제외(`n_skipped`)
+    - `None`(파싱 실패, 능력 문제) → **오답으로 채점**하고 `n_unparsed`로도 보고
+
+    **파싱 실패를 분모에서 빼면 안 된다** (2026-08-06 지적, 실측 재현):
+    정답 1개 + 파싱 실패 29개가 `accuracy=1.0, f1=1.0`으로 나왔다. yes/no를 못 낸 것은
+    실제 능력 문제이므로 오답으로 세야 한다. 오답 방향은 **정답의 반대**로 기록해
+    (gold=1이면 fn, gold=0이면 fp) accuracy·F1·혼동행렬이 모두 일관되게 벌점을 받는다.
 
     finalize는 binary_metrics와 동일한 accuracy/f1/confusion_matrix + n_evaluated/n_unparsed를
     돌려주고, class_balance는 태스크가 넘긴 라벨 이름 매핑으로 구성한다.
@@ -185,7 +193,7 @@ class BinaryAccumulator:
         self.class_balance_keys = class_balance_keys
         self.include_confusion = include_confusion
         self.tp = self.tn = self.fp = self.fn = 0
-        self.n_unparsed = 0        # 모델이 응답했지만 형식 파싱 실패(=능력 문제, 채점 제외)
+        self.n_unparsed = 0        # 모델이 응답했지만 형식 파싱 실패(=오답으로 채점됨)
         self.n_call_failed = 0     # 호출 자체 실패(=인프라 문제, 채점 제외) — 둘을 구분해 보고
         self.gold0 = self.gold1 = 0   # class_balance(정답 기준)
 
@@ -193,12 +201,18 @@ class BinaryAccumulator:
         if parsed is CALL_FAILED:
             self.n_call_failed += 1   # 호출 실패 — 파싱 실패(n_unparsed)와 구분
             return
+        gold = int(sample.reference)
         if parsed is None:
-            self.n_unparsed += 1      # 모델이 yes/no를 못 낸 것 = 능력 문제
+            # 파싱 실패 = 능력 문제 → **오답으로 채점**한다(정답의 반대를 예측한 것으로 기록).
+            self.n_unparsed += 1
+            if gold == 1:
+                self.gold1 += 1
+                self.fn += 1      # 정답 1을 못 맞힘
+            else:
+                self.gold0 += 1
+                self.fp += 1      # 정답 0을 못 맞힘
             return
-        gold = sample.reference
         pred = int(parsed)
-        gold = int(gold)
         if gold == 1:
             self.gold1 += 1
         else:
@@ -237,19 +251,30 @@ class MulticlassAccumulator:
     """다중 클래스 분류. accuracy + macro_f1(등장 라벨 기준, sklearn average='macro' 동일).
 
     상태는 dict[(gold,pred)] -> count 로 클래스 수에만 비례(샘플 수 무관).
+
+    **파싱 실패(None)는 오답으로 채점**한다(BinaryAccumulator와 같은 이유 — 분모에서 빼면
+    라벨을 못 내는 모델이 성공분만으로 만점을 받는다). 예측 라벨을 알 수 없으므로
+    `UNPARSED_LABEL`이라는 별도 라벨로 기록한다 — 어떤 정답과도 일치하지 않아 오답이 되고,
+    혼동행렬에서 "형식 실패"가 눈에 보인다.
     """
+
+    # 실제 클래스 라벨(0,1,2,…)과 겹치지 않는 음수 sentinel. 파싱 실패의 '예측값'으로 쓴다.
+    UNPARSED_LABEL = -1
 
     def __init__(self) -> None:
         self.conf: dict[tuple[int, int], int] = {}
-        self.n_unparsed = 0        # 파싱 실패(능력 문제)
-        self.n_call_failed = 0     # 호출 실패(인프라 문제) — 구분해 보고
+        self.n_unparsed = 0        # 파싱 실패(오답으로 채점됨)
+        self.n_call_failed = 0     # 호출 실패(인프라 문제, 채점 제외) — 구분해 보고
 
     def add(self, parsed: Any, sample: Any) -> None:
         if parsed is CALL_FAILED:
             self.n_call_failed += 1
             return
         if parsed is None:
+            # 파싱 실패 = 능력 문제 → 오답으로 채점(정답 라벨 × UNPARSED 예측).
             self.n_unparsed += 1
+            key = (int(sample.reference), self.UNPARSED_LABEL)
+            self.conf[key] = self.conf.get(key, 0) + 1
             return
         key = (int(sample.reference), int(parsed))
         self.conf[key] = self.conf.get(key, 0) + 1
@@ -258,7 +283,12 @@ class MulticlassAccumulator:
         total = sum(self.conf.values())
         if total == 0:
             return 0.0, 0.0, 0
-        labels = sorted({g for g, _ in self.conf} | {p for _, p in self.conf})
+        # macro 평균 대상 라벨에서 UNPARSED_LABEL은 제외한다 — 실제 클래스가 아니라
+        # "형식 실패" 표식이므로, 라벨로 세면 macro_f1 분모가 부풀어 점수가 왜곡된다.
+        # (오답 자체는 fn으로 잡히므로 벌점은 그대로 반영된다.)
+        labels = sorted(
+            ({g for g, _ in self.conf} | {p for _, p in self.conf}) - {self.UNPARSED_LABEL}
+        )
         correct = sum(c for (g, p), c in self.conf.items() if g == p)
         acc = correct / total
         f1s = []

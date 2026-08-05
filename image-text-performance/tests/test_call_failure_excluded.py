@@ -107,20 +107,28 @@ def test_mixed_failure_and_success_uses_only_success():
 
 @pytest.mark.parametrize("tid,inst", _tasks_with_accumulator(), ids=lambda x: x if isinstance(x, str) else "")
 def test_parse_failure_is_scored_as_zero(tid, inst):
-    """파싱 실패(None)는 **분모에 포함**된다 — 형식을 못 맞춘 건 실제 능력 문제다.
+    """파싱 실패(None)는 **분모에 포함되고 점수가 깎인다** — 형식 실패는 실제 능력 문제다.
 
-    이걸 제외하면 형식을 대부분 못 맞추는 새 모델이 "성공한 일부"만으로 높은 점수를 받는다.
-    (분류 태스크는 n_unparsed로 따로 세고 n_evaluated에서 빼는 기존 규약을 유지하므로,
-     여기서는 '무언가로 집계됐는지'를 본다 — 조용히 사라지지 않아야 한다.)
+    이걸 제외하면 형식을 대부분 못 맞추는 모델이 "성공한 일부"만으로 높은 점수를 받는다
+    (실측 재현: 정답 1 + 파싱실패 29 → accuracy 1.0). 여기서는 집계 여부가 아니라
+    **대표 점수가 0인지**를 확인한다 — 집계만 되고 점수에 반영되지 않으면 의미가 없다.
     """
     acc = inst.make_accumulator()
     acc.add(None, _sample(tid))
     out = acc.finalize()
 
-    counted = (out.get("n_evaluated") or 0) + (out.get("n_unparsed") or 0)
-    assert counted == 1, (
-        f"{tid}: 파싱 실패가 어디에도 집계되지 않았다(out={out}). "
-        f"형식 불일치가 조용히 사라지면 모델이 부당하게 높은 점수를 받는다."
+    assert (out.get("n_evaluated") or 0) == 1, (
+        f"{tid}: 파싱 실패가 분모에서 빠졌다(out={out}) — 점수가 부풀려진다"
+    )
+    # 파싱 실패만 넣었으므로 모든 수치 메트릭이 0이어야 한다.
+    numeric = {
+        k: v for k, v in out.items()
+        if isinstance(v, float) and not k.startswith(("n_", "bertscore"))
+    }
+    assert numeric, f"{tid}: 수치 메트릭이 없어 점수 확인 불가(out={out})"
+    nonzero = {k: v for k, v in numeric.items() if v != 0.0}
+    assert not nonzero, (
+        f"{tid}: 파싱 실패만 있는데 점수가 0이 아니다({nonzero}) — 형식 실패가 벌점을 받지 않는다"
     )
     assert not out.get("n_skipped"), (
         f"{tid}: 파싱 실패를 호출 실패(n_skipped)로 집계했다 — 두 축이 섞였다"

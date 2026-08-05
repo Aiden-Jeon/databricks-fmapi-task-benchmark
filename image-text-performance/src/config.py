@@ -158,6 +158,38 @@ def validate_models_config(
                 f"모델 '{m.id}'의 capabilities에 알 수 없는 값 {sorted(unknown)} "
                 f"(허용: {sorted(KNOWN_CAPABILITIES)}) — 오타면 해당 태스크가 조용히 전부 스킵됩니다"
             )
+        # text는 모든 모델의 기본 능력이다. 빠지면 텍스트 태스크 8개가 전부 N/A가 되어
+        # "이미지만 도는" 이상한 매트릭스가 조용히 만들어진다(vision만 적는 실수 방어).
+        if m.capabilities and "text" not in m.capabilities:
+            fatal.append(
+                f"모델 '{m.id}'의 capabilities에 `text`가 없습니다 — 텍스트 태스크(TXT-1~8)가 "
+                f"전부 N/A로 스킵됩니다. 텍스트를 못 하는 모델은 이 벤치마크 대상이 아닙니다"
+            )
+
+    # 2-1) runtime 값 범위 — 0이나 음수면 호출이 즉시 실패하거나 무한 대기한다.
+    def _check_runtime(label: str, rt) -> None:
+        if rt is None:
+            return
+        for field, value in (
+            ("timeout_seconds", getattr(rt, "timeout_seconds", None)),
+            ("backoff_initial_seconds", getattr(rt, "backoff_initial_seconds", None)),
+        ):
+            if value is not None and value <= 0:
+                fatal.append(
+                    f"{label}의 {field}={value} — 양수여야 합니다"
+                    f"(0이나 음수면 모든 호출이 즉시 타임아웃/오류가 됩니다)"
+                )
+        for field, value in (
+            ("max_retries", getattr(rt, "max_retries", None)),
+            ("max_tokens", getattr(rt, "max_tokens", None)),
+            ("max_concurrency", getattr(rt, "max_concurrency", None)),
+        ):
+            if value is not None and value < 1:
+                fatal.append(f"{label}의 {field}={value} — 1 이상이어야 합니다")
+
+    _check_runtime("runtime(전역)", cfg.runtime)
+    for m in cfg.models:
+        _check_runtime(f"모델 '{m.id}'의 runtime", m.runtime)
 
     # 3) reasoning 모드 — 실행할 모드가 모델에 정의돼 있어야 한다
     for mode in cfg.reasoning_modes:

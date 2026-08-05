@@ -175,14 +175,30 @@ def test_judge_sporadic_failure_keeps_zero():
 
 
 def test_run_id_avoids_existing_dir(tmp_path):
-    """같은 분에 두 번 실행해도 run-id가 겹치지 않는다(결과가 섞이면 수치가 뒤엉킨다)."""
+    """같은 분에 두 번 실행해도 run-id가 겹치지 않는다(결과가 섞이면 수치가 뒤엉킨다).
+
+    make_run_id는 디렉터리 생성으로 **예약까지** 하므로, 호출부가 mkdir을 따로 하지 않는다.
+    """
     from src.results import make_run_id
 
     first = make_run_id(results_root=tmp_path)
-    (tmp_path / first).mkdir()
+    assert (tmp_path / first).is_dir(), "예약 시 디렉터리를 만들어야 한다"
     second = make_run_id(results_root=tmp_path)
     assert second != first
     assert second.startswith(first)      # 같은 타임스탬프 + 접미사
+    assert (tmp_path / second).is_dir()
+
+
+def test_run_id_reservation_is_atomic_under_concurrency(tmp_path):
+    """동시 실행에서도 유일한 ID를 준다 — exists()+mkdir(exist_ok=True)의 TOCTOU 방지."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from src.results import make_run_id
+
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        ids = list(ex.map(lambda _: make_run_id(results_root=tmp_path), range(12)))
+
+    assert len(set(ids)) == len(ids), f"동시 예약에서 중복 발생: {sorted(ids)}"
 
 
 def test_run_id_plain_when_no_conflict(tmp_path):
@@ -217,3 +233,100 @@ def test_purge_moves_instead_of_deleting(tmp_path, monkeypatch):
     moved = list((tmp_path / ".trash").glob("purged-*/results/old-run/f.txt"))
     assert moved, "삭제만 하고 보관하지 않았다 — 사고 시 복구할 수 없다"
     assert moved[0].read_text(encoding="utf-8") == "data"
+
+
+# ──────────────────────────── judge 미실행/예외 (P0-2, 2026-08-06)
+
+
+def test_judge_error_only_cell_fails():
+    """judge_scores 예외로 judge_error만 남은 셀은 완주가 아니다(실측 재현: rc=0이었다)."""
+    scores = {"a": {"n": 30, "metrics": {"accuracy": 0.9, "judge_error": "FMAPIError: 403"}}}
+    assert _exit_code(scores, expected_cells=1, judge_expected_cells={"a"}) == 1
+
+
+def test_judge_expected_but_missing_fails():
+    """judge 대상 셀에 judge_mean/judge_detail이 없으면 실패."""
+    scores = {"a": {"n": 30, "metrics": {"accuracy": 0.9}}}
+    assert _exit_code(scores, expected_cells=1, judge_expected_cells={"a"}) == 1
+
+
+def test_judge_client_init_failure_fails():
+    """judge 클라이언트 초기화 실패를 조용히 넘기지 않는다(--no-judge를 쓰라는 신호)."""
+    scores = {"a": {"n": 30, "metrics": {"accuracy": 0.9}}}
+    assert _exit_code(scores, expected_cells=1, judge_init_error="FMAPIError: auth") == 1
+
+
+def test_judge_present_passes():
+    """judge가 정상 채점됐으면 통과."""
+    scores = {
+        "a": {"n": 30, "metrics": {"accuracy": 0.9, "judge_mean": 4.5,
+                                   "judge_detail": {"n": 30}}}
+    }
+    assert _exit_code(scores, expected_cells=1, judge_expected_cells={"a"}) == 0
+
+
+def test_no_judge_run_passes_without_judge_metrics():
+    """--no-judge 실행은 judge 대상 셀이 없으므로 judge 수치가 없어도 통과."""
+    scores = {"a": {"n": 30, "metrics": {"accuracy": 0.9}}}
+    assert _exit_code(scores, expected_cells=1, judge_expected_cells=set()) == 0
+
+
+# ──────────────────────────── 부분 셀 이어달리기 (P1-3, 2026-08-06)
+
+
+def _sample_row(model, task, sid, *, error=False):
+    import json as _json
+
+    return _json.dumps({
+        "model_id": model, "task_id": task, "sample_id": sid,
+        "reasoning_mode": "minimal", "prompt": "p",
+        "model_output": "__ERROR__: boom" if error else "ok",
+        "reference": "x", "request_id": None,
+        "finish_reason": "error" if error else "stop",
+        "usage": {}, "latency_ms_local": 1.0, "timestamp": "t",
+    }, ensure_ascii=False)
+
+
+def test_partial_progress_preserves_partial_rows(tmp_path):
+    """미완료 셀의 성공 행을 **보존**하고 이어달리기 지점을 알려준다.
+
+    예전엔 미완료 셀 행을 전부 버려서, 5샘플마다 flush해도 중단된 셀은 30개를 다시
+    호출했다(SAMPLE_FLUSH_EVERY가 복구에 도움이 안 됐다 — 2026-08-06 지적).
+    """
+    import json as _json
+
+    from src.runner import _partial_progress
+
+    sp = tmp_path / "samples.jsonl"
+    lines = [_sample_row("opus", "TXT-1", i) for i in range(2)]          # 완료 셀
+    lines += [_sample_row("opus", "TXT-2", i) for i in range(7)]         # 부분 완료
+    lines += [_sample_row("opus", "TXT-2", 7, error=True)]               # 실패 → 재시도 대상
+    sp.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    progress = _partial_progress(sp, {"opus::TXT-1::minimal"})
+
+    assert progress == {"opus::TXT-2::minimal": set(range(7))}
+    kept = [_json.loads(l) for l in sp.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert len(kept) == 9, f"완료 2 + 부분 7이 보존돼야 한다(실제 {len(kept)})"
+    assert all(r["finish_reason"] != "error" for r in kept), "실패 행이 남았다"
+
+
+def test_partial_progress_drops_poisoned_cell_rows(tmp_path):
+    """오염 셀(>50% 실패)의 행은 재사용하지 않는다 — 그 응답들은 재시도 대상이다."""
+    from src.runner import _partial_progress
+
+    sp = tmp_path / "samples.jsonl"
+    sp.write_text(
+        "\n".join(_sample_row("sol", "IMG-2", i, error=True) for i in range(3)) + "\n",
+        encoding="utf-8",
+    )
+    progress = _partial_progress(sp, set(), drop_keys={"sol::IMG-2::minimal"})
+
+    assert progress == {}
+    assert sp.read_text(encoding="utf-8").strip() == "", "오염 셀 행이 남았다"
+
+
+def test_partial_progress_no_file_is_noop(tmp_path):
+    from src.runner import _partial_progress
+
+    assert _partial_progress(tmp_path / "missing.jsonl", set()) == {}

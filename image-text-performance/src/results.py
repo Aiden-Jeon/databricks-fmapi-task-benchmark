@@ -35,27 +35,41 @@ class SampleResult:
 
 
 def make_run_id(version_suffix: str = "", *, results_root: str | Path = "results") -> str:
-    """타임스탬프 기반 run ID 생성. **기존 디렉터리와 충돌하지 않는 값**을 돌려준다.
+    """타임스탬프 기반 run ID를 **원자적으로 예약**하고 돌려준다(디렉터리까지 생성).
 
     형식: YYYY-MM-DDTHH-MM[_version_suffix]
     예시: 2026-07-31T14-00 또는 2026-07-31T14-00_v1
 
     분 단위라 같은 분에 두 실행을 시작하면 같은 ID가 나오고, 두 run의 결과가 한 디렉터리에
-    섞인다(scores.json을 서로 덮어써 수치가 뒤섞인다). 이미 존재하면 `-2`, `-3`…을 붙여
-    피한다 — 초 단위로 바꾸지 않는 이유는 기존 run-id 형식(문서·README 링크·index)이
-    분 단위로 고정돼 있어 호환을 깨지 않기 위해서다.
+    섞인다(scores.json을 서로 덮어써 수치가 뒤섞인다). 초 단위로 바꾸지 않는 이유는 기존
+    run-id 형식(문서·README 링크·index)이 분 단위로 고정돼 있어서다.
+
+    **예약은 `mkdir(exist_ok=False)` 자체로 한다** — `exists()`로 확인한 뒤 만들면 그 사이에
+    다른 프로세스가 같은 이름을 만들 수 있다(TOCTOU). mkdir이 성공한 프로세스만 그 ID를
+    갖고, 실패하면 다음 접미사로 넘어간다. 그래서 호출부는 디렉터리를 다시 만들지 않아도 된다.
     """
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y-%m-%dT%H-%M")
     base = f"{timestamp}_{version_suffix}" if version_suffix else timestamp
 
     root = Path(results_root)
-    candidate = base
-    n = 2
-    while (root / candidate).exists() or (Path("reports") / candidate).exists():
-        candidate = f"{base}-{n}"
-        n += 1
-    return candidate
+    root.mkdir(parents=True, exist_ok=True)
+    reports_root = Path("reports")
+
+    for n in range(1, 1000):
+        candidate = base if n == 1 else f"{base}-{n}"
+        # reports/에 같은 이름이 있으면(이전 run의 리포트만 남은 경우) 그 ID는 피한다 —
+        # 리포트를 덮어써 옛 결과를 잃지 않기 위해. 이 검사는 경합에 안전하지 않아도 되는데,
+        # 실제 예약은 아래 mkdir이 하기 때문이다(최악의 경우 접미사만 하나 건너뛴다).
+        if (reports_root / candidate).exists():
+            continue
+        try:
+            (root / candidate).mkdir(exist_ok=False)
+        except FileExistsError:
+            continue          # 다른 프로세스가 먼저 예약함 → 다음 후보
+        return candidate
+
+    raise RuntimeError(f"run ID를 예약할 수 없습니다(같은 분에 1000회 시도): {base}")
 
 
 def git_commit() -> str | None:

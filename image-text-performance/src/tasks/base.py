@@ -60,6 +60,21 @@ class Task:
         """파싱 결과 전체를 집계해 메트릭 dict 반환. parsed[i]는 samples[i]에 대응."""
         raise NotImplementedError
 
+    def score_via_accumulator(self, parsed: list[Any], samples: list[Sample]) -> dict[str, Any]:
+        """`make_accumulator()`에 그대로 흘려 넣어 채점한다 — score()의 표준 구현.
+
+        **두 경로가 갈리지 않게 하는 장치다.** 예전엔 태스크마다 score()가 따로 구현돼,
+        누적기는 파싱 실패(None)를 오답으로 채점하는데 score()는 `p is not None` 필터로
+        분모에서 빼는 불일치가 생겼다(실측: 정답 1 + 파싱실패 29 → accuracy 1.0).
+        누적기를 단일 진실로 삼으면 그 종류의 드리프트가 구조적으로 불가능해진다.
+
+        누적기가 없는 태스크는 이 메서드를 쓰지 않고 score()를 직접 구현한다.
+        """
+        acc = self.make_accumulator()   # type: ignore[attr-defined]
+        for p, s in zip(parsed, samples):
+            acc.add(p, s)
+        return acc.finalize()
+
 
 # 태스크 레지스트리: task_id → Task 서브클래스. 각 태스크 모듈이 import 시 register()로 등록.
 _REGISTRY: dict[str, type[Task]] = {}

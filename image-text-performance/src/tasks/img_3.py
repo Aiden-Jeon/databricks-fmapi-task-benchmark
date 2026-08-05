@@ -160,46 +160,13 @@ class Img3Task(Task):
         return None
 
     def score(self, parsed: list[int | None], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측 결과를 집계해 메트릭 계산.
+        """IMG-3 무기/위협 이진 분류 채점. **누적기에 위임**한다(단일 경로 — score()/누적기 드리프트 방지).
 
-        - None 예측값 제외 (unparseable)
-        - binary_metrics로 accuracy/f1 계산
-        - 혼동 행렬(confusion matrix) 포함
-        - 클래스 밸런스 포함
+        파싱 실패(None)는 누적기가 **오답으로 채점**하고 `n_unparsed`로도 보고한다.
+        예전엔 여기서 `p is not None`으로 걸러 분모에서 빼, 정답 1개 + 파싱 실패 29개가
+        accuracy 1.0으로 나왔다(2026-08-06 지적). 호출 실패(CALL_FAILED)만 제외된다.
         """
-        # None값 필터링
-        valid_indices = [i for i, p in enumerate(parsed) if p is not None]
-
-        if not valid_indices:
-            return {
-                "accuracy": 0.0,
-                "f1": 0.0,
-                "confusion_matrix": {"tn": 0, "fp": 0, "fn": 0, "tp": 0},
-                "n_evaluated": 0,
-                "n_unparsed": len(parsed),
-                "class_balance": {"class_0": 0, "class_1": 0},
-            }
-
-        preds_valid = [parsed[i] for i in valid_indices]
-        golds_valid = [samples[i].reference for i in valid_indices]
-
-        # 메트릭 계산
-        metrics = binary_metrics(preds_valid, golds_valid)
-
-        # 클래스 밸런스
-        class_balance = {
-            "class_0": sum(1 for g in golds_valid if g == 0),
-            "class_1": sum(1 for g in golds_valid if g == 1),
-        }
-
-        return {
-            "accuracy": metrics["accuracy"],
-            "f1": metrics["f1"],
-            "confusion_matrix": metrics["confusion_matrix"],
-            "n_evaluated": len(valid_indices),
-            "n_unparsed": len(parsed) - len(valid_indices),
-            "class_balance": class_balance,
-        }
+        return self.score_via_accumulator(parsed, samples)
 
     def make_accumulator(self) -> BinaryAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일한 accuracy/f1/confusion/class_balance 반환."""

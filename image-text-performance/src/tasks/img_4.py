@@ -196,58 +196,13 @@ class Img4Task(Task):
         return None
 
     def score(self, parsed: list[int | None], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측을 집계해 메트릭 계산 (D3: 이미지 content 미포함).
+        """IMG-4 NSFW 이진 분류 채점. **누적기에 위임**한다(단일 경로 — score()/누적기 드리프트 방지).
 
-        - 유효한 예측(None이 아닌 값) 필터링
-        - binary_metrics: accuracy, f1, confusion_matrix
-        - n_evaluated: 성공 파싱 샘플 수
-        - n_unparsed: 파싱 실패 샘플 수 (model refusal 등)
-        - class_balance: 정답의 클래스 분포
-        - 메타데이터는 비민감 정보만 (이미지 데이터 절대 미포함)
+        파싱 실패(None)는 누적기가 **오답으로 채점**하고 `n_unparsed`로도 보고한다.
+        예전엔 여기서 `p is not None`으로 걸러 분모에서 빼, 정답 1개 + 파싱 실패 29개가
+        accuracy 1.0으로 나왔다(2026-08-06 지적). 호출 실패(CALL_FAILED)만 제외된다.
         """
-        # None 값 필터링
-        valid_indices = [i for i, p in enumerate(parsed) if p is not None]
-
-        if not valid_indices:
-            # 모든 샘플 파싱 실패
-            return {
-                "accuracy": 0.0,
-                "f1": 0.0,
-                "confusion_matrix": {
-                    "tn": 0,
-                    "fp": 0,
-                    "fn": 0,
-                    "tp": 0,
-                },
-                "n_evaluated": 0,
-                "n_unparsed": len(parsed),
-                "class_balance": {
-                    "sfw_count": 0,
-                    "nsfw_count": 0,
-                },
-            }
-
-        preds_valid = [parsed[i] for i in valid_indices]
-        golds_valid = [samples[i].reference for i in valid_indices]
-
-        # 메트릭 계산
-        metrics = binary_metrics(preds_valid, golds_valid)
-
-        # 정답 클래스 분포
-        n_sfw = sum(1 for g in golds_valid if g == 0)
-        n_nsfw = sum(1 for g in golds_valid if g == 1)
-
-        return {
-            "accuracy": metrics["accuracy"],
-            "f1": metrics["f1"],
-            "confusion_matrix": metrics["confusion_matrix"],
-            "n_evaluated": len(valid_indices),
-            "n_unparsed": len(parsed) - len(valid_indices),
-            "class_balance": {
-                "sfw_count": n_sfw,
-                "nsfw_count": n_nsfw,
-            },
-        }
+        return self.score_via_accumulator(parsed, samples)
 
     def make_accumulator(self) -> BinaryAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일 (class_balance는 sfw/nsfw 카운트)."""

@@ -196,3 +196,47 @@ def test_perf_table_distinguishes_two_missing_reasons():
     assert "단가 미등록" in table
     assert "성공 호출 0건" in table
     assert "가장 저렴한 모델' 선정에서 제외" in table
+
+
+# ──────────────────────────── 파싱 유효률 미달 셀 제외 (P0-1, 2026-08-06)
+
+
+def test_low_parse_valid_cell_excluded_from_ranking():
+    """형식 파싱 유효률이 50% 미만인 셀은 순위에서 제외한다.
+
+    파싱 실패는 이제 오답으로 채점되므로 점수는 정직하지만, 절반 이상이 형식 실패면
+    "능력"보다 "출력 형식 미준수"를 재는 셈이라 다른 모델과 나란히 비교하면 오해를 낳는다.
+    """
+    scores = _scores(
+        _cell("TXT-6", "opus", 0.033, metric="accuracy"),
+        _cell("TXT-6", "sol", 0.85, metric="accuracy"),
+    )
+    # opus: 30건 중 29건 형식 실패 → 유효률 3%
+    scores["opus::TXT-6::minimal"]["metrics"].update({"n_evaluated": 30, "n_unparsed": 29})
+    scores["sol::TXT-6::minimal"]["metrics"].update({"n_evaluated": 30, "n_unparsed": 0})
+
+    facts = _extract_facts(scores, perf={})
+
+    assert "opus" not in facts["per_task_scores"].get("TXT-6/minimal", {})
+    assert facts["excluded_low_parse_valid"] == ["TXT-6/opus"]
+    assert facts["win_counts"] == {"sol": 1}
+
+
+def test_acceptable_parse_failure_rate_still_ranked():
+    """유효률이 임계 이상이면 그대로 순위에 넣는다(과잉 제외 방지)."""
+    scores = _scores(_cell("TXT-6", "opus", 0.8, metric="accuracy"))
+    scores["opus::TXT-6::minimal"]["metrics"].update({"n_evaluated": 30, "n_unparsed": 3})
+
+    facts = _extract_facts(scores, perf={})
+    assert facts["win_counts"] == {"opus": 1}
+    assert facts["excluded_low_parse_valid"] == []
+
+
+def test_quant_table_shows_parse_failures():
+    """정량표에 형식 실패 건수와 유효률 경고가 보인다."""
+    scores = _scores(_cell("TXT-6", "opus", 0.033, metric="accuracy"))
+    scores["opus::TXT-6::minimal"]["metrics"].update({"n_evaluated": 30, "n_unparsed": 29})
+
+    table = _quant_table(scores, task_labels={})
+    assert "형식 29/30" in table
+    assert "유효률 3%" in table and "순위 제외" in table

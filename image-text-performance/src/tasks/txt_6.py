@@ -157,40 +157,13 @@ Respond with exactly one word: positive or negative"""
         return None
 
     def score(self, parsed: list[int | None], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측 결과를 집계해 메트릭 계산.
+        """TXT-6 감정 분석(다중클래스) 채점. **누적기에 위임**한다(단일 경로 — score()/누적기 드리프트 방지).
 
-        - None 예측값 제외 (unparseable)
-        - classification_metrics로 accuracy/macro_f1 계산
-        - 언어별 분석 및 평가 샘플 수 포함
+        파싱 실패(None)는 오답으로 채점되고 `n_unparsed`·per_language에도 보고된다.
+        예전엔 `p is not None` 필터로 분모에서 빼, 정답 1개 + 파싱 실패 29개가 accuracy
+        1.0으로 나왔다(2026-08-06 지적). 호출 실패(CALL_FAILED)만 채점에서 제외된다.
         """
-        # None값 필터링
-        valid_indices = [i for i, p in enumerate(parsed) if p is not None]
-
-        if not valid_indices:
-            return {
-                "accuracy": 0.0,
-                "macro_f1": 0.0,
-                "n_evaluated": 0,
-                "n_unparsed": len(parsed),
-                "per_language": {},
-            }
-
-        preds_valid = [parsed[i] for i in valid_indices]
-        golds_valid = [samples[i].reference for i in valid_indices]
-
-        # 메트릭 계산
-        metrics = classification_metrics(preds_valid, golds_valid)
-
-        # 언어별 통계
-        lang_stats = self._compute_per_language_stats(parsed, samples, valid_indices)
-
-        return {
-            "accuracy": metrics["accuracy"],
-            "macro_f1": metrics["macro_f1"],
-            "n_evaluated": len(valid_indices),
-            "n_unparsed": len(parsed) - len(valid_indices),
-            "per_language": lang_stats,
-        }
+        return self.score_via_accumulator(parsed, samples)
 
     def make_accumulator(self) -> "_Txt6Accumulator":
         """스트리밍 O(1) 채점기. score()와 동일(전체 accuracy/macro_f1 + per_language)."""

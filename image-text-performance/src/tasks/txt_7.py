@@ -259,45 +259,15 @@ Key phrases (comma-separated):"""
         return _Txt7Accumulator()
 
     def score(self, parsed: list[set[str]], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측 키프레이즈 집합에 대해 precision/recall/F1 계산.
+        """TXT-7 키프레이즈 추출(멀티라벨). **누적기에 위임**한다.
 
-        multilabel_prf 함수 사용 (micro/macro 평균).
-
-        Returns:
-            {precision, recall, f1, n_evaluated, per_language: {...}}
+        단일 경로로 두어 score()와 누적기가 갈리지 않게 한다. 파싱 실패(None)는 누적기가
+        빈 집합으로 바꿔 **0점 채점**하고(키워드를 못 뽑은 것 = 능력 문제), 호출 실패
+        (CALL_FAILED)만 채점에서 제외한다. 예전 구현은 None을 그대로 `&` 연산에 넘겨
+        TypeError로 셀 전체를 죽였다(정상 샘플까지 버려짐) — 2026-08-06 지적.
         """
-        # 예측과 정답 집합 추출
-        pred_sets = parsed
-        gold_sets = [sample.reference for sample in samples]
+        return self.score_via_accumulator(parsed, samples)
 
-        # multilabel_prf 계산
-        metrics = multilabel_prf(pred_sets, gold_sets)
-
-        # 언어별 통계
-        lang_stats = {}
-        for lang in {"en", "ko"}:
-            lang_indices = [i for i, s in enumerate(samples) if s.lang == lang]
-            if lang_indices:
-                lang_pred = [pred_sets[i] for i in lang_indices]
-                lang_gold = [gold_sets[i] for i in lang_indices]
-                lang_metrics = multilabel_prf(lang_pred, lang_gold)
-                lang_stats[lang] = {
-                    "precision": lang_metrics["micro_precision"],
-                    "recall": lang_metrics["micro_recall"],
-                    "f1": lang_metrics["micro_f1"],
-                    "n_evaluated": len(lang_indices),
-                }
-
-        return {
-            "precision": metrics["micro_precision"],
-            "recall": metrics["micro_recall"],
-            "f1": metrics["micro_f1"],
-            "n_evaluated": len(parsed),
-            "per_language": lang_stats,
-            "macro_precision": metrics["macro_precision"],
-            "macro_recall": metrics["macro_recall"],
-            "macro_f1": metrics["macro_f1"],
-        }
 
 class _Txt7Accumulator:
     """전체 + 언어별 멀티라벨 PRF 스트리밍. score()와 동일 dict.

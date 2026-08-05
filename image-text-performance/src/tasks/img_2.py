@@ -260,46 +260,13 @@ class Img2Task(Task):
         return {norm for norm in (_normalize_coco_tag(t) for t in tags) if norm}
 
     def score(self, parsed: list[set[str]], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 태그 set을 multilabel_prf로 평가.
+        """IMG-2 태그 추출(멀티라벨). **누적기에 위임**한다(단일 경로 — score()/누적기 드리프트 방지).
 
-        각 샘플의 예측 태그 set과 gold 태그 set을 비교.
+        파싱 실패(None)는 빈 태그셋으로 채점(precision/recall 0)되고 호출 실패(CALL_FAILED)만 채점에서 제외된다.
+        예전엔 이 경로가 별도로 구현돼 파싱 실패를 분모에서 빼거나(점수 부풀림) 예외를
+        던졌다(셀 전체가 error로 죽어 정상 샘플까지 버려짐) — 2026-08-06 지적.
         """
-        if not parsed or not samples:
-            return {
-                "micro_precision": 0.0,
-                "micro_recall": 0.0,
-                "micro_f1": 0.0,
-                "macro_precision": 0.0,
-                "macro_recall": 0.0,
-                "macro_f1": 0.0,
-                "n_evaluated": 0,
-            }
-
-        # 유효한 샘플만 필터링
-        valid_indices = [
-            i for i, (pred, sample) in enumerate(zip(parsed, samples))
-            if pred is not None and sample.reference
-        ]
-
-        if not valid_indices:
-            return {
-                "micro_precision": 0.0,
-                "micro_recall": 0.0,
-                "micro_f1": 0.0,
-                "macro_precision": 0.0,
-                "macro_recall": 0.0,
-                "macro_f1": 0.0,
-                "n_evaluated": 0,
-            }
-
-        pred_sets = [parsed[i] for i in valid_indices]
-        gold_sets = [samples[i].reference for i in valid_indices]
-
-        # multilabel_prf 호출
-        metrics = multilabel_prf(pred_sets, gold_sets)
-
-        metrics["n_evaluated"] = len(valid_indices)
-        return metrics
+        return self.score_via_accumulator(parsed, samples)
 
     def make_accumulator(self) -> MultilabelAccumulator:
         """스트리밍 O(1) 채점기. score()와 동일(micro/macro PRF + n_evaluated).

@@ -46,8 +46,11 @@ GLOBAL_FAILURE_EXIT_RATE = 0.10
 JUDGE_FAILURE_EXIT_RATE = 0.05
 
 # samples.jsonl에 몇 샘플마다 flush할지. 셀 전체(보통 30개)를 다 돌고 나서 한 번에 쓰면
-# 중단 시 이미 과금된 호출 결과가 통째로 사라진다. 5개마다 append하면 손실이 최대 4개로
-# 줄고, I/O도 샘플당 수 초 걸리는 호출에 비하면 무시할 수준이다.
+# 중단 시 이미 과금된 호출 결과가 통째로 사라진다.
+# **이 값이 실제 복구 단위가 되려면 resume이 부분 행을 재사용해야 한다** — `_partial_progress`가
+# 그 역할을 한다(2026-08-06). 둘이 함께 있을 때만 "중단 시 재호출 손실 ≤ 4개"가 성립한다.
+# flush만 있고 부분 재사용이 없던 동안에는 resume이 미완료 셀 행을 전부 버려 30개를
+# 다시 호출했다(그때의 "손실 최대 4개"라는 서술은 사실이 아니었다).
 SAMPLE_FLUSH_EVERY = 5
 
 
@@ -263,10 +266,10 @@ def main() -> int:
         run_id = run_dir.name
         print(f"[--resume] 이어갈 run: {run_id}")
     else:
-        # results_root를 넘겨 기존 디렉터리와 충돌하지 않는 ID를 받는다(같은 분에 두 실행 시).
+        # make_run_id가 디렉터리 생성으로 **원자적 예약**까지 한다(동시 실행 충돌 방지).
+        # 따라서 여기서 mkdir을 다시 부르지 않는다 — 부르면 예약 의미가 사라진다.
         run_id = make_run_id(results_root=args.out)
         run_dir = Path(args.out) / run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
 
     model_list = []
     for model in models_cfg.models:
@@ -385,12 +388,10 @@ def main() -> int:
         print(f"오류: FMAPI 클라이언트 초기화 실패: {e}", file=sys.stderr)
         return 1
 
-    # --fresh 삭제는 **여기서** 한다: 설정 검증·매트릭스 구성·클라이언트 초기화가 모두
-    # 통과해 실제로 호출을 시작할 수 있음이 확인된 뒤. 그 전에 지우면 설정 오류·인증 실패로
-    # 한 셀도 못 돌렸을 때 직전 리포트만 잃는다(실측 사고 — 위 주석 참고).
-    # 게다가 삭제가 아니라 **보관 이동**이라, 새 run이 중간에 죽어도 이전 결과를 되찾을 수 있다.
-    if args.fresh:
-        _purge_previous_runs(Path(args.out), Path("reports"), keep_run_id=run_id)
+    # ⚠️ --fresh 정리는 여기서도 하지 않는다. **새 리포트가 생성된 뒤**(_run_samples 끝)에
+    # 해야 중단 시 README '최신 리포트' 링크와 index가 깨지지 않는다 — 실행 전에 치우면
+    # 첫 셀에서 죽어도 이전 리포트가 이미 사라진다(2026-08-06 재지적).
+    # _run_samples가 리포트·인덱스를 만든 직후 정리하고, 인덱스를 한 번 더 재생성한다.
 
     try:
         rc = _run_samples(
@@ -403,6 +404,8 @@ def main() -> int:
             enable_judge=not args.no_judge,
             resume=resuming,
             profile=profile,
+            fresh=args.fresh,
+            results_root=Path(args.out),
         )
     finally:
         fmapi.close()
@@ -421,6 +424,8 @@ def _run_samples(
     enable_judge: bool = True,
     resume: bool = False,
     profile: str | None = None,
+    fresh: bool = False,
+    results_root: Path | None = None,
 ) -> int:
     """**태스크-메이저 스트리밍**으로 각 (모델×태스크×reasoning×샘플)을 호출·채점·저장.
 
@@ -478,12 +483,21 @@ def _run_samples(
                 del scores[k]
             print(f"  [resume] 응답 대량 실패(>50% __ERROR__)로 재실행할 셀 {len(poisoned)}개: "
                   f"{', '.join(sorted(poisoned))}")
-        # samples.jsonl을 scores.json과 정합화: 완료된 셀(scores에 존재)의 행만 남기고
-        # 부분 기록(크래시 직전 셀은 scores 미기록)·오염 셀 행은 버린다. 안 그러면 그 셀
-        # 재실행 시 옛 행 + 새 행이 중복돼 perf/비용 집계(_perf_by_model)가 부풀려진다.
-        _reconcile_samples_with_scores(samples_path, set(scores.keys()))
+        # samples.jsonl 정합화 + **부분 셀 이어달리기 준비**.
+        # 완료 셀(scores에 존재)의 행은 그대로 두고, 미완료 셀의 행은 **보존한 뒤**
+        # 이미 호출한 sample_id를 뽑아 둔다(아래 partial_done). 그러면 중단된 셀을
+        # 처음부터 다시 호출하지 않는다 — 예전엔 미완료 행을 전부 버려서 5샘플마다
+        # flush해도 결국 30개를 다시 호출했다(2026-08-06 지적).
+        # 단 오염 셀(>50% __ERROR__)의 행은 버린다 — 그 응답들은 재시도 대상이다.
+        partial_done = _partial_progress(samples_path, set(scores.keys()), drop_keys=poisoned)
+        if partial_done:
+            total_reusable = sum(len(v) for v in partial_done.values())
+            print(f"  [resume] 부분 완료 셀 {len(partial_done)}개에서 {total_reusable}샘플 재사용"
+                  f"(재호출 생략): "
+                  + ", ".join(f"{k}({len(v)})" for k, v in sorted(partial_done.items())[:4]))
     else:
         scores = {}
+        partial_done = {}
         # 새 실행이면 samples.jsonl 초기화(이전 잔여 제거)
         if samples_path.exists():
             samples_path.unlink()
@@ -500,8 +514,9 @@ def _run_samples(
             return False
         return True
 
-    # judge 클라이언트(공유, 넉넉한 timeout). 실패해도 정량은 진행.
+    # judge 클라이언트(공유, 넉넉한 timeout). 실패해도 정량은 진행하되 종료 코드에 반영한다.
     judge_client = None
+    judge_init_error: str | None = None
     if enable_judge:
         try:
             judge_client = FMAPIClient(
@@ -512,7 +527,13 @@ def _run_samples(
                 backoff_initial_seconds=models_cfg.runtime.backoff_initial_seconds,
             )
         except Exception as e:
-            print(f"  [judge 비활성 — 클라이언트 초기화 실패] {type(e).__name__}: {e}")
+            # judge 클라이언트 초기화 실패를 조용히 넘기면 judge 태스크가 전부 채점 없이
+            # "완주"한다(실측: rc=0). 이유를 기록해 종료 코드에 반영한다 — judge를 의도적으로
+            # 끄려면 `--no-judge`를 쓰라는 신호이기도 하다.
+            judge_init_error = f"{type(e).__name__}: {e}"
+            print(f"  [judge 비활성 — 클라이언트 초기화 실패] {judge_init_error}")
+            print("    ⚠️  judge 대상 태스크가 채점 없이 진행됩니다 → 실행을 실패로 판정합니다"
+                  "(의도적으로 끄려면 --no-judge를 쓰세요).")
 
     executed = skipped_cells = resume_skipped = 0
     # 요청보다 적게 로드된 태스크: {task_id: (로드됨, 요청됨)}. 종료 요약·셀 메타에 쓴다.
@@ -520,6 +541,11 @@ def _run_samples(
     # 아예 실행하지 못한 태스크: {task_id: 이유}. **종료 코드를 실패로 만든다** —
     # 태스크가 통째로 누락됐는데 "실행 완료 exit 0"이 되던 문제를 막는다.
     failed_tasks: dict[str, str] = {}
+    # judge 채점을 받아야 하는 셀 key 집합. 실제로 judge_mean이 붙었는지 종료 시 대조한다 —
+    # judge 클라이언트 초기화 실패·judge_scores 예외로 채점이 빠져도 exit 0이던 문제 방지.
+    judge_expected_cells: set[str] = set()
+    # 필수 산출물(report.md·index·presentation·chart) 생성 실패 목록 → 종료 코드에 반영(P1-5).
+    artifact_errors: list[str] = []
     gallery_records: list[dict[str, Any]] = []
     gallery_path = run_dir / "gallery.jsonl"
     gallery_done_tasks: set[str] = set()  # 이미 gallery.jsonl에 기록된 task_id(resume 중복 방지)
@@ -596,15 +622,51 @@ def _run_samples(
                 buf_parsed: list[Any] | None = None if acc is not None else []
                 buf_samples: list[Any] | None = None if acc is not None else []
                 # judge를 이 셀에서 돌릴지 여부(태스크가 judge_scores로 자체 집계하므로 별도 누적기 불필요).
-                do_judge = (
-                    enable_judge and judge_client is not None
-                    and want_judge and hasattr(inst, "judge_scores")
-                )
+                # 이 셀이 judge 채점을 **받아야 하는지**(want_judge)와 실제로 돌릴 수
+                # 있는지(do_judge)를 구분한다. judge가 필요한데 못 돌린 셀은 완주가 아니다.
+                expects_judge = enable_judge and want_judge and hasattr(inst, "judge_scores")
+                do_judge = expects_judge and judge_client is not None
+                if expects_judge:
+                    judge_expected_cells.add(key)
                 cell_results: list[SampleResult] = []
                 n_call_failed = 0   # 이 셀의 호출 실패 수 → 점수와 함께 기록(아래 주석 참고)
-                print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 실행...", flush=True)
+
+                # 부분 이어달리기: 이 셀에서 **이미 호출해 저장된** sample_id는 다시 부르지 않고
+                # samples.jsonl에서 결과를 읽어 채점에만 넣는다(중단 시 재호출 비용 절감).
+                reuse_sids = partial_done.get(key, set())
+                reused_rows: dict[int, Any] = {}
+                if reuse_sids:
+                    from src.results import load_sample_results
+
+                    for r in load_sample_results(run_dir):
+                        if (r.model_id == model.id and r.task_id == task_id
+                                and r.reasoning_mode == mode and r.sample_id in reuse_sids):
+                            reused_rows[r.sample_id] = r
+                    print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 "
+                          f"(이어달리기: {len(reused_rows)}개 재사용, "
+                          f"{len(samples) - len(reused_rows)}개 호출)...", flush=True)
+                else:
+                    print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 실행...", flush=True)
 
                 for s in samples:
+                    # 이미 호출한 샘플: 저장된 결과로 채점만 하고 API 호출을 건너뛴다.
+                    prev = reused_rows.get(s.sample_id)
+                    if prev is not None:
+                        try:
+                            parsed_prev = inst.parse_output(prev.model_output, s)
+                        except Exception:
+                            parsed_prev = None
+                        if acc is not None:
+                            try:
+                                acc.add(parsed_prev, s)
+                            except Exception as e:
+                                print(f"    [acc.add 실패(재사용)] {key} s{s.sample_id}: "
+                                      f"{type(e).__name__}: {e}")
+                        else:
+                            buf_parsed.append(parsed_prev)
+                            buf_samples.append(s)
+                        continue
+
                     messages = inst.build_prompt(s)
                     t0 = time.perf_counter()
                     try:
@@ -803,7 +865,10 @@ def _run_samples(
         )
         print(f"리포트 생성: {report_path}")
     except Exception as e:
-        print(f"  [리포트 생성 스킵] {type(e).__name__}: {e}")
+        # 리포트는 이 벤치마크의 **산출물 그 자체**다. 실패를 로그만 남기고 exit 0을 내면
+        # "성공했는데 리포트가 없는" 상태가 되어 자동화가 그대로 커밋·푸시한다(P1-5).
+        artifact_errors.append(f"report.md: {type(e).__name__}: {e}")
+        print(f"  [리포트 생성 실패] {type(e).__name__}: {e}")
 
     try:
         from src.report.index import rebuild_index
@@ -811,7 +876,36 @@ def _run_samples(
         idx = rebuild_index()
         print(f"인덱스 갱신: {idx}")
     except Exception as e:
-        print(f"  [인덱스 갱신 스킵] {type(e).__name__}: {e}")
+        artifact_errors.append(f"reports/index.md: {type(e).__name__}: {e}")
+        print(f"  [인덱스 갱신 실패] {type(e).__name__}: {e}")
+
+    # 필수 산출물이 실제로 파일로 존재하는지 확인한다(예외 없이 조용히 안 만들어진 경우 대비).
+    reports_dir = Path("reports") / run_dir.name
+    for required in ("report.md", "facts.json", "presentation.html"):
+        if not (reports_dir / required).exists():
+            artifact_errors.append(f"{required} 없음")
+    if not list(reports_dir.glob("chart_*.png")):
+        artifact_errors.append("chart_*.png 없음")
+
+    # ── --fresh 정리는 **지금** 한다 ──────────────────────────────────
+    # 새 리포트가 실제로 만들어지고 필수 산출물이 확인된 뒤에만 이전 run을 보관 이동한다.
+    # 실행 중간에 죽으면 정리가 아예 일어나지 않아 README '최신 리포트' 링크·index가
+    # 그대로 살아 있다(2026-08-06 재지적 반영).
+    if fresh:
+        if artifact_errors:
+            print(f"\n[--fresh 보류] 필수 산출물이 불완전해 이전 run을 그대로 둡니다: "
+                  f"{', '.join(artifact_errors[:3])}")
+        else:
+            _purge_previous_runs(
+                results_root or Path("results"), Path("reports"), keep_run_id=run_dir.name
+            )
+            try:
+                from src.report.index import rebuild_index
+
+                print(f"인덱스 재생성(정리 후): {rebuild_index()}")
+            except Exception as e:
+                artifact_errors.append(f"정리 후 index 재생성: {type(e).__name__}: {e}")
+                print(f"  [정리 후 인덱스 실패] {type(e).__name__}: {e}")
 
     # ── 종료 코드 판정 ────────────────────────────────────────────────
     # 실패해도 exit 0을 내면 자동화(CI·스크립트·에이전트)가 "성공"으로 오판한다. 실측 위험:
@@ -824,6 +918,9 @@ def _run_samples(
         expected_cells=len(matrix),
         failed_tasks=failed_tasks,
         shortfall_tasks=shortfall_tasks,
+        judge_expected_cells=judge_expected_cells,
+        judge_init_error=judge_init_error,
+        artifact_errors=artifact_errors,
     )
 
 
@@ -919,6 +1016,9 @@ def _exit_code(
     *,
     failed_tasks: dict[str, str] | None = None,
     shortfall_tasks: dict[str, tuple[int, int]] | None = None,
+    judge_expected_cells: set[str] | None = None,
+    judge_init_error: str | None = None,
+    artifact_errors: list[str] | None = None,
     judge_failure_rate_limit: float = JUDGE_FAILURE_EXIT_RATE,
 ) -> int:
     """실행 결과로 프로세스 종료 코드를 정한다. 0=정상, 1=자동화가 멈춰야 하는 실패.
@@ -936,6 +1036,12 @@ def _exit_code(
     채점에서 제외되며 리포트에 드러나므로 실행 자체를 실패로 볼 필요는 없다.
     """
     reasons: list[str] = []
+
+    if artifact_errors:
+        # 리포트·인덱스·프레젠테이션은 이 벤치마크의 산출물이다. 없으면 실행은 실패다.
+        reasons.append(
+            f"필수 산출물 생성 실패 {len(artifact_errors)}건: {', '.join(artifact_errors[:3])}"
+        )
 
     if failed_tasks:
         detail = ", ".join(f"{t}({why})" for t, why in sorted(failed_tasks.items()))
@@ -963,6 +1069,36 @@ def _exit_code(
             f"전체 호출 실패율 {total_failed}/{total_n} "
             f"({total_failed / total_n:.1%}) > {GLOBAL_FAILURE_EXIT_RATE:.0%}"
         )
+
+    # judge 자체가 **돌지 않은** 경우를 먼저 잡는다. 클라이언트 초기화 실패나 judge_scores
+    # 예외로 채점이 빠져도 예전엔 exit 0이었다(실측: judge_error만 있는 셀 → rc=0).
+    # `--no-judge`를 쓰지 않았다면 judge 대상 셀에는 judge_mean/judge_detail이 있어야 한다.
+    if judge_init_error:
+        reasons.append(
+            f"judge 클라이언트 초기화 실패로 judge 채점이 전부 빠졌습니다({judge_init_error}) "
+            f"— 의도적으로 끄려면 --no-judge를 사용하세요"
+        )
+    if judge_expected_cells:
+        missing_judge: list[str] = []
+        judge_errors: list[str] = []
+        for key in sorted(judge_expected_cells):
+            entry = scores.get(key)
+            if not entry or not isinstance(entry.get("metrics"), dict):
+                continue   # 셀 자체가 없으면 '완료 셀 부족' 조건이 잡는다
+            m = entry["metrics"]
+            if m.get("judge_error"):
+                judge_errors.append(f"{key}({str(m['judge_error'])[:60]})")
+            elif "judge_mean" not in m and not (m.get("judge_detail") or {}).get("n"):
+                missing_judge.append(key)
+        if judge_errors:
+            reasons.append(
+                f"judge 채점 예외 셀 {len(judge_errors)}개: {', '.join(judge_errors[:3])}"
+            )
+        if missing_judge:
+            reasons.append(
+                f"judge 대상인데 채점 결과가 없는 셀 {len(missing_judge)}개: "
+                f"{', '.join(missing_judge[:5])}"
+            )
 
     # judge 실패도 종료 코드에 반영한다 — judge가 대량 실패하면 생성 태스크의 대표 수치가
     # 사실상 비어 있는데도 예전엔 exit 0이었다(실측: max_tokens 부족으로 30/30 실패한 셀).
@@ -1072,6 +1208,60 @@ def _poisoned_cells(samples_path: Path, threshold: float = UNRELIABLE_FAILURE_RA
             if str(d.get("model_output", "")).startswith("__ERROR__"):
                 errs[key] = errs.get(key, 0) + 1
     return {k for k, n in total.items() if n > 0 and errs.get(k, 0) / n > threshold}
+
+
+def _partial_progress(
+    samples_path: Path, done_keys: set[str], *, drop_keys: set[str] | None = None
+) -> dict[str, set[int]]:
+    """미완료 셀의 **이미 호출한 sample_id**를 셀별로 모아 돌려준다(부분 이어달리기용).
+
+    resume의 핵심 문제였다: 예전 `_reconcile_samples_with_scores`는 scores에 없는 셀의 행을
+    전부 버려서, 5샘플마다 flush해도 중단된 셀은 처음부터 30개를 다시 호출했다(비용·시간 낭비).
+    이제 그 행들을 **보존**하고, 어디까지 했는지를 이 함수가 알려준다.
+
+    제외 규칙:
+    - `done_keys`(완료 셀)는 대상 아님 — 어차피 resume-skip된다.
+    - `drop_keys`(오염 셀, >50% __ERROR__)는 행을 재사용하지 않는다 — 그 응답들은 재시도 대상.
+    - 실패 응답(`finish_reason == "error"`)은 재사용하지 않는다 — 재시도해야 정상값을 얻는다.
+
+    부작용으로 samples.jsonl을 재작성한다: 완료 셀 + 재사용 가능한 부분 행만 남긴다
+    (실패 행·오염 셀 행을 지워, 재실행 결과와 중복되지 않게).
+    """
+    import os
+
+    if not samples_path.exists():
+        return {}
+    drop = drop_keys or set()
+
+    kept: list[str] = []
+    progress: dict[str, set[int]] = {}
+    with open(samples_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+                key = f"{d['model_id']}::{d['task_id']}::{d['reasoning_mode']}"
+                sid = d["sample_id"]
+            except (json.JSONDecodeError, KeyError):
+                continue
+            if key in done_keys:
+                kept.append(line)          # 완료 셀 행은 그대로 보존
+                continue
+            if key in drop or d.get("finish_reason") == "error":
+                continue                   # 재시도 대상 → 행을 버린다
+            kept.append(line)              # 부분 완료 행 보존
+            progress.setdefault(key, set()).add(sid)
+
+    tmp = samples_path.with_suffix(samples_path.suffix + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for line in kept:
+            f.write(line + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, samples_path)
+    return progress
 
 
 def _reconcile_samples_with_scores(samples_path: Path, done_keys: set[str]) -> None:

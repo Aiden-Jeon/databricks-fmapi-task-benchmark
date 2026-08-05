@@ -35,6 +35,12 @@ _METRIC_PRIORITY = [
     "micro_f1", "rouge1", "precision", "judge_mean", "judge_score_mean",
 ]
 
+# 채점된 샘플 중 **형식 파싱이 성공한 비율**이 이 값 미만이면 순위·요약에서 제외한다.
+# 파싱 실패는 이제 오답으로 채점되므로 점수 자체는 정직하지만, 절반 이상이 형식 실패인 셀은
+# "능력"보다 "출력 형식 미준수"를 재는 것에 가까워 다른 모델과 나란히 비교하면 오해를 낳는다
+# (프롬프트·파서를 손봐야 하는 신호다). 실패율이 아니라 **유효률**로 표현해 리포트에 적는다.
+MIN_PARSE_VALID_RATE = 0.5
+
 
 def generate_report(
     run_dir: Path,
@@ -362,12 +368,27 @@ def _p95(xs: list[float]) -> float:
     return s[idx]
 
 
+def _parse_valid_rate(metrics: dict[str, Any]) -> float | None:
+    """채점된 샘플 중 형식 파싱이 성공한 비율. n_unparsed를 보고하지 않는 태스크는 None.
+
+    파싱 실패는 오답으로 채점되므로(2026-08-06) 점수 자체는 정직하다. 다만 유효률이 너무
+    낮으면 그 셀은 "능력"보다 "출력 형식 미준수"를 재는 것에 가까워, 순위 비교에서 빼고
+    리포트에 경고로 남긴다.
+    """
+    n = metrics.get("n_evaluated")
+    unparsed = metrics.get("n_unparsed")
+    if not isinstance(n, int) or not isinstance(unparsed, int) or n <= 0:
+        return None
+    return max(0.0, (n - unparsed) / n)
+
+
 def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, Any]:
     """수치에서 Executive Summary용 핵심 사실을 규칙 기반으로 추출(D14)."""
     # 태스크별 대표 점수(모델→점수) 뽑기 — 대표 메트릭 우선순위
     metric_priority = _METRIC_PRIORITY
     per_task: dict[str, dict[str, float]] = {}
     excluded: list[str] = []
+    low_valid: list[str] = []   # 파싱 유효률 미달로 순위에서 뺀 셀
     for _, entry in scores.items():
         m = entry["metrics"]
         if not isinstance(m, dict) or "error" in m:
@@ -377,6 +398,12 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
         #  실측: IMG-6 opus 19/30 실패 시 sol이 이긴 것처럼 보였으나 재실행하면 opus 승.)
         if entry.get("unreliable"):
             excluded.append(f"{entry['task_id']}/{entry['model_id']}")
+            continue
+        # 파싱 유효률이 임계 미만인 셀도 제외한다. 파싱 실패는 오답으로 채점되므로 점수는
+        # 정직하지만, 절반 이상이 형식 실패면 "능력"보다 "형식 미준수"를 재는 셈이라
+        # 다른 모델과 나란히 비교하면 오해를 낳는다(프롬프트·파서 수정 신호).
+        if _parse_valid_rate(m) is not None and _parse_valid_rate(m) < MIN_PARSE_VALID_RATE:
+            low_valid.append(f"{entry['task_id']}/{entry['model_id']}")
             continue
         val = next((m[k] for k in metric_priority if isinstance(m.get(k), (int, float))), None)
         if val is None:
@@ -418,7 +445,8 @@ def _extract_facts(scores: dict[str, Any], perf: dict[str, dict]) -> dict[str, A
         "task_winners": winners,          # {task/mode: [공동 1위 모델...]}
         "win_counts": win_counts,         # 공동 1위는 각 모델에 1회씩
         "n_tied_tasks": n_ties,
-        "excluded_unreliable": excluded,  # 실패율 과다로 순위에서 뺀 셀
+        "excluded_unreliable": excluded,  # 호출 실패율 과다로 순위에서 뺀 셀
+        "excluded_low_parse_valid": low_valid,  # 파싱 유효률 미달로 순위에서 뺀 셀
         "cheapest_model": cheapest,
         "fastest_model": fastest,
         "unpriced_models": unpriced_models,   # pricing.yaml 미등록 → 비용 비교 불가
@@ -477,6 +505,12 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
         parts.append(
             f"호출 실패가 과다한 셀 {len(facts['excluded_unreliable'])}개"
             f"({', '.join(facts['excluded_unreliable'])})는 점수가 장애의 산물이라 순위에서 제외했다."
+        )
+    if facts.get("excluded_low_parse_valid"):
+        parts.append(
+            f"출력 형식 파싱 유효률이 50% 미만인 셀 {len(facts['excluded_low_parse_valid'])}개"
+            f"({', '.join(facts['excluded_low_parse_valid'])})는 '능력'보다 '형식 미준수'를 재는 "
+            f"상태라 순위에서 제외했다(프롬프트·파서 점검 필요)."
         )
     if facts.get("fastest_model"):
         f = facts["fastest_model"]
@@ -656,6 +690,10 @@ def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
         n_fail = e.get("n_call_failed") or 0
         if n_fail:
             notes.append(f"호출 {n_fail}/{n}")
+        # 파싱 실패(형식 미준수) — 오답으로 채점되지만 몇 건인지 보여야 해석이 된다.
+        n_unparsed = (m.get("n_unparsed") or 0) if isinstance(m, dict) else 0
+        if n_unparsed:
+            notes.append(f"형식 {n_unparsed}/{m.get('n_evaluated') or n}")
         jd = m.get("judge_detail") if isinstance(m, dict) else None
         j_fail = (jd or {}).get("n_failed") or 0
         if j_fail:
@@ -664,6 +702,10 @@ def _quant_table(scores: dict[str, Any], task_labels: dict[str, str]) -> str:
         if e.get("unreliable"):
             # 절반 이상 실패 → 점수를 성능으로 읽으면 안 된다는 신호를 같은 줄에 박아둔다.
             fail_col = f"⚠️ **{fail_col} — 신뢰불가**"
+        elif (rate := _parse_valid_rate(m) if isinstance(m, dict) else None) is not None \
+                and rate < MIN_PARSE_VALID_RATE:
+            # 파싱 유효률 미달 → 점수는 정직하지만 "형식 미준수" 측정에 가깝다.
+            fail_col = f"⚠️ **{fail_col} — 유효률 {rate:.0%}, 순위 제외**"
 
         rows.append(
             f"| {task_col} | {e['model_id']} | {e['reasoning_mode']} | {cell} | {fail_col} |"

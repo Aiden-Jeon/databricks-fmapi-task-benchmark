@@ -208,69 +208,13 @@ Summary:"""
         return raw_text.strip()
 
     def score(self, parsed: list[str], samples: list[Sample]) -> dict[str, Any]:
-        """파싱된 예측 결과를 집계해 ROUGE 메트릭 계산.
+        """TXT-5 요약 채점(ROUGE + BERTScore). **누적기에 위임**한다(단일 경로 — score()/누적기 드리프트 방지).
 
-        - 모든 샘플에 대해 ROUGE 계산 (공백 예측도 계산)
-        - 언어별 평균 ROUGE
-        - BERTScore는 deferred (torch 미설치 환경 대비)
-        - 한국어 토크나이저 백엔드 정보 포함
+        파싱 실패(None)는 빈 요약으로 채점(ROUGE 0)되고 호출 실패(CALL_FAILED)만 채점에서 제외된다.
+        예전엔 이 경로가 별도로 구현돼 파싱 실패를 분모에서 빼거나(점수 부풀림) 예외를
+        던졌다(셀 전체가 error로 죽어 정상 샘플까지 버려짐) — 2026-08-06 지적.
         """
-        rouge_scores_per_lang = {"en": [], "ko": []}
-
-        for pred, sample in zip(parsed, samples):
-            lang = sample.lang
-            reference = sample.reference
-
-            rouge = _compute_rouge(pred, reference, lang)
-            rouge_scores_per_lang[lang].append(rouge)
-
-        # 언어별 평균 ROUGE
-        per_language = {}
-        for lang, scores_list in rouge_scores_per_lang.items():
-            if scores_list:
-                avg_rouge1 = sum(s["rouge1"] for s in scores_list) / len(scores_list)
-                avg_rouge2 = sum(s["rouge2"] for s in scores_list) / len(scores_list)
-                avg_rougeL = sum(s["rougeL"] for s in scores_list) / len(scores_list)
-
-                per_language[lang] = {
-                    "rouge1": avg_rouge1,
-                    "rouge2": avg_rouge2,
-                    "rougeL": avg_rougeL,
-                    "n_evaluated": len(scores_list),
-                }
-            else:
-                per_language[lang] = {
-                    "rouge1": None,
-                    "rouge2": None,
-                    "rougeL": None,
-                    "n_evaluated": 0,
-                }
-
-        # 전체 평균 (모든 샘플)
-        all_scores = rouge_scores_per_lang["en"] + rouge_scores_per_lang["ko"]
-        if all_scores:
-            overall_rouge1 = sum(s["rouge1"] for s in all_scores) / len(all_scores)
-            overall_rouge2 = sum(s["rouge2"] for s in all_scores) / len(all_scores)
-            overall_rougeL = sum(s["rougeL"] for s in all_scores) / len(all_scores)
-        else:
-            overall_rouge1 = 0.0
-            overall_rouge2 = 0.0
-            overall_rougeL = 0.0
-
-        out = {
-            "rouge1": overall_rouge1,
-            "rouge2": overall_rouge2,
-            "rougeL": overall_rougeL,
-            "n_evaluated": len(parsed),
-            "per_language": per_language,
-            "korean_backend": korean_tokenizer_backend(),
-        }
-        # 누적기 경로(finalize)와 같은 값이 나와야 한다 — 같은 상한·같은 함수를 쓴다.
-        pairs = [(str(p or ""), str(s.reference or "")) for p, s in zip(parsed, samples)][
-            :BERTSCORE_MAX_PAIRS
-        ]
-        out.update(bertscore_f1([c for c, _ in pairs], [r for _, r in pairs]))
-        return out
+        return self.score_via_accumulator(parsed, samples)
 
     def make_accumulator(self) -> "_Txt5Accumulator":
         """스트리밍 O(1) 채점기. score()와 동일(overall rouge1/2/L + per_language + bertscore + korean_backend)."""
