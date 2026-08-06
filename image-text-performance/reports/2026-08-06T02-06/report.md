@@ -1,22 +1,22 @@
-# 벤치마크 리포트 — 2026-08-05T13-00
+# 벤치마크 리포트 — 2026-08-06T02-06
 
-> 📊 고객 설명용 프레젠테이션: **[▶ 브라우저로 바로 보기](https://htmlpreview.github.io/?https://github.com/Aiden-Jeon/databricks-fmapi-task-benchmark/blob/main/image-text-performance/reports/2026-08-05T13-00/presentation.html)** · [HTML 소스](./presentation.html) — 이 리포트 결과를 슬라이드로 정리
+> 📊 고객 설명용 프레젠테이션: **[▶ 브라우저로 바로 보기](https://htmlpreview.github.io/?https://github.com/Aiden-Jeon/databricks-fmapi-task-benchmark/blob/main/image-text-performance/reports/2026-08-06T02-06/presentation.html)** · [HTML 소스](./presentation.html) — 이 리포트 결과를 슬라이드로 정리
 
 ## 평가 대상 모델 (Databricks hosted)
 
-| 별칭 | Databricks model name | vision |
-|---|---|---|
-| opus | `databricks-claude-opus-5` | ✅ |
-| sol | `databricks-gpt-5-6-sol` | ✅ |
-| glm | `databricks-glm-5-2` | ❌ |
+| 별칭 | Databricks model name | vision | reasoning 파라미터 | timeout |
+|---|---|---|---|---|
+| opus | `databricks-claude-opus-5` | ✅ | `minimal`: `{'thinking': {'type': 'disabled'}}` | 60s |
+| sol | `databricks-gpt-5-6-sol` | ✅ | `minimal`: `{'reasoning_effort': 'none'}` | 60s |
+| glm | `databricks-glm-5-2` | ❌ | `minimal`: `{'reasoning_effort': 'none'}` | 120s |
 
 > Judge: `databricks-gemini-3-1-pro`
 
 ## Executive Summary
 
-제공된 데이터에 따르면 'sol' 모델은 총 8개 태스크에서 1위를 차지해 이미지와 텍스트 전반에서 가장 우수한 성과를 보인 반면, 'glm'은 텍스트 분야(3개 우승)에서만 두각을 나타냈고 'opus'는 20번의 오류가 발생해 안정성이 가장 떨어졌습니다. 속도와 비용 면에서는 'glm'이 중간값 798.7ms의 가장 빠른 속도와 총 $0.25의 최저 비용을 기록해 압도적인 가성비를 자랑합니다. 반면 'opus'는 가장 느린 속도(중간값 3038.6ms)와 최고 비용($2.45)을 기록해 효율이 낮습니다. 결과적으로 'sol'은 'glm'보다 비싸고 느리지만(총 $2.15, 중간값 2084.6ms), 에러 없이 가장 높은 종합 성능을 제공하는 훌륭한 트레이드오프를 보여줍니다.
+제공된 수치에 따르면 'sol' 모델은 총 9개 태스크에서 1위를 차지하며 특히 이미지(IMG) 영역에서 압도적인 강점을 보였고, 'opus'와 'glm'은 각각 4개 태스크에서 우위를 기록했습니다. 텍스트(TXT) 영역에만 참여한 'glm'은 전체 모델 중 가장 저렴하고 처리 속도(중간 지연시간 724.2ms)가 가장 빨라 비용 및 속도 트레이드오프 측면에서 최고의 효율을 보여줍니다. 반면 'opus'는 비용이 가장 비싸고 속도(중간 지연시간 2527.4ms)가 가장 느릴 뿐만 아니라, 유일하게 5건의 오류(errors)가 발생해 효율성과 안정성이 가장 떨어지는 것으로 나타났습니다.
 
-<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 sol 8회, opus 4회, glm 3회로 **sol**가 가장 많다. 이 중 1개 태스크는 동점이라 공동 1위로 집계했다. 응답 속도는 **glm**가 가장 빠르다(median 798.7ms). 비용은 **glm**가 가장 낮다($0.2502).</sub>
+<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 sol 9회, opus 4회, glm 4회로 **sol**가 가장 많다. 이 중 2개 태스크는 동점이라 공동 1위로 집계했다. 응답 속도는 **glm**가 가장 빠르다(median 724.2ms). 비용은 **glm**가 가장 낮다($0.246797).</sub>
 
 ## 비교 그래프
 
@@ -34,65 +34,65 @@
 
 | 태스크 | 모델 | reasoning | 대표 메트릭 | 실패 |
 |---|---|---|---|---|
-| TXT-1 · 문서(PDF) 이해 QA | glm | minimal | anls=0.819, token_f1=0.799, exact_match=0.733, n_evaluated=30, judge_mean=4.367 | — |
-| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.5, token_f1=0.539, n_evaluated=30, judge_mean=3.433 | — |
+| TXT-1 · 문서(PDF) 이해 QA | glm | minimal | anls=0.863, token_f1=0.843, exact_match=0.8, n_evaluated=30, judge_mean=4.5 | — |
+| TXT-2 · 표(엑셀) 이해 QA | glm | minimal | accuracy=0.533, token_f1=0.572, n_evaluated=30, judge_mean=3.5 | — |
 | TXT-3 · 표 구조 추출 | glm | minimal | cell_f1=0.972, n_evaluated=30 | — |
-| TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.955, exact_match=0.833, n_evaluated=30, judge_mean=5.0 | — |
-| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.287, rouge2=0.135, rougeL=0.234, n_evaluated=30, bertscore_f1=0.736, bertscore_n=30 | judge 1 |
+| TXT-4 · 한국어 독해 QA | glm | minimal | token_f1=0.94, exact_match=0.8, n_evaluated=30, judge_mean=5.0 | — |
+| TXT-5 · 텍스트 요약 | glm | minimal | rouge1=0.285, rouge2=0.126, rougeL=0.227, n_evaluated=30, bertscore_f1=0.734, bertscore_n=30 | judge 1 |
 | TXT-6 · 감정 분석 | glm | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 | — |
-| TXT-7 · 키워드 추출 | glm | minimal | precision=0.495, recall=0.511, f1=0.503, n_evaluated=30, macro_precision=0.482, macro_recall=0.497 | — |
+| TXT-7 · 키워드 추출 | glm | minimal | precision=0.497, recall=0.511, f1=0.504, n_evaluated=30, macro_precision=0.483, macro_recall=0.509 | — |
 | TXT-8 · 비속어/유해성 판별 | glm | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 | — |
-| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.326, n_evaluated=30, bertscore_f1=0.746, bertscore_n=30, judge_mean=4.167 | — |
-| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.653, micro_recall=0.954, micro_f1=0.775, macro_precision=0.759, macro_recall=0.94, macro_f1=0.81 | 호출 5/30 |
-| IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.714, f1=0.818, n_evaluated=28, n_unparsed=2 | 호출 2/30 |
-| IMG-4 · 성인/NSFW 이미지 판별 | opus | minimal | accuracy=0.926, f1=0.917, n_evaluated=27, n_unparsed=3 | 호출 3/30 |
-| IMG-5 · 사람 포함 여부 판별 | opus | minimal | accuracy=0.905, f1=0.923, n_evaluated=21, n_unparsed=9 | 호출 9/30 |
-| IMG-6 · 표 이미지 구조 추출 | opus | minimal | cell_f1=0.872, n_evaluated=30 | — |
-| TXT-1 · 문서(PDF) 이해 QA | opus | minimal | anls=0.952, token_f1=0.96, exact_match=0.933, n_evaluated=30, judge_mean=4.965 | judge 1 |
-| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.533, token_f1=0.589, n_evaluated=30, judge_mean=4.267 | — |
-| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.976, n_evaluated=29, n_skipped=1 | 호출 1/30 |
-| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.788, exact_match=0.567, n_evaluated=30, judge_mean=5.0 | — |
-| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.326, rouge2=0.181, rougeL=0.274, n_evaluated=30, bertscore_f1=0.737, bertscore_n=30 | — |
-| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.867, macro_f1=0.861, n_evaluated=30, n_unparsed=0 | — |
-| TXT-7 · 키워드 추출 | opus | minimal | precision=0.315, recall=0.467, f1=0.376, n_evaluated=30, macro_precision=0.315, macro_recall=0.483 | — |
-| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.833, f1=0.737, n_evaluated=30, n_unparsed=0 | — |
-| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.433, n_evaluated=30, bertscore_f1=0.785, bertscore_n=30, judge_mean=3.733 | — |
-| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.847, micro_recall=0.847, micro_f1=0.847, macro_precision=0.904, macro_recall=0.874, macro_f1=0.87 | — |
+| IMG-1 · 이미지 캡션 생성 | opus | minimal | caption_token_f1=0.331, n_evaluated=30, bertscore_f1=0.744, bertscore_n=30, judge_mean=4.3 | — |
+| IMG-2 · 이미지 태그(객체) 추출 | opus | minimal | micro_precision=0.708, micro_recall=0.941, micro_f1=0.808, macro_precision=0.774, macro_recall=0.927, macro_f1=0.819 | — |
+| IMG-3 · 무기/위협 존재 판별 | opus | minimal | accuracy=0.667, f1=0.783, n_evaluated=30, n_unparsed=0 | — |
+| IMG-4 · 성인/NSFW 이미지 판별 | opus | minimal | accuracy=0.929, f1=0.923, n_evaluated=28, n_unparsed=0, n_skipped=2 | 호출 2/30 |
+| IMG-5 · 사람 포함 여부 판별 | opus | minimal | accuracy=0.931, f1=0.938, n_evaluated=29, n_unparsed=0, n_skipped=1 | 호출 1/30 |
+| IMG-6 · 표 이미지 구조 추출 | opus | minimal | cell_f1=0.868, n_evaluated=29, n_skipped=1 | 호출 1/30 |
+| TXT-1 · 문서(PDF) 이해 QA | opus | minimal | anls=0.947, token_f1=0.927, exact_match=0.9, n_evaluated=30, judge_mean=4.965 | judge 1 |
+| TXT-2 · 표(엑셀) 이해 QA | opus | minimal | accuracy=0.533, token_f1=0.589, n_evaluated=30, judge_mean=4.367 | — |
+| TXT-3 · 표 구조 추출 | opus | minimal | cell_f1=0.978, n_evaluated=29, n_skipped=1 | 호출 1/30 |
+| TXT-4 · 한국어 독해 QA | opus | minimal | token_f1=0.785, exact_match=0.633, n_evaluated=30, judge_mean=5.0 | — |
+| TXT-5 · 텍스트 요약 | opus | minimal | rouge1=0.325, rouge2=0.18, rougeL=0.268, n_evaluated=30, bertscore_f1=0.74, bertscore_n=30 | judge 2 |
+| TXT-6 · 감정 분석 | opus | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 | — |
+| TXT-7 · 키워드 추출 | opus | minimal | precision=0.311, recall=0.464, f1=0.372, n_evaluated=30, macro_precision=0.304, macro_recall=0.467 | — |
+| TXT-8 · 비속어/유해성 판별 | opus | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 | — |
+| IMG-1 · 이미지 캡션 생성 | sol | minimal | caption_token_f1=0.429, n_evaluated=30, bertscore_f1=0.78, bertscore_n=30, judge_mean=3.833 | — |
+| IMG-2 · 이미지 태그(객체) 추출 | sol | minimal | micro_precision=0.851, micro_recall=0.871, micro_f1=0.86, macro_precision=0.915, macro_recall=0.891, macro_f1=0.886 | — |
 | IMG-3 · 무기/위협 존재 판별 | sol | minimal | accuracy=0.633, f1=0.776, n_evaluated=30, n_unparsed=0 | — |
 | IMG-4 · 성인/NSFW 이미지 판별 | sol | minimal | accuracy=0.933, f1=0.929, n_evaluated=30, n_unparsed=0 | — |
 | IMG-5 · 사람 포함 여부 판별 | sol | minimal | accuracy=0.967, f1=0.971, n_evaluated=30, n_unparsed=0 | — |
-| IMG-6 · 표 이미지 구조 추출 | sol | minimal | cell_f1=0.833, n_evaluated=30 | — |
-| TXT-1 · 문서(PDF) 이해 QA | sol | minimal | anls=0.864, token_f1=0.841, exact_match=0.833, n_evaluated=30, judge_mean=4.567 | — |
-| TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.6, token_f1=0.656, n_evaluated=30, judge_mean=3.867 | — |
-| TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.977, n_evaluated=30 | — |
-| TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.84, exact_match=0.6, n_evaluated=30, judge_mean=5.0 | — |
-| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.33, rouge2=0.16, rougeL=0.271, n_evaluated=30, bertscore_f1=0.734, bertscore_n=30 | judge 1 |
+| IMG-6 · 표 이미지 구조 추출 | sol | minimal | cell_f1=0.889, n_evaluated=30 | — |
+| TXT-1 · 문서(PDF) 이해 QA | sol | minimal | anls=0.881, token_f1=0.824, exact_match=0.833, n_evaluated=30, judge_mean=4.467 | — |
+| TXT-2 · 표(엑셀) 이해 QA | sol | minimal | accuracy=0.633, token_f1=0.689, n_evaluated=30, judge_mean=4.0 | — |
+| TXT-3 · 표 구조 추출 | sol | minimal | cell_f1=0.979, n_evaluated=30 | — |
+| TXT-4 · 한국어 독해 QA | sol | minimal | token_f1=0.859, exact_match=0.633, n_evaluated=30, judge_mean=5.0 | — |
+| TXT-5 · 텍스트 요약 | sol | minimal | rouge1=0.329, rouge2=0.165, rougeL=0.276, n_evaluated=30, bertscore_f1=0.736, bertscore_n=30 | — |
 | TXT-6 · 감정 분석 | sol | minimal | accuracy=0.833, macro_f1=0.829, n_evaluated=30, n_unparsed=0 | — |
-| TXT-7 · 키워드 추출 | sol | minimal | precision=0.384, recall=0.42, f1=0.401, n_evaluated=30, macro_precision=0.394, macro_recall=0.447 | — |
-| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.867, f1=0.778, n_evaluated=30, n_unparsed=0 | — |
+| TXT-7 · 키워드 추출 | sol | minimal | precision=0.391, recall=0.432, f1=0.411, n_evaluated=30, macro_precision=0.398, macro_recall=0.446 | — |
+| TXT-8 · 비속어/유해성 판별 | sol | minimal | accuracy=0.833, f1=0.737, n_evaluated=30, n_unparsed=0 | — |
 
 > **채점 조건**
 > - 한국어 토큰화: **형태소(mecab)** — ROUGE·Token-F1이 형태소 기준이다.
-> - 호출 실패: 5개 셀에 실패가 있다(위 '실패' 열). 실패한 샘플은 **채점에서 제외**하므로(0점으로 세지 않음) 그 셀의 점수는 성공한 샘플 기준이다 — 표의 `n_evaluated`가 요청 샘플 수보다 작은 이유다. 실패는 엔드포인트 문제이지 모델 성능이 아니다.
+> - 호출 실패: 4개 셀에 실패가 있다(위 '실패' 열). 실패한 샘플은 **채점에서 제외**하므로(0점으로 세지 않음) 그 셀의 점수는 성공한 샘플 기준이다 — 표의 `n_evaluated`가 요청 샘플 수보다 작은 이유다. 실패는 엔드포인트 문제이지 모델 성능이 아니다.
 > - judge 실패(응답 잘림·형식 이탈)는 해당 샘플을 평균에서 **제외**하고 위 표에 건수를 표기한다. 중간값으로 메우지 않는다.
 
 ### 통계 유의성 (judge 점수, Wilcoxon signed-rank)
 
 | 태스크 | 모델 쌍 | judge 평균 | n(짝) | 판정 |
 |---|---|---|---|---|
-| IMG-1 · 이미지 캡션 생성 | opus vs sol | 4.17 vs 3.73 | 30 | 유의하지 않음 (p=0.1050) |
-| TXT-1 · 문서(PDF) 이해 QA | glm vs opus | 4.48 vs 4.97 | 29 | 유의하지 않음 (p=0.0588) |
-| TXT-1 · 문서(PDF) 이해 QA | glm vs sol | 4.37 vs 4.57 | 30 | 유의하지 않음 (p=0.1975) |
-| TXT-1 · 문서(PDF) 이해 QA | opus vs sol | 4.97 vs 4.69 | 29 | 유의하지 않음 (p=0.1936) |
-| TXT-2 · 표(엑셀) 이해 QA | glm vs opus | 3.43 vs 4.27 | 30 | **유의** (p=0.0114) → opus 우세 |
-| TXT-2 · 표(엑셀) 이해 QA | glm vs sol | 3.43 vs 3.87 | 30 | 유의하지 않음 (p=0.1058) |
-| TXT-2 · 표(엑셀) 이해 QA | opus vs sol | 4.27 vs 3.87 | 30 | 유의하지 않음 (p=0.1957) |
+| IMG-1 · 이미지 캡션 생성 | opus vs sol | 4.30 vs 3.83 | 30 | 유의하지 않음 (p=0.0833) |
+| TXT-1 · 문서(PDF) 이해 QA | glm vs opus | 4.62 vs 4.97 | 29 | 유의하지 않음 (p=0.1025) |
+| TXT-1 · 문서(PDF) 이해 QA | glm vs sol | 4.50 vs 4.47 | 30 | 유의하지 않음 (p=1.0000) |
+| TXT-1 · 문서(PDF) 이해 QA | opus vs sol | 4.97 vs 4.59 | 29 | 유의하지 않음 (p=0.1306) |
+| TXT-2 · 표(엑셀) 이해 QA | glm vs opus | 3.50 vs 4.37 | 30 | **유의** (p=0.0394) → opus 우세 |
+| TXT-2 · 표(엑셀) 이해 QA | glm vs sol | 3.50 vs 4.00 | 30 | 유의하지 않음 (p=0.1245) |
+| TXT-2 · 표(엑셀) 이해 QA | opus vs sol | 4.37 vs 4.00 | 30 | 유의하지 않음 (p=0.1306) |
 | TXT-4 · 한국어 독해 QA | glm vs opus | 5.00 vs 5.00 | 30 | 판정 불가(차이 없음/표본 부족) |
 | TXT-4 · 한국어 독해 QA | glm vs sol | 5.00 vs 5.00 | 30 | 판정 불가(차이 없음/표본 부족) |
 | TXT-4 · 한국어 독해 QA | opus vs sol | 5.00 vs 5.00 | 30 | 판정 불가(차이 없음/표본 부족) |
-| TXT-5 · 텍스트 요약 | glm vs opus | 4.59 vs 4.90 | 29 | **유의** (p=0.0209) → opus 우세 |
-| TXT-5 · 텍스트 요약 | glm vs sol | 4.64 vs 4.86 | 28 | 유의하지 않음 (p=0.0836) |
-| TXT-5 · 텍스트 요약 | opus vs sol | 4.90 vs 4.83 | 29 | 유의하지 않음 (p=0.4142) |
+| TXT-5 · 텍스트 요약 | glm vs opus | 4.48 vs 4.96 | 27 | **유의** (p=0.0103) → opus 우세 |
+| TXT-5 · 텍스트 요약 | glm vs sol | 4.48 vs 4.79 | 29 | 유의하지 않음 (p=0.0845) |
+| TXT-5 · 텍스트 요약 | opus vs sol | 4.96 vs 4.82 | 28 | 유의하지 않음 (p=0.1573) |
 
 > Wilcoxon signed-rank(양측, α=0.05). **judge 점수에만** 적용한다 — 정량 메트릭은 셀 단위 평균만 저장해(스트리밍 O(1) 설계) 샘플을 짝지을 수 없다. '유의하지 않음'은 두 모델이 같다는 뜻이 아니라 이 표본에서 차이를 확인할 수 없다는 뜻이다.
 
@@ -100,9 +100,9 @@
 
 | 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |
 |---|---|---|---|---|---|---|---|
-| glm | 240 | 0 | 798.7 | 6879.6 | 102954 | 24574 | 0.2502 |
-| opus | 420 | 20 | 3038.6 | 16721.5 | 213672 | 55529 | 2.456592 |
-| sol | 420 | 0 | 2084.6 | 9770.4 | 161718 | 45010 | 2.158894 |
+| glm | 240 | 0 | 724.2 | 7604.3 | 102954 | 24330 | 0.246797 |
+| opus | 420 | 5 | 2527.4 | 9425.9 | 222179 | 55229 | 2.491627 |
+| sol | 420 | 0 | 1866.5 | 9889.9 | 161718 | 45195 | 2.164443 |
 
 > 비용은 `config/pricing.yaml` DBU 단가 기반 추정(usd_per_dbu 가정값). 정밀 비용은 `system.ai_gateway.usage` 조인 필요(§10).
 
@@ -122,8 +122,8 @@
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ❌ | `A warmly lit bathroom with golden textured walls features a classic black and white clawfoot tub with brass fixtures, a pedestal sink beneath a framed mirror, a…` |
-| sol | ❌ | `An elegant bathroom features a pedestal sink, framed mirror, and vintage black-and-white clawfoot bathtub against textured beige walls.` |
+| opus | ❌ | `A warmly lit bathroom with golden-toned faux-finish walls features a vintage black and white clawfoot tub with brass fixtures, a white pedestal sink beneath a f…` |
+| sol | ❌ | `An elegant vintage bathroom features a clawfoot bathtub, pedestal sink, gold fixtures, framed mirror, and textured beige walls.` |
 
 ### IMG-2 · 이미지 태그(객체) 추출
 
@@ -137,44 +137,44 @@
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 재시도 5회 모두 실패: databricks-claude-opus-5 HTTP 502: {"error_code":"INTERNAL_ERROR","message":"The server received a…` |
-| sol | ✅ | `boat, person, umbrella, chair, potted plant` |
+| opus | ✅ | `boat, chair, person, umbrella, potted plant` |
+| sol | ✅ | `boat, person, umbrella, potted plant` |
 
 ### IMG-3 · 무기/위협 존재 판별
 
-**샘플 #10** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
+**샘플 #2** · _모델 간 판정이 갈린 케이스_ · 정답: `1`
 
 **질문/지시:** Does this image contain a weapon or threat (gun, knife, pistol, rifle, blood, etc.)? Answer exactly yes or no.
 
 **입력 이미지:**
 
-![IMG-3 sample 10](gallery_IMG-3_s10.png)
+![IMG-3 sample 2](gallery_IMG-3_s2.png)
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 재시도 5회 모두 실패: databricks-claude-opus-5 HTTP 502: {"error_code":"INTERNAL_ERROR","message":"The server received a…` |
-| sol | ❌ | `yes` |
+| opus | ❌ | `No` |
+| sol | ✅ | `yes` |
 
 ### IMG-4 · 성인/NSFW 이미지 판별
 
-**샘플 #1** (민감 태스크 — 입력 비표시, 판정값만) · _모델 간 판정이 갈린 케이스_ · 정답: `1`
+**샘플 #4** (민감 태스크 — 입력 비표시, 판정값만) · _모델 간 판정이 갈린 케이스_ · 정답: `0`
 
 **질문/지시:** You are a content-safety classifier. Does this image contain adult/NSFW (sexually explicit) content? Answer exactly 'nsfw' or 'safe'.
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | opus | ❌ | `__ERROR__: FMAPIError: databricks-claude-opus-5 재시도 5회 모두 실패: databricks-claude-opus-5 HTTP 502: {"error_code":"INTERNAL_ERROR","message":"The server received a…` |
-| sol | — | `nsfw` |
+| sol | — | `safe` |
 
 ### IMG-5 · 사람 포함 여부 판별
 
-**샘플 #0** · _모델 간 판정이 갈린 케이스_ · 정답: `1`
+**샘플 #14** · _모델 간 판정이 갈린 케이스_ · 정답: `1`
 
 **질문/지시:** Is there a person visible in this image? Answer exactly yes or no.
 
 **입력 이미지:**
 
-![IMG-5 sample 0](gallery_IMG-5_s0.png)
+![IMG-5 sample 14](gallery_IMG-5_s14.png)
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
@@ -209,21 +209,23 @@
 
 ### TXT-1 · 문서(PDF) 이해 QA
 
-**샘플 #18** · _모델 간 판정이 갈린 케이스_ · 정답: `['Aashirvaad']`
+**샘플 #20** · _모델 간 판정이 갈린 케이스_ · 정답: `['5']`
 
-**질문/지시:** What is the brand name of the 'Atta with multigrains' shown in the picture?
+**질문/지시:** What is the age of subject B.L. ?
 
 **입력:**
 > Based on the following document text, answer the question.
 > 
 > Document text:
-> ITC Limited REPORT AND ACCOUNTS 2013 A slew of innovative products are already in the market India's most premium, sugarfree power mints packed in and there is a continuous pipeline of such products that a stylish black case and Candyman Creme Lacto which are being readied for launch. Such innovation finds is made with the goodness of milk and caramel with a articulation in brand variants such as Aashirvaad Atta rich, delicious creme filling. with Multigrains which is designed as a healthier nourishment option, smooth non-sticky Sunfeast Yippee! In the personal care products category, ITC has Noodles in a unique round block and Sunfeast Yippee! developed Liquid Crystal Freezing Technology for its Chinese Masala - a unique combination of flavours which Fiama Di Wills brand, a revolutionary method to freeze gives the consumer tasty Chinese noodles in minutes. the goodness of shower gels in soap. Equally unique in their value propositions are the Fiama Di Wills Men Aqua This spirit of innovation is also visible in a range of Pulse De-stressing and brightening Face Wash, products developed for the Biscuits segme…
+> SECTION 1 STUDIES ON THE EFFECT OF MILK PROTEIN DILUTION IN CHILDREN AT M. I. T. Studies on the effect of dilution of skim milk protein were commenced on fourteen mentally retarded children. Of these fourteen children, seven were found to be unsatisfactory for study and returned, within two weeks of admission to the M. I. T. Clinical Center, to their respective State schools. Details of experimental design, diet, and analytical procedures were previously described in the 1967 Annual Progress Report and are further described in Section 3 of this report. Details are given in Table 2 for the seven children who were studied during the entire experimental period. Table 2 Age and weight of children and experimental design used for studies of milk protein dilution Subject Age Initial Wt. Final Wt. Days on Days on (yrs. ) ( 1b. ) (1b. ) Baseline Diet Dilution P. K. 61.5 58. 5 18 20 W. M. 33.0 36, 0 26 83 C. R. 33.0 35.0 25 32 R. O'C. 34. 0 36.0 33 32 B. L. 41.0 43.0 29 40 S. D. 35.0 37.0 25 12 J. W. Z2. 0 23.5 40 30 1. Dilution at 20% level. Source: https://www.industrydocuments.ucsf.edu/docs/hldg0227
+> 
+> Question: Wha…
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ✅ | `Aashirvaad Atta` |
-| opus | ✅ | `Aashirvaad` |
-| sol | ✅ | `Aashirvaad Atta Multigrains` |
+| glm | ❌ | `4` |
+| opus | ❌ | `The age of subject B.L. is not given in the document (the Age column value is missing; 41.0 is the initial weight).` |
+| sol | ❌ | `41.0` |
 
 ### TXT-2 · 표(엑셀) 이해 QA
 
@@ -258,7 +260,7 @@
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | ❌ | `1965, 1969, 1972, 1976, 1987, 1990, 1998, 2002, 2005, 2009, 2013` |
-| opus | ✅ | `<thinking>Count elections with % of constituency votes >= 0.2.  1965: 1.8 ✓ 1969: 3.6 ✓ 1972: 0.5 ✓ 1976: 0.4 ✓ 1980: blank ✗ 1983: 0.1 ✗ 1987: 0.5 ✓ 1990: 0.4 …` |
+| opus | ✅ | `<thinking>We need elections with % of constituency votes at least 0.2.  1965: 1.8 ✓ 1969: 3.6 ✓ 1972: 0.5 ✓ 1976: 0.4 ✓ 1980: blank ✗ 1983: 0.1 ✗ 1987: 0.5 ✓ 19…` |
 | sol | ❌ | `10` |
 
 ### TXT-3 · 표 구조 추출
@@ -305,25 +307,25 @@ Generate the HTML table structure. Respond…
 
 ### TXT-4 · 한국어 독해 QA
 
-**샘플 #2** · _모델 간 판정이 갈린 케이스_ · 정답: `['8량']`
+**샘플 #11** · _모델 간 판정이 갈린 케이스_ · 정답: `['교바시']`
 
-**질문/지시:** 히네노 역 이북에 증편된 쾌속 열차는 모두 몇 량인가?
+**질문/지시:** 기슈지 쾌속의 시발지은 대부분 어느 곳인가?
 
 **입력:**
 > 다음 지문을 읽고 질문에 답하세요. 답변은 지문에서 나타나는 정답만 간결하게 기술하세요.
 > 
 > 지문:
-> 덴노지 역 구내에서는 야마토지 선과 평면 교차하여 단선으로 운전하는 한와 선과의 단락선을 복선화하는 공사가 이루어져 2008년 3월 15일 시간표 개정시부터 사용을 개시하였다. 대낮 시간대의 덴노지 역 ~ 와카야마 역 간의 쾌속과 JR 난바 역 발착의 간쿠 쾌속이 오사카 순환선과 직통 운전하는 간쿠·기슈지 쾌속에 통합되어 같은 시간대의 간쿠·기슈지 쾌속이 매시 3편으로 증발되었다. 이 복선화는 야마토지 선의 시간표 혼란이 큰 영향을 끼치는 것을 막는 효과를 가지고 있다. 또 아침 출근 시간대에 오사카 순환선 내 각역에 정차하는 직통 쾌속도 운전이 개시되었다. 전반적으로 히네노 역 이북에서는 8량 편성의 쾌속 열차가 대폭 증가되었기 때문에 난카이 전기 철도 본선과 수송력에서 차이가 나게 되었다.
+> 한편 기슈지 쾌속(일본어: 紀州路快速 키슈우지카이소쿠)은 오사카 방면에서 와카야마 방면에의 관광객 및 통근객의 증대를 도모하고자 이 때까지 교토 역 ~ 신오사카 역 방면에서 와카야마 방면으로 운행하는 특급 열차에 더하여 1999년 5월부터 신설된 쾌속 열차이다. 오사카 순환선에서 발착하여 덴노지 역에서 교바시, 오사카, 니시쿠조를 경유하여 (다만 대부분은 교바시 시발) 운전되고 있다. 간쿠 쾌속과 같이 223계 전동차 0번대와 2500번대가 운용된다. 히네노 역 이북에서는 전 열차가 8량 편성으로 기본적으로 히네노 역까지는 간쿠 쾌속과 병결 운전을 행하여 히네노 역에서 분할과 병결이 이루어진다. 이전에는 출퇴근 시간대에 1~5호차의 5량이 기슈지 쾌속이었으며, 나머지 시간대에는 그 반대였으나 2008년 3월 15일의 시간표 개정에 따라 8량 편성을 간쿠와 기슈지 쾌속이 4량씩 차지하는 형태로 통일되어 시간대에 따라 기슈지 쾌속과 간쿠 쾌속의 연결 순서가 바뀌는 경우도 있다. 휴일 시간표에서 아침의 상행 열차에는 간쿠 쾌속이 병결되지 않은 채 기세이 본선 고보 역에서 시발하여 와카야마 역에서 8량으로 증결하여 운행하는 특별한 형태도 있다. 오사카 방면으로 가는 열차의 와카야마 역 ~ 히네노 역 간에는 4량 편성으로 운전되기 때문에 시발역인 와카야마 역에서부터 혼잡해지는 경우가 많다.
 > 
-> 질문: 히네노 역 이북에 증편된 쾌속 열차는 모두 몇 량인가?
+> 질문: 기슈지 쾌속의 시발지은 대부분 어느 곳인가?
 > 
 > 답변:
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | ✅ | `8량` |
-| opus | ✅ | `8량 편성` |
-| sol | ✅ | `8량 편성입니다.` |
+| glm | ✅ | `교바시` |
+| opus | ✅ | `교바시(교바시 역)` |
+| sol | ❌ | `교바시역` |
 
 ### TXT-5 · 텍스트 요약
 
@@ -344,9 +346,9 @@ Police, family, volunteers search for eighth-grader .
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | — | `A Pennsylvania community is mobilizing hundreds of volunteers and utilizing advanced technology to search for 13-year-old Cayman Naib, who went missing after im…` |
-| opus | — | `Cayman Naib, a 13-year-old eighth-grader from the Newtown, Pennsylvania area, has been missing since Wednesday after apparently leaving home upset by an email f…` |
-| sol | — | `Hundreds of volunteers are searching for 13-year-old Cayman Naib, who disappeared from his Pennsylvania home after receiving an email about overdue homework. De…` |
+| glm | — | `A Pennsylvania community has mobilized hundreds of volunteers both on foot and online to search for 13-year-old Cayman Naib, who went missing after impulsively …` |
+| opus | — | `Cayman Naib, a 13-year-old eighth-grader from the Philadelphia suburbs, has been missing since Wednesday, when his parents say he left home impulsively within 3…` |
+| sol | — | `Hundreds of volunteers are searching for 13-year-old Cayman Naib, who disappeared from the Radnor-Wayne area after reportedly becoming upset over a school email…` |
 
 ### TXT-6 · 감정 분석
 
@@ -364,7 +366,7 @@ Police, family, volunteers search for eighth-grader .
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | ❌ | `negative` |
-| opus | ✅ | `負positive  Sorry — one word:  positive` |
+| opus | ❌ | `<thinking>The text is Korean: "오게두어라! 서리한이 굶주렸다!" which translates to "Let them come! Frostmourne hungers!" This is a famous Warcraft quote from the Lich King (…` |
 | sol | ❌ | `negative` |
 
 ### TXT-7 · 키워드 추출
@@ -386,26 +388,26 @@ Police, family, volunteers search for eighth-grader .
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
 | glm | ✅ | `Nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
-| opus | ✅ | `nonlinear extrapolation algorithm, scalar random process, canonical decomposition, V. S. Pugachev canonical expansion, mixed central moment functions, nonlinear…` |
-| sol | ✅ | `nonlinear extrapolation algorithm, scalar random process, nonlinear random dependencies, mixed central moment functions, V. S. Pugachev canonical decomposition,…` |
+| opus | ✅ | `nonlinear extrapolation, scalar random process, canonical decomposition, V. S. Pugachev canonical expansion, mixed central moment functions, nonlinear random de…` |
+| sol | ✅ | `nonlinear extrapolation algorithm, scalar random process, nonlinear random dependences, mixed central moment functions, V. S. Pugachev canonical decomposition, …` |
 
 ### TXT-8 · 비속어/유해성 판별
 
-**샘플 #17** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
+**샘플 #1** · _모델 간 판정이 갈린 케이스_ · 정답: `0`
 
 **질문/지시:** You are a content moderation classifier. Analyze the following text and determine if it contains profanity, hate speech, or toxic language. Respond with exactly one word: "toxic" or "clean".
 
 **입력:**
 > You are a content moderation classifier. Analyze the following text and determine if it contains profanity, hate speech, or toxic language. Respond with exactly one word: "toxic" or "clean".
 > 
-> Text: 2%로도 안되는 시청율 ㅎㅎ 연기도 못하더만 이거 때문에 북을 못가? ㅎㅎ
+> Text: Hi Explicit, can you block O Fenian for edit-warring on the Giant's Causeway wp. He has made several edits which can only be described as terrorism.
 > 
 > Respond with exactly one word: toxic or clean
 
 | 모델 | 정답? | 출력/판정 |
 |---|:--:|---|
-| glm | — | `clean` |
-| opus | — | `toxic` |
+| glm | — | `toxic` |
+| opus | — | `clean` |
 | sol | — | `toxic` |
 
 
@@ -419,67 +421,67 @@ Police, family, volunteers search for eighth-grader .
 {
   "per_task_scores": {
     "IMG-1/minimal": {
-      "opus": 0.3259,
-      "sol": 0.4328
+      "opus": 0.3312,
+      "sol": 0.4294
     },
     "IMG-2/minimal": {
-      "sol": 0.8471,
-      "opus": 0.775
+      "opus": 0.8081,
+      "sol": 0.8605
     },
     "IMG-3/minimal": {
-      "sol": 0.6333,
-      "opus": 0.7143
+      "opus": 0.6667,
+      "sol": 0.6333
     },
     "IMG-4/minimal": {
-      "sol": 0.9333,
-      "opus": 0.9259
+      "opus": 0.9286,
+      "sol": 0.9333
     },
     "IMG-5/minimal": {
-      "sol": 0.9667,
-      "opus": 0.9048
+      "opus": 0.931,
+      "sol": 0.9667
     },
     "IMG-6/minimal": {
-      "opus": 0.8718,
-      "sol": 0.8332
+      "opus": 0.8683,
+      "sol": 0.8887
     },
     "TXT-1/minimal": {
-      "opus": 0.9521,
-      "sol": 0.8639,
-      "glm": 0.8188
+      "opus": 0.9466,
+      "sol": 0.8806,
+      "glm": 0.8632
     },
     "TXT-2/minimal": {
       "opus": 0.5333,
-      "sol": 0.6,
-      "glm": 0.5
+      "sol": 0.6333,
+      "glm": 0.5333
     },
     "TXT-3/minimal": {
-      "sol": 0.9774,
-      "glm": 0.9725,
-      "opus": 0.9758
+      "opus": 0.9775,
+      "sol": 0.9791,
+      "glm": 0.9725
     },
     "TXT-4/minimal": {
-      "sol": 0.8403,
-      "glm": 0.9554,
-      "opus": 0.7883
+      "opus": 0.7849,
+      "sol": 0.8585,
+      "glm": 0.9398
     },
     "TXT-5/minimal": {
-      "opus": 0.3263,
-      "sol": 0.3305,
-      "glm": 0.2872
+      "opus": 0.3252,
+      "sol": 0.3286,
+      "glm": 0.2853
     },
     "TXT-6/minimal": {
-      "opus": 0.8667,
+      "opus": 0.8333,
       "sol": 0.8333,
       "glm": 0.8333
     },
     "TXT-7/minimal": {
-      "opus": 0.3761,
-      "sol": 0.4012,
-      "glm": 0.5031
+      "opus": 0.3722,
+      "sol": 0.4108,
+      "glm": 0.5039
     },
     "TXT-8/minimal": {
-      "opus": 0.8333,
-      "sol": 0.8667,
+      "opus": 0.8667,
+      "sol": 0.8333,
       "glm": 0.8667
     }
   },
@@ -500,7 +502,7 @@ Police, family, volunteers search for eighth-grader .
       "sol"
     ],
     "IMG-6/minimal": [
-      "opus"
+      "sol"
     ],
     "TXT-1/minimal": [
       "opus"
@@ -518,52 +520,56 @@ Police, family, volunteers search for eighth-grader .
       "sol"
     ],
     "TXT-6/minimal": [
-      "opus"
+      "glm",
+      "opus",
+      "sol"
     ],
     "TXT-7/minimal": [
       "glm"
     ],
     "TXT-8/minimal": [
       "glm",
-      "sol"
+      "opus"
     ]
   },
   "win_counts": {
-    "sol": 8,
+    "sol": 9,
     "opus": 4,
-    "glm": 3
+    "glm": 4
   },
-  "n_tied_tasks": 1,
+  "n_tied_tasks": 2,
   "excluded_unreliable": [],
+  "excluded_low_parse_valid": [],
   "cheapest_model": "glm",
   "fastest_model": "glm",
+  "unpriced_models": [],
   "perf": {
     "opus": {
       "n_calls": 420,
-      "errors": 20,
-      "latency_ms_median": 3038.6,
-      "latency_ms_p95": 16721.5,
-      "total_usd": 2.456592,
-      "in_tokens": 213672,
-      "out_tokens": 55529
+      "errors": 5,
+      "latency_ms_median": 2527.4,
+      "latency_ms_p95": 9425.9,
+      "total_usd": 2.491627,
+      "in_tokens": 222179,
+      "out_tokens": 55229
     },
     "sol": {
       "n_calls": 420,
       "errors": 0,
-      "latency_ms_median": 2084.6,
-      "latency_ms_p95": 9770.4,
-      "total_usd": 2.158894,
+      "latency_ms_median": 1866.5,
+      "latency_ms_p95": 9889.9,
+      "total_usd": 2.164443,
       "in_tokens": 161718,
-      "out_tokens": 45010
+      "out_tokens": 45195
     },
     "glm": {
       "n_calls": 240,
       "errors": 0,
-      "latency_ms_median": 798.7,
-      "latency_ms_p95": 6879.6,
-      "total_usd": 0.2502,
+      "latency_ms_median": 724.2,
+      "latency_ms_p95": 7604.3,
+      "total_usd": 0.246797,
       "in_tokens": 102954,
-      "out_tokens": 24574
+      "out_tokens": 24330
     }
   }
 }

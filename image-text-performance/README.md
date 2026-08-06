@@ -9,7 +9,7 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 ## 📊 리포트 바로가기
 
 - **[▶ 전체 리포트 인덱스 (reports/index.md)](./reports/index.md)** — 모든 run을 시간순으로 링크. **최신 결과는 여기 맨 위 줄.**
-- **[최신 리포트 (2026-08-05T13-00)](./reports/2026-08-05T13-00/report.md)** — 30샘플, opus,sol,glm. 리포트 내 "고객 설명용 프레젠테이션" 배너로 슬라이드(HTML)도 바로 볼 수 있다. *(이 줄은 새 run 때 runner가 자동 갱신)*
+- **[최신 리포트 (2026-08-06T02-06)](./reports/2026-08-06T02-06/report.md)** — 30샘플, opus,sol,glm. 리포트 내 "고객 설명용 프레젠테이션" 배너로 슬라이드(HTML)도 바로 볼 수 있다. *(이 줄은 새 run 때 runner가 자동 갱신)*
 
 > 새 run을 돌리면 `reports/<run-id>/report.md`가 생기고, runner가 `reports/index.md`와 **위 "최신 리포트" 링크를 자동 갱신**한다(항상 실재하는 최신 run을 가리킴 — 수동 수정 불필요).
 

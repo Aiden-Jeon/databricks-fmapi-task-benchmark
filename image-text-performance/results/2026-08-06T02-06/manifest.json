@@ -1,6 +1,6 @@
 {
-  "run_id": "2026-08-05T13-00",
-  "created_at": "2026-08-05T13:00:55.898682+00:00",
+  "run_id": "2026-08-06T02-06",
+  "created_at": "2026-08-06T02:06:07.401775+00:00",
   "models": [
     {
       "id": "opus",
@@ -37,7 +37,7 @@
     "TXT-7",
     "TXT-8"
   ],
-  "git_commit": "c813d5b",
+  "git_commit": "e5731a2",
   "datasets": {
     "img_caption": {
       "hf_id": "yerevann/coco-karpathy",
