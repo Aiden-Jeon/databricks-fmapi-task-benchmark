@@ -38,7 +38,10 @@ class ChatResponse:
 def _get_workspace_auth(profile: str) -> tuple[str, str]:
     """databricks CLI로 host와 bearer token을 얻는다.
 
-    CLI는 토큰 갱신을 알아서 처리하므로 매 클라이언트 생성 시 호출한다.
+    CLI가 토큰 갱신을 처리하므로, **만료를 만나면 이 함수를 다시 불러** 새 토큰을 받는다.
+    클라이언트 생성 시 한 번만 부르고 캐시하면 안 된다 — OAuth 토큰 수명(~1시간)이
+    전체 실행 시간(30샘플 3모델 ≈ 1.5~2시간)보다 짧아서 중간에 전부 403이 된다
+    (실측 2026-08-06: 52분 지점에 세 모델이 동시에 `403 Invalid Token`, 480/1080 실패).
     """
     import json
 
@@ -55,6 +58,24 @@ def _get_workspace_auth(profile: str) -> tuple[str, str]:
     host = json.loads(_cli("auth", "env"))["env"]["DATABRICKS_HOST"]
     token = json.loads(_cli("auth", "token"))["access_token"]
     return host.rstrip("/"), token
+
+
+def _is_auth_expiry(status_code: int, body: str) -> bool:
+    """이 응답이 '토큰을 갱신하면 풀릴' 인증 실패인가(권한 거부와 구분).
+
+    실측된 두 갈래:
+    - 403 `Invalid Token` — 유효했던 토큰이 만료된 경우(장시간 실행 중간에 발생)
+    - 401 `Credential was not sent or was of an unsupported type` — 토큰이 없거나 형식 불량
+
+    반대로 `PERMISSION_DENIED`·IP ACL 차단은 403이지만 **갱신해도 안 풀린다** → False.
+    구분하지 않으면 권한 문제에서 CLI를 헛되게 호출하고, 실패 원인도 흐려진다.
+    """
+    low = body.lower()
+    if status_code == 403:
+        return "invalid token" in low
+    if status_code == 401:
+        return "credential" in low or "token" in low
+    return False
 
 
 def _normalize_content(message: dict[str, Any]) -> str:
@@ -100,6 +121,7 @@ class FMAPIClient:
         self.max_retries = max_retries
         self.backoff_initial_seconds = backoff_initial_seconds
         self._host, self._token = _get_workspace_auth(profile)
+        self._refreshed_this_call = False
         self._client = httpx.Client(timeout=timeout_seconds)
 
     def close(self) -> None:
@@ -140,6 +162,7 @@ class FMAPIClient:
         }
         attempts = max_retries if max_retries is not None else self.max_retries
         req_timeout = timeout_seconds if timeout_seconds is not None else self.timeout_seconds
+        self._refreshed_this_call = False   # 이 호출에서 토큰 갱신을 이미 썼는지
 
         last_err: Exception | None = None
         for attempt in range(attempts):
@@ -155,6 +178,20 @@ class FMAPIClient:
                 last_err = FMAPIError(f"{endpoint} HTTP {resp.status_code}: {resp.text[:200]}")
                 self._sleep_backoff(attempt)
                 continue
+            # 인증 만료는 토큰을 갱신해 재시도한다(권한 문제가 아니다). 4xx를 일괄 즉시 실패로
+            # 두면, 실행 중간에 토큰이 죽는 순간 남은 모든 셀이 통째로 실패한다
+            # (실측 2026-08-06: 52분 지점부터 480/1080 실패).
+            # 상태코드가 두 갈래로 관측됐다: 만료 토큰은 **403 "Invalid Token"**,
+            # 형식이 깨진/빈 토큰은 **401 "Credential was not sent or was of an unsupported
+            # type"**. 둘 다 갱신 대상이다. 갱신해도 같은 응답이면 아래 일반 4xx 경로로
+            # 떨어져 즉시 실패한다(진짜 권한·설정 문제).
+            if _is_auth_expiry(resp.status_code, resp.text):
+                if self._refresh_auth(resp.status_code):
+                    headers["Authorization"] = f"Bearer {self._token}"
+                    last_err = FMAPIError(
+                        f"{endpoint} HTTP {resp.status_code}: 인증 만료(갱신 후 재시도)"
+                    )
+                    continue
             if resp.status_code != 200:
                 raise FMAPIError(f"{endpoint} HTTP {resp.status_code}: {resp.text[:300]}")
 
@@ -178,6 +215,24 @@ class FMAPIClient:
             usage=data.get("usage", {}) or {},
             raw=data,
         )
+
+    def _refresh_auth(self, status_code: int) -> bool:
+        """토큰을 다시 받아 온다(만료 대응). 갱신에 성공했으면 True.
+
+        **호출당 한 번만** 시도한다(`_refreshed_this_call`). 안 그러면 진짜 권한 문제일 때
+        재시도 횟수를 갱신으로 다 태우고, CLI를 max_retries번 호출해 느려진다.
+        갱신에 실패하면(CLI 오류 등) False를 돌려 호출부가 일반 4xx 실패로 처리하게 한다.
+        """
+        if self._refreshed_this_call:
+            return False
+        self._refreshed_this_call = True
+        try:
+            self._host, self._token = _get_workspace_auth(self.profile)
+        except Exception as e:
+            print(f"    [토큰 갱신 실패] {type(e).__name__}: {e}")
+            return False
+        print(f"    [토큰 갱신] HTTP {status_code} 인증 만료 → 새 토큰으로 재시도")
+        return True
 
     def _sleep_backoff(self, attempt: int) -> None:
         time.sleep(self.backoff_initial_seconds * (2**attempt))

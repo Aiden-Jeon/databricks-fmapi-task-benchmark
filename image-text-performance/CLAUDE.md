@@ -95,6 +95,14 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 - **opus 엔드포인트 502 산발 발생**(실측 420호출 중 20건, `invalid response from an upstream
   server`). 같은 샘플을 다른 모델은 성공하므로 데이터가 아니라 업스트림 문제. 재시도 5회·
   backoff 2s로 완화했고, 남은 실패는 채점에서 제외돼 리포트에 드러난다.
+- **OAuth 토큰이 실행보다 먼저 만료된다**(실측 사고 2026-08-06). 토큰 수명은 ~1시간인데
+  30샘플 3모델은 1.5~2시간 걸린다. 어댑터가 토큰을 `__init__`에서 한 번 받아 캐시했고 403은
+  4xx라 즉시 실패로 분류돼서, **52분 지점에 세 모델이 동시에 `403 Invalid Token`**을 맞고
+  1080호출 중 480이 실패했다(run 폐기). 지금은 인증 만료를 만나면 CLI로 토큰을 다시 받아
+  재시도한다(`_is_auth_expiry` + `_refresh_auth`, 호출당 1회).
+  상태코드가 두 갈래다: **만료 토큰=403 `Invalid Token`, 형식 불량/빈 토큰=401 `Credential
+  was not sent…`**. 둘 다 갱신 대상이고, `PERMISSION_DENIED`·IP ACL 403은 갱신해도 안 풀리니
+  즉시 실패시킨다(구분 안 하면 권한 문제에서 CLI를 헛되게 부르고 원인도 흐려진다).
 
 ## 실측 확정 사실 (검증됨 — 재조사 불필요)
 ### 모델 · vision · reasoning
