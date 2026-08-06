@@ -60,6 +60,14 @@ def _get_workspace_auth(profile: str) -> tuple[str, str]:
     return host.rstrip("/"), token
 
 
+# 응답 본문에 이 문구가 있으면 **권한** 문제다 → 토큰을 갱신해도 안 풀린다.
+# `PERMISSION_DENIED`(IP ACL 차단)와 `User token does not have permission…`이 실측 예다.
+_PERMISSION_MARKERS = ("permission", "not authorized", "forbidden")
+
+# 자격증명이 만료됐거나 전달되지 않았다는 신호 → 갱신하면 풀린다.
+_EXPIRY_MARKERS = ("credential", "invalid token", "expired", "not authenticated")
+
+
 def _is_auth_expiry(status_code: int, body: str) -> bool:
     """이 응답이 '토큰을 갱신하면 풀릴' 인증 실패인가(권한 거부와 구분).
 
@@ -69,12 +77,21 @@ def _is_auth_expiry(status_code: int, body: str) -> bool:
 
     반대로 `PERMISSION_DENIED`·IP ACL 차단은 403이지만 **갱신해도 안 풀린다** → False.
     구분하지 않으면 권한 문제에서 CLI를 헛되게 호출하고, 실패 원인도 흐려진다.
+
+    401도 같은 이유로 좁게 본다: `"token"`만 걸면 `User token does not have permission…`
+    같은 **권한** 401까지 만료로 오분류돼 갱신을 한 번 헛돌고 진짜 원인이 가려진다.
+    그래서 자격증명 자체가 전달되지 않았다는 신호(`credential`, `not authenticated`,
+    `expired`)만 인정한다.
     """
     low = body.lower()
+    # 권한 부족 신호가 있으면 어떤 상태코드든 갱신 대상이 아니다 — 두 분기에 같은 목록을
+    # 흩어 두면 한쪽만 늘리는 실수가 난다(모듈 상수로 한 곳에서 관리).
+    if any(s in low for s in _PERMISSION_MARKERS):
+        return False
     if status_code == 403:
         return "invalid token" in low
     if status_code == 401:
-        return "credential" in low or "token" in low
+        return any(s in low for s in _EXPIRY_MARKERS)
     return False
 
 
@@ -165,18 +182,27 @@ class FMAPIClient:
         self._refreshed_this_call = False   # 이 호출에서 토큰 갱신을 이미 썼는지
 
         last_err: Exception | None = None
-        for attempt in range(attempts):
+        # 토큰 갱신은 **재시도 예산을 쓰지 않는다.** 갱신은 백오프가 필요한 "장애 재시도"가
+        # 아니라 헤더를 고쳐 같은 요청을 다시 보내는 것이다. 예산을 쓰게 두면 `max_retries=1`에서
+        # 갱신에 성공해도 재시도할 횟수가 없어 그대로 실패하고(실측 확인), 앞서 5xx로 예산을
+        # 소진한 뒤 마지막 시도에서 만료를 만나도 항상 실패한다. 갱신은 호출당 1회뿐이라
+        # 이 여유분도 최대 1회다(무한 루프 불가).
+        attempt = 0
+        budget = attempts
+        while attempt < budget:
             try:
                 resp = self._client.post(url, json=payload, headers=headers, timeout=req_timeout)
             except httpx.TimeoutException as e:
                 last_err = e
                 self._sleep_backoff(attempt)
+                attempt += 1
                 continue
 
             # 5xx·429는 재시도, 그 외 4xx는 즉시 실패(요청 자체가 잘못)
             if resp.status_code >= 500 or resp.status_code == 429:
                 last_err = FMAPIError(f"{endpoint} HTTP {resp.status_code}: {resp.text[:200]}")
                 self._sleep_backoff(attempt)
+                attempt += 1
                 continue
             # 인증 만료는 토큰을 갱신해 재시도한다(권한 문제가 아니다). 4xx를 일괄 즉시 실패로
             # 두면, 실행 중간에 토큰이 죽는 순간 남은 모든 셀이 통째로 실패한다
@@ -191,6 +217,9 @@ class FMAPIClient:
                     last_err = FMAPIError(
                         f"{endpoint} HTTP {resp.status_code}: 인증 만료(갱신 후 재시도)"
                     )
+                    # attempt를 올리지 않고 예산만 1 늘린다 → 갱신이 재시도 기회를 잡아먹지 않는다.
+                    # _refresh_auth가 호출당 1회만 True를 주므로 이 경로는 최대 한 번이다.
+                    budget += 1
                     continue
             if resp.status_code != 200:
                 raise FMAPIError(f"{endpoint} HTTP {resp.status_code}: {resp.text[:300]}")

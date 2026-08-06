@@ -872,3 +872,25 @@ def test_manifest_axis_validation_matches_real_committed_manifest():
         with open(p, encoding="utf-8") as f:
             bad = runner._missing_manifest_axes(json.load(f))
         assert bad == [], f"{p}가 축 검증에 걸린다: {bad}"
+
+
+@pytest.mark.parametrize("prev,axis,why", [
+    (_full_manifest(models=[{"id": "opus"}, {"id": "opus"}]), "models", "모델 id 중복"),
+    (_full_manifest(task_ids=["IMG-1", "IMG-1"]), "task_ids", "태스크 중복"),
+    (_full_manifest(reasoning_modes=["minimal", "minimal"]), "reasoning_modes", "모드 중복"),
+])
+def test_manifest_rejects_duplicate_axis_values(prev, axis, why):
+    """중복 값은 거부한다 — 드리프트가 set으로 비교해 중복이 사라지기 때문이다.
+
+    `[opus, opus]`가 `[opus]`와 '같음'으로 판정되면 구성이 다른 run에 resume이 붙고,
+    리포트 집계는 model_id로 묶으므로 두 슬롯의 샘플이 한 모델로 합쳐져 수치가 부풀려진다.
+    """
+    assert axis in runner._missing_manifest_axes(prev), f"{why}: 거부해야 한다"
+
+
+def test_duplicate_manifest_would_have_passed_drift_check():
+    """왜 축 검증이 필요한가 — 드리프트 검사만으로는 중복을 못 잡는다는 사실을 고정."""
+    dup = _full_manifest(models=[{"id": "opus"}, {"id": "opus"}])
+    single = _manifest(["opus"])
+    assert _manifest_drift(dup, single) == [], \
+        "드리프트는 set 비교라 중복을 통과시킨다 → 축 검증이 유일한 방어선"

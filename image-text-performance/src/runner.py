@@ -914,7 +914,9 @@ def _run_samples(
     try:
         from src.report.index import rebuild_index
 
-        idx = rebuild_index()
+        # results_root를 넘긴다 — 기본값('results')으로 두면 `--out`이 다를 때 엉뚱한
+        # 디렉터리의 manifest를 읽어 index에 '?' 메타를 박고도 성공으로 보고한다.
+        idx = rebuild_index(results_root=results_root or Path("results"))
         print(f"인덱스 갱신: {idx}")
     except Exception as e:
         artifact_errors.append(f"reports/index.md: {type(e).__name__}: {e}")
@@ -965,7 +967,8 @@ def _run_samples(
             def _post_move_verify() -> None:
                 from src.report.index import rebuild_index
 
-                print(f"인덱스 재생성(정리 후): {rebuild_index()}")
+                print("인덱스 재생성(정리 후): "
+                      f"{rebuild_index(results_root=results_root or Path('results'))}")
 
             try:
                 _purge_previous_runs(
@@ -1170,15 +1173,23 @@ def _missing_manifest_axes(prev: dict[str, Any]) -> list[str]:
         )
 
     # models: [{"id": "..."}] 형태여야 한다 — 드리프트가 id 집합을 비교하기 때문이다.
+    # **중복 id도 거부한다**: 드리프트가 set으로 비교하므로 `[opus, opus]`가 `[opus]`와
+    # "같음"으로 판정돼 구성이 다른 run에 resume이 붙는다(실측 확인). 게다가 리포트 집계는
+    # model_id로 묶으므로 두 슬롯의 샘플이 한 모델로 합쳐져 수치가 부풀려진다.
     models = prev.get("models")
     if not (isinstance(models, list) and models and all(
             isinstance(m, dict) and isinstance(m.get("id"), str) and m["id"].strip()
             for m in models)):
         bad.append("models")
+    elif len({m["id"] for m in models}) != len(models):
+        bad.append("models")
 
     for axis in ("task_ids", "reasoning_modes"):
-        if not _nonempty_str_list(prev.get(axis)):
+        v = prev.get(axis)
+        if not _nonempty_str_list(v):
             bad.append(axis)
+        elif len(set(v)) != len(v):
+            bad.append(axis)      # 중복은 set 비교에서 사라져 드리프트를 못 잡는다
 
     # samples_per_task: 양의 정수. bool은 int의 서브클래스라 True가 1로 통과하므로 배제한다.
     spt = prev.get("samples_per_task")

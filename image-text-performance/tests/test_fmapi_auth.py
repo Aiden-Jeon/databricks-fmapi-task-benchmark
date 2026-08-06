@@ -197,3 +197,104 @@ def test_timeout_retries_preserve_token(client, monkeypatch):
     monkeypatch.setattr(client._client, "post", timeout_once)
     assert client.chat("databricks-glm-5-2", [{"role": "user", "content": "x"}]).text
     assert seen == ["Bearer token-1", "Bearer token-1"]
+
+
+# ---------------------------------------------------------------------------
+# 만료 vs 권한 구분 (review 지적: 401에 "token"만 걸면 권한 401까지 갱신 대상이 됐다)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("status,body,is_expiry,why", [
+    (403, '{"error":"Invalid Token"}', True, "실측 만료 403"),
+    (401, '{"error_code":401,"message":"Credential was not sent or was of an '
+          'unsupported type for this API."}', True, "실측 만료 401"),
+    (401, '{"error":"token expired"}', True, "만료 표현"),
+    (401, '{"error":"not authenticated"}', True, "자격증명 미전달"),
+    # ↓ 갱신해도 안 풀리는 것들 — 헛되게 CLI를 부르면 진짜 원인이 가려진다
+    (403, "PERMISSION_DENIED: IP ACL 차단", False, "권한 403"),
+    (401, '{"error":"User token does not have permission to access endpoint"}',
+     False, "권한 401(문구에 token 포함)"),
+    (401, '{"error":"not authorized for this workspace"}', False, "미인가 401"),
+    (400, '{"error":"Unsupported message role"}', False, "요청 오류"),
+    (500, "internal error", False, "업스트림 오류"),
+])
+def test_auth_expiry_classification(status, body, is_expiry, why):
+    """만료만 갱신 대상으로 본다 — 권한 문구가 있으면 제외."""
+    from src.adapters.fmapi import _is_auth_expiry
+
+    assert _is_auth_expiry(status, body) is is_expiry, f"{why}: 판정이 틀렸다"
+
+
+def test_permission_401_mentioning_token_does_not_refresh(client, monkeypatch):
+    """권한 401이 'token'을 언급해도 갱신하지 않고 즉시 실패한다.
+
+    갱신을 시도하면 CLI를 헛되게 부르고, 로그가 '만료'로 보여 원인 파악이 늦어진다.
+    """
+    calls = {"n": 0}
+
+    def denied(url, json=None, headers=None, timeout=None):
+        calls["n"] += 1
+        return _Resp(401, '{"error":"User token does not have permission to access '
+                          'endpoint databricks-claude-opus-5"}')
+
+    monkeypatch.setattr(client._client, "post", denied)
+    with pytest.raises(FMAPIError, match="401"):
+        client.chat("databricks-claude-opus-5", [{"role": "user", "content": "x"}])
+
+    assert calls["n"] == 1, "권한 401은 갱신·재시도 없이 즉시 실패해야 한다"
+
+
+def test_refresh_does_not_consume_retry_budget(client, monkeypatch):
+    """max_retries=1이어도 갱신 후 재시도가 가능하다.
+
+    갱신이 재시도 예산을 쓰면 `max_retries=1`에서 갱신에 성공해도 시도할 횟수가 없어
+    그대로 실패했다(codex 지적, 실측 확인).
+    """
+    tokens = iter(["fresh-1", "fresh-2"])
+    monkeypatch.setattr(
+        fmapi, "_get_workspace_auth", lambda p: ("https://host", next(tokens))
+    )
+    c = FMAPIClient("ai_devtools", max_retries=1, backoff_initial_seconds=0)
+    monkeypatch.setattr(c, "_sleep_backoff", lambda a: None)
+
+    calls = {"n": 0}
+
+    def expire_then_ok(url, json=None, headers=None, timeout=None):
+        calls["n"] += 1
+        return _Resp(403, "Invalid Token") if calls["n"] == 1 else _Resp(200, payload=_OK_PAYLOAD)
+
+    monkeypatch.setattr(c._client, "post", expire_then_ok)
+    assert c.chat("databricks-claude-opus-5", [{"role": "user", "content": "x"}]).text
+    assert calls["n"] == 2, "갱신 후 재시도가 예산에 막히면 안 된다"
+
+
+def test_expiry_after_5xx_budget_exhausted_still_refreshes(client, monkeypatch):
+    """5xx로 예산을 쓴 뒤 마지막 시도에서 만료를 만나도 갱신·재시도가 된다."""
+    calls = {"n": 0}
+
+    def seq(url, json=None, headers=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _Resp(502, "upstream")
+        if calls["n"] == 2:
+            return _Resp(403, "Invalid Token")
+        return _Resp(200, payload=_OK_PAYLOAD)
+
+    monkeypatch.setattr(client._client, "post", seq)
+    assert client.chat("databricks-claude-opus-5", [{"role": "user", "content": "x"}]).text
+    assert calls["n"] == 3
+
+
+def test_persistent_expiry_terminates(client, monkeypatch):
+    """계속 만료여도 무한 루프에 빠지지 않는다(예산 증가는 갱신 1회로 제한)."""
+    calls = {"n": 0}
+
+    def always(url, json=None, headers=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] > 20:
+            pytest.fail("무한 루프 — 예산이 계속 늘어난다")
+        return _Resp(403, "Invalid Token")
+
+    monkeypatch.setattr(client._client, "post", always)
+    with pytest.raises(FMAPIError):
+        client.chat("databricks-glm-5-2", [{"role": "user", "content": "x"}])
+    assert calls["n"] == 2, f"최초 1회 + 갱신 후 1회여야 한다(실제 {calls['n']}회)"
