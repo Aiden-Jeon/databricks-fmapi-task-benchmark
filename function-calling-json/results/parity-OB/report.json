@@ -1,0 +1,221 @@
+{
+  "arms": [
+    "glm",
+    "opus-adaptive",
+    "sol"
+  ],
+  "accuracy": {
+    "OB-EN": {
+      "glm": {
+        "p": 0.4589041095890411,
+        "lo": 0.41279558829220653,
+        "hi": 0.5057272488512404,
+        "k": 201,
+        "n": 438
+      },
+      "opus-adaptive": {
+        "p": 0.6050228310502284,
+        "lo": 0.5585184295395452,
+        "hi": 0.649700986649424,
+        "k": 265,
+        "n": 438
+      },
+      "sol": {
+        "p": 0.591324200913242,
+        "lo": 0.5446853680078868,
+        "hi": 0.6363749938955646,
+        "k": 259,
+        "n": 438
+      }
+    },
+    "OB-KO": {
+      "glm": {
+        "p": 0.5382882882882883,
+        "lo": 0.49178582306096497,
+        "hi": 0.5841338771187415,
+        "k": 239,
+        "n": 444
+      },
+      "opus-adaptive": {
+        "p": 0.6509009009009009,
+        "lo": 0.6054380097685285,
+        "hi": 0.6937749262338438,
+        "k": 289,
+        "n": 444
+      },
+      "sol": {
+        "p": 0.6801801801801802,
+        "lo": 0.6354094555632951,
+        "hi": 0.7218597217529704,
+        "k": 302,
+        "n": 444
+      }
+    },
+    "ALL": {
+      "glm": {
+        "p": 0.4988662131519274,
+        "lo": 0.46594452693487093,
+        "hi": 0.5317977330809152,
+        "k": 440,
+        "n": 882
+      },
+      "opus-adaptive": {
+        "p": 0.6281179138321995,
+        "lo": 0.5957300531581833,
+        "hi": 0.6593945650579853,
+        "k": 554,
+        "n": 882
+      },
+      "sol": {
+        "p": 0.6360544217687075,
+        "lo": 0.6037746583188661,
+        "hi": 0.6671541397867999,
+        "k": 561,
+        "n": 882
+      }
+    }
+  },
+  "stability": {
+    "glm": {
+      "mean_acc": 0.4988662131519274,
+      "pass^2": 0.4421768707482993,
+      "gap": 0.05668934240362811,
+      "unstable_cases": 50,
+      "n_cases": 441
+    },
+    "opus-adaptive": {
+      "mean_acc": 0.6281179138321995,
+      "pass^2": 0.6190476190476191,
+      "gap": 0.009070294784580435,
+      "unstable_cases": 8,
+      "n_cases": 441
+    },
+    "sol": {
+      "mean_acc": 0.6360544217687075,
+      "pass^2": 0.6167800453514739,
+      "gap": 0.01927437641723362,
+      "unstable_cases": 17,
+      "n_cases": 441
+    }
+  },
+  "policy": {
+    "glm": {
+      "abstained": [
+        0,
+        0
+      ],
+      "asked": [
+        0,
+        0
+      ],
+      "fabricated": [
+        0,
+        0
+      ],
+      "silent_drop": [
+        0,
+        0
+      ],
+      "gateway_reject": 0
+    },
+    "opus-adaptive": {
+      "abstained": [
+        0,
+        0
+      ],
+      "asked": [
+        0,
+        0
+      ],
+      "fabricated": [
+        0,
+        0
+      ],
+      "silent_drop": [
+        0,
+        0
+      ],
+      "gateway_reject": 0
+    },
+    "sol": {
+      "abstained": [
+        0,
+        0
+      ],
+      "asked": [
+        0,
+        0
+      ],
+      "fabricated": [
+        0,
+        0
+      ],
+      "silent_drop": [
+        0,
+        0
+      ],
+      "gateway_reject": 0
+    }
+  },
+  "cost": {
+    "glm": {
+      "p50_ms": 808.8455420220271,
+      "p90_ms": 1106.3897089916281,
+      "calls": 882,
+      "usd": 0.49021927674999977,
+      "usd_per_correct": 0.0011141347198863631,
+      "prompt_tokens": 1071186,
+      "completion_tokens": 18053,
+      "reasoning_tokens": 0,
+      "n_correct": 440
+    },
+    "opus-adaptive": {
+      "p50_ms": 1645.8639999618754,
+      "p90_ms": 2150.0934579526074,
+      "calls": 882,
+      "usd": 10.45210366494001,
+      "usd_per_correct": 0.018866613113610126,
+      "prompt_tokens": 1767290,
+      "completion_tokens": 64624,
+      "reasoning_tokens": 0,
+      "n_correct": 554
+    },
+    "sol": {
+      "p50_ms": 1325.769292016048,
+      "p90_ms": 2138.1515840184875,
+      "calls": 882,
+      "usd": 3.8540172633900003,
+      "usd_per_correct": 0.006869905995347594,
+      "prompt_tokens": 802286,
+      "completion_tokens": 19420,
+      "reasoning_tokens": 0,
+      "n_correct": 561
+    }
+  },
+  "failures": {
+    "glm": {
+      "outcomes": {
+        "ok": 882
+      },
+      "json_parse_fail": 0,
+      "hallucinated_tool": 0,
+      "args_unparseable": 0
+    },
+    "opus-adaptive": {
+      "outcomes": {
+        "ok": 882
+      },
+      "json_parse_fail": 0,
+      "hallucinated_tool": 0,
+      "args_unparseable": 0
+    },
+    "sol": {
+      "outcomes": {
+        "ok": 882
+      },
+      "json_parse_fail": 0,
+      "hallucinated_tool": 0,
+      "args_unparseable": 0
+    }
+  }
+}

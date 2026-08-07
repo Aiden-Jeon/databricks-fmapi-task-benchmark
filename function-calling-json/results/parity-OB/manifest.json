@@ -1,0 +1,57 @@
+{
+  "run_id": "fcjson-20260806T221256",
+  "started_utc": "2026-08-06T22:13:00.417931+00:00",
+  "routes": {
+    "opus-adaptive": "/ai-gateway/mlflow/v1/chat/completions",
+    "sol": "/ai-gateway/mlflow/v1/chat/completions",
+    "glm": "/ai-gateway/mlflow/v1/chat/completions"
+  },
+  "profile": "<DATABRICKS_PROFILE>",
+  "repeats": 2,
+  "n_cases": 441,
+  "arms": {
+    "opus-adaptive": {
+      "model": "system.ai.claude-opus-5",
+      "params": {
+        "thinking": {
+          "type": "adaptive"
+        }
+      },
+      "concurrency": 6,
+      "protocol": "chat",
+      "path": "/ai-gateway/mlflow/v1/chat/completions",
+      "arm": "A'"
+    },
+    "sol": {
+      "model": "system.ai.gpt-5-6-sol",
+      "params": {
+        "reasoning_effort": "none"
+      },
+      "concurrency": 6,
+      "protocol": "chat",
+      "path": "/ai-gateway/mlflow/v1/chat/completions",
+      "arm": "A"
+    },
+    "glm": {
+      "model": "system.ai.glm-5-2",
+      "params": {
+        "reasoning_effort": "none"
+      },
+      "concurrency": 2,
+      "protocol": "chat",
+      "path": "/ai-gateway/mlflow/v1/chat/completions",
+      "arm": "A"
+    }
+  },
+  "max_tokens": 1024,
+  "total_calls": 2646,
+  "smoke": false,
+  "ended_utc": "2026-08-06T22:20:38.919852+00:00",
+  "elapsed_s": 458.5,
+  "counts": {
+    "n": 2646,
+    "ok": 2646,
+    "rej": 0,
+    "fail": 0
+  }
+}

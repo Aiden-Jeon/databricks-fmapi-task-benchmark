@@ -1,0 +1,19 @@
+# 아카이브 — 공개 저장소에 넣지 않는다.
+# 사전조사(외부 벤치마크 서베이), 탐색용 프로브, 내부 티켓·고객 정보가 포함된
+# 제출 대상 이슈 정리, 중간 실행 결과가 들어 있다.
+_archive/
+
+__pycache__/
+*.pyc
+.venv/
+
+# 대용량 원시 응답. 재현 스크립트가 있으므로 결과 요약만 커밋한다.
+# 커밋하려면 `git add -f results/<run-id>/raw.jsonl`
+results/*/raw.jsonl
+
+# 외부 벤치마크에서 변환한 케이스 — 원 데이터를 그대로 담고 있어 재배포에 해당한다.
+# 두 데이터셋 모두 Apache-2.0이지만, 이 저장소는 변환 스크립트만 배포한다.
+#   python3 cases/build_fcb_cases.py --fcb-root <clone 경로>
+#   python3 cases/build_parity_cases.py --ob-root <clone 경로>
+cases/fcb_cases.jsonl
+cases/parity_cases.jsonl
