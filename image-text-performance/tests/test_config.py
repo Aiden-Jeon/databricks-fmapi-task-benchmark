@@ -74,16 +74,30 @@ def test_judge_not_in_evaluated_models(config):
     assert config.judge not in {m.endpoint for m in config.models}
 
 
+# 확정 단가를 구하지 못해 **의도적으로** pricing.yaml에서 뺀 모델(비용 비교에서만 제외,
+# 성능 비교는 정상). 추측 단가를 넣으면 "가장 저렴/비싼"으로 오선정되므로 비우는 게 맞다.
+# 여기에 명시된 모델만 미등록이 허용된다 — 그 외 누락은 여전히 실패한다(가드 유지).
+# 확정 단가를 구하면 pricing.yaml에 추가하고 이 목록에서 빼면 된다.
+KNOWN_UNPRICED = {"kimi"}  # databricks-kimi-k3: 공개 단가 미확인(2026-08-07). pricing.yaml 주석 참고.
+
+
 def test_all_models_have_pricing(config):
-    """모든 모델(+judge)이 pricing.yaml에 등록돼 있다.
+    """평가 모델은 pricing.yaml에 등록돼 있어야 한다(단, KNOWN_UNPRICED는 명시적 예외).
 
     누락되면 비용이 계산되지 않고, 0으로 두면 "가장 저렴한 모델"로 오선정된다.
+    **judge는 예외 없이 반드시 등록**돼야 한다 — 비용 계산 경로에 항상 들어가므로 $0이면
+    모든 비용 수치가 오염된다.
     """
     pricing = yaml.safe_load(open("config/pricing.yaml", encoding="utf-8"))
     priced = set((pricing.get("models") or {}).keys())
     missing = [m.id for m in config.models if m.endpoint not in priced]
-    assert not missing, f"pricing.yaml 미등록: {missing}"
-    assert config.judge in priced, f"judge({config.judge}) 단가 미등록"
+    # 예상치 못한 누락(명시적 예외가 아닌 것)만 실패시킨다.
+    unexpected = [mid for mid in missing if mid not in KNOWN_UNPRICED]
+    assert not unexpected, (
+        f"pricing.yaml 미등록(예상치 못함): {unexpected}. "
+        f"의도적 미등록이면 tests의 KNOWN_UNPRICED에 추가하고 pricing.yaml에 사유를 남길 것"
+    )
+    assert config.judge in priced, f"judge({config.judge}) 단가 미등록 — judge는 예외 없이 필수"
 
 
 def test_validate_models_config_passes_on_repo_config(config):

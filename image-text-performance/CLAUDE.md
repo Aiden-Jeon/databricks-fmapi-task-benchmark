@@ -45,9 +45,19 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
   리포트의 '실패' 열에 `표본 n/요청`으로 표기한다.
 - **`--profile <name>`**: Databricks 프로파일 명시(생략 시 config 기본값). 실행 로그·manifest에 기록.
 - reasoning은 config에서 **OFF(minimal) 고정** → 옵션 불필요. ON까지 비교하려면 `--reasoning-modes minimal,full`(실행 배증·glm 타임아웃 주의).
-- **오래 걸림**: 36셀 × N샘플 + judge. 30샘플 ≈ 1.5~2시간(모델 3개), 50샘플 수 시간+.
-  → 반드시 백그라운드 실행(`nohup python3 -u -m src.runner ... &`) 후 프로세스 종료까지 대기.
-  "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지 처리·BERTScore)이 수 분 더 걸림.
+- **`--concurrency N`**: 셀 내 샘플 호출·judge 호출을 N개까지 **동시에 겹쳐 실행**한다. 주면
+  **전 모델에 그 값을 강제**하고, 생략하면 **모델별 값**을 셀마다 쓴다(전역 기본
+  `runtime.max_concurrency`=4, 모델별 `runtime.max_concurrency`로 낮춤 — 현재 kimi=2). 1이면 순차.
+  **채점·저장은 병렬화하지 않으므로 수치는 순차와 완전히 동일**하다(map_concurrent가 입력 순서를
+  보존 → `scores.json`이 c=1과 bit-identical, `tests/test_runner_concurrency.py`로 고정).
+  ⚠️ **엔드포인트마다 rate limit이 다르다**: 높은 동시성이 약한 엔드포인트에 429
+  `REQUEST_LIMIT_EXCEEDED`를 유발한다(실측 2026-08-07: kimi가 concurrency=8에서 TXT-4·TXT-7
+  16/30 실패→unreliable, exit 1). 새 모델이 429를 내면 그 모델만 `runtime.max_concurrency`를
+  낮추고 `--resume`으로 실패 셀만 재실행하면 된다(성공 샘플은 재사용).
+- **오래 걸림**(순차 기준): 36셀 × N샘플 + judge. 30샘플 순차 ≈ 1.5~2시간(모델 3개).
+  **병렬(기본 8)이면 대기가 크게 줄어** 수십 분 수준으로 떨어진다(glm 지연·셀 꼬리·judge가 하한).
+  50샘플·4모델은 그만큼 더 걸린다. → 반드시 백그라운드 실행(`nohup python3 -u -m src.runner ... &`)
+  후 프로세스 종료까지 대기. "실행 완료" 로그 뒤에도 리포트 생성(judge 요약·이미지·BERTScore)이 수 분 더 걸림.
 - **종료 코드를 확인할 것**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율 >10%면 `exit 1`.
   리포트는 그대로 생성되지만 수치를 신뢰할 수 없다는 뜻이다(옛 러너는 무조건 0을 반환해
   모델 전체가 403이어도 "실행 완료"로 보였다).
@@ -90,8 +100,14 @@ python -m src.runner --models sol --samples 3     # 빠른 확인
 - 모델별 런타임: `models[].runtime.timeout_seconds`로 느린 모델만 올릴 수 있다(glm은 120s 설정).
 
 ## 실행 규모를 키울 때 (대규모 팁)
-- **HF unauthenticated rate limit**으로 데이터 스트리밍이 느림 → `HF_TOKEN` 설정하면 빨라짐.
+- **병렬 호출이 1차 지렛대**: 러너는 셀 내 샘플·judge 호출을 모델별 `max_concurrency`(전역 기본 4)만큼
+  겹쳐 실행한다. 순차 대비 벽시계가 크게 준다. 채점·저장은 순차라 수치는 동일(위 `--concurrency` 참고).
+  **부수 효과로 OAuth 토큰 만료 위험도 준다** — 전체 실행이 짧아져 1시간 토큰 수명 안에 들어오기 쉽다.
+  단 동시성↑ = 엔드포인트 rate limit(429) 위험↑ 이므로 모델별로 조절한다(kimi=2).
+- **HF unauthenticated rate limit**으로 데이터 스트리밍이 느림 → `HF_TOKEN` 설정하면 빨라짐
+  (병렬 호출과 별개 축 — 이건 태스크 시작 시 데이터 로딩 지연이다).
 - **glm-5-2가 3~5배 느림** → `models.yaml`에서 glm만 `runtime.timeout_seconds: 120`으로 둠.
+  느린 모델이 한 셀 안에서 병렬로 겹쳐 돌아도, 그 셀의 완료 시각은 가장 느린 호출에 좌우된다.
 - **opus 엔드포인트 502 산발 발생**(실측 420호출 중 20건, `invalid response from an upstream
   server`). 같은 샘플을 다른 모델은 성공하므로 데이터가 아니라 업스트림 문제. 재시도 5회·
   backoff 2s로 완화했고, 남은 실패는 채점에서 제외돼 리포트에 드러난다.

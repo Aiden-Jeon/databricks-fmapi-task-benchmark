@@ -135,6 +135,48 @@ def run_judge(
     return score
 
 
+def run_judge_batch(
+    judge_client,
+    judge_endpoint: str,
+    items: list,
+    task_id: str,
+    *,
+    max_workers: int = 1,
+) -> list[Optional[int]]:
+    """여러 judge 호출을 **병렬**로 수행하고 점수를 **입력 순서 그대로** 돌려준다.
+
+    judge는 태스크마다 샘플 수만큼 순차 호출돼(gemini ~2.8초+/건) 생성 태스크의 꼬리
+    지연이 컸다. 호출을 겹쳐 실행하면 그 시간이 준다. judge 엔드포인트도 rate limit이
+    넉넉하고(429 미관측) 어댑터 토큰 갱신이 스레드 세이프하므로 안전하다.
+
+    Args:
+        items: `(judge_prompt, sample_id)` 튜플 리스트. **judge_prompt가 None이면** 그
+            슬롯은 호출 없이 None으로 채운다(태스크가 빈 예측 등을 건너뛰는 경우 — 예: IMG-1이
+            빈 캡션을 judge 없이 None 처리하던 동작을 그대로 보존).
+        max_workers: 최대 동시 호출 수(1이면 순차 — 기존 동작과 동일).
+
+    Returns:
+        `list[Optional[int]]` — items와 같은 길이·순서. 각 원소는 [1,5] 점수 또는 None(실패/스킵).
+        **실패를 값으로 메우지 않는다**(run_judge 계약 그대로): 호출·파싱 실패는 None이고
+        호출부(summarize_judge_scores)가 평균에서 제외한다.
+    """
+    def _one(item):
+        prompt, sample_id = item
+        if prompt is None:
+            return None   # 태스크가 스킵하기로 한 슬롯(빈 예측 등) — 호출하지 않는다
+        return run_judge(judge_client, judge_endpoint, prompt, task_id, sample_id)
+
+    # run_judge는 내부에서 모든 예외를 잡아 None을 돌려주므로 _one은 예외를 던지지 않는다.
+    # 그래도 map_concurrent 계약상 (값, 예외)로 오므로, 예기치 못한 예외는 None으로 처리해
+    # "실패=None" 축을 유지한다(점수를 지어내지 않는다).
+    from src.adapters.concurrency import map_concurrent
+
+    out: list[Optional[int]] = []
+    for val, exc in map_concurrent(_one, items, max_workers=max_workers):
+        out.append(None if exc is not None else val)
+    return out
+
+
 def summarize_judge_scores(scores: list[Optional[int]]) -> dict:
     """judge 점수 리스트를 집계. **None(실패)은 평균에서 제외**하고 개수로 보고한다.
 

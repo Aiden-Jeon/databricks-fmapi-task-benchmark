@@ -181,6 +181,14 @@ def main() -> int:
         action="store_true",
         help="가장 최근 run 디렉터리를 이어서 실행. 이미 끝난 셀(scores.json에 존재)은 건너뛴다. --fresh와 함께 쓸 수 없음.",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="셀 내 샘플 호출의 최대 동시 실행 수를 **전 모델에 강제**한다. "
+             "생략 시 모델별 effective max_concurrency(전역 기본 4, kimi는 2 등)를 셀마다 적용. "
+             "1이면 순차. 채점·저장은 병렬화하지 않으므로 수치에 영향 없음(입력 순서 보존).",
+    )
 
     args = parser.parse_args()
 
@@ -416,6 +424,11 @@ def main() -> int:
     # 첫 셀에서 죽어도 이전 리포트가 이미 사라진다(2026-08-06 재지적).
     # _run_samples가 리포트·인덱스를 만든 직후 정리하고, 인덱스를 한 번 더 재생성한다.
 
+    # 동시 호출 수. --concurrency를 주면 **모든 모델에 그 값을 강제**한다(escape hatch).
+    # 안 주면 None을 넘겨, 셀마다 그 모델의 effective_runtime.max_concurrency를 쓴다
+    # (모델별 rate limit 대응 — kimi처럼 약한 엔드포인트는 config에서 낮춰 둔다).
+    concurrency_override = max(1, args.concurrency) if args.concurrency is not None else None
+
     try:
         rc = _run_samples(
             fmapi=fmapi,
@@ -429,6 +442,7 @@ def main() -> int:
             profile=profile,
             fresh=args.fresh,
             results_root=Path(args.out),
+            concurrency_override=concurrency_override,
         )
     finally:
         fmapi.close()
@@ -449,6 +463,7 @@ def _run_samples(
     profile: str | None = None,
     fresh: bool = False,
     results_root: Path | None = None,
+    concurrency_override: int | None = None,
 ) -> int:
     """**태스크-메이저 스트리밍**으로 각 (모델×태스크×reasoning×샘플)을 호출·채점·저장.
 
@@ -463,6 +478,7 @@ def _run_samples(
     """
     from datetime import datetime, timezone
 
+    from src.adapters.concurrency import map_concurrent
     from src.datasets_loader import load_registry
     from src.results import (
         SampleResult,
@@ -474,6 +490,10 @@ def _run_samples(
     registry = load_registry()
     task_classes = discover_tasks()
     print(f"로드된 태스크: {sorted(task_classes)}")
+    if concurrency_override is not None:
+        print(f"병렬 호출: 최대 {concurrency_override}개 동시(--concurrency로 전 모델 강제)")
+    else:
+        print("병렬 호출: 모델별 max_concurrency 사용(config, 셀마다 적용)")
 
     defaults = tasks_cfg.get("defaults", {})
     n_samples = sample_cap or defaults.get("samples", 50)
@@ -641,6 +661,10 @@ def _run_samples(
                 # 모델별 런타임(있으면) 적용 — 느린 모델·긴 출력 모델이 공통값 때문에
                 # 타임아웃 실패를 내고 그 실패가 성능으로 오해되는 것을 막는다.
                 rt = model.effective_runtime(models_cfg.runtime)
+                # 이 셀의 동시 호출 수: --concurrency가 있으면 그 값을 전 모델에 강제,
+                # 없으면 이 모델의 effective max_concurrency(엔드포인트 rate limit 대응).
+                cell_concurrency = max(1, concurrency_override if concurrency_override is not None
+                                       else rt.max_concurrency)
                 acc = inst.make_accumulator() if hasattr(inst, "make_accumulator") else None
                 buf_parsed: list[Any] | None = None if acc is not None else []
                 buf_samples: list[Any] | None = None if acc is not None else []
@@ -676,6 +700,58 @@ def _run_samples(
                 else:
                     print(f"  [{model.id}/{task_id}/{mode}] {len(samples)}샘플 실행...", flush=True)
 
+                # ── 호출 단계(병렬) ────────────────────────────────────────
+                # 재사용 행이 아닌 샘플만 실제로 호출한다. 호출(build_prompt+chat)은
+                # 네트워크 대기가 대부분이라 겹쳐 실행하면 벽시계 시간이 크게 준다
+                # (glm 6~7초·judge 2.8초+ × 샘플 수가 순차로 쌓이던 병목). rate limit은
+                # 넉넉하고(429 미관측) 어댑터의 토큰 갱신도 스레드 세이프하게 고쳤다.
+                #
+                # **채점·저장은 병렬화하지 않는다** — 아래 reduce 루프가 샘플 순서대로 메인
+                # 스레드에서 수행한다. map_concurrent가 입력 순서를 보존하므로 동시성이
+                # 채점 수치에 영향을 주지 않는다(누적기는 교환법칙이 성립하지만, samples.jsonl
+                # 기록·갤러리 버퍼는 순서에 의존하므로 순서를 지킨다).
+                pending = [s for s in samples if s.sample_id not in reused_rows]
+
+                def _call_one(s: Any) -> dict[str, Any]:
+                    """한 샘플을 호출해 저장용 필드를 돌려준다(워커 스레드에서 실행).
+
+                    **chat 실패는 여기서 finish='error'로 흡수**한다(예전 순차 코드와 동일 —
+                    호출 실패는 CALL_FAILED로 채점 제외된다). build_prompt 실패만 예외로
+                    전파돼 map_concurrent가 (None, exc)로 돌려주고, reduce에서 재-raise해
+                    실행을 중단시킨다(조용한 폴백 금지 — 옛 동작과 동일하게 크래시).
+                    """
+                    messages = inst.build_prompt(s)
+                    prompt_text = _elide_middle(_prompt_text(messages), 2400)
+                    t0 = time.perf_counter()
+                    try:
+                        resp = fmapi.chat(
+                            model.endpoint, messages,
+                            max_tokens=rt.max_tokens, extra_params=params,
+                            timeout_seconds=rt.timeout_seconds, max_retries=rt.max_retries,
+                        )
+                        latency_ms = (time.perf_counter() - t0) * 1000
+                        return {"sample_id": s.sample_id, "prompt": prompt_text,
+                                "output_text": resp.text, "req_id": resp.request_id,
+                                "finish": resp.finish_reason, "usage": resp.usage,
+                                "latency_ms": latency_ms}
+                    except Exception as e:
+                        latency_ms = (time.perf_counter() - t0) * 1000
+                        return {"sample_id": s.sample_id, "prompt": prompt_text,
+                                "output_text": f"__ERROR__: {type(e).__name__}: {e}",
+                                "req_id": None, "finish": "error", "usage": {},
+                                "latency_ms": latency_ms}
+
+                call_by_sid: dict[int, dict[str, Any]] = {}
+                for (rec, exc), s in zip(
+                    map_concurrent(_call_one, pending, max_workers=cell_concurrency), pending
+                ):
+                    if exc is not None:
+                        # build_prompt 실패 = 코드/데이터 버그. 예전엔 try 밖이라 실행을
+                        # 중단시켰다 — 조용히 넘기지 않고 같은 방식으로 중단한다.
+                        raise exc
+                    call_by_sid[s.sample_id] = rec
+
+                # ── 채점·저장 단계(순차, 샘플 순서) ─────────────────────────
                 for s in samples:
                     # 이미 호출한 샘플: 저장된 결과로 채점만 하고 API 호출을 건너뛴다.
                     prev = reused_rows.get(s.sample_id)
@@ -696,21 +772,10 @@ def _run_samples(
                             buf_samples.append(s)
                         continue
 
-                    messages = inst.build_prompt(s)
-                    t0 = time.perf_counter()
-                    try:
-                        resp = fmapi.chat(
-                            model.endpoint, messages,
-                            max_tokens=rt.max_tokens, extra_params=params,
-                            timeout_seconds=rt.timeout_seconds, max_retries=rt.max_retries,
-                        )
-                        latency_ms = (time.perf_counter() - t0) * 1000
-                        output_text = resp.text
-                        req_id, finish, usage = resp.request_id, resp.finish_reason, resp.usage
-                    except Exception as e:
-                        latency_ms = (time.perf_counter() - t0) * 1000
-                        output_text = f"__ERROR__: {type(e).__name__}: {e}"
-                        req_id, finish, usage = None, "error", {}
+                    rec = call_by_sid[s.sample_id]
+                    output_text = rec["output_text"]
+                    req_id, finish, usage = rec["req_id"], rec["finish"], rec["usage"]
+                    latency_ms = rec["latency_ms"]
 
                     # 호출 실패와 파싱 실패를 **다른 값으로** 구분한다:
                     # - CALL_FAILED: 응답 자체를 못 받음(502·타임아웃) → 인프라 문제 → 채점 제외
@@ -742,7 +807,7 @@ def _run_samples(
                     cell_results.append(SampleResult(
                         model_id=model.id, task_id=task_id, sample_id=s.sample_id,
                         # 가운데 생략으로 head+tail 보존 → 표/문서 뒤에 오는 질문이 안 잘림(갤러리 질문 표시용).
-                        reasoning_mode=mode, prompt=_elide_middle(_prompt_text(messages), 2400),
+                        reasoning_mode=mode, prompt=rec["prompt"],
                         model_output=output_text, reference=s.reference, request_id=req_id,
                         finish_reason=finish, usage=usage, latency_ms_local=latency_ms,
                         timestamp=datetime.now(timezone.utc).isoformat(),
@@ -757,10 +822,10 @@ def _run_samples(
                     executed += 1
 
                     # **샘플 단위 flush**: 버퍼가 차면 즉시 samples.jsonl에 append한다.
-                    # 예전엔 셀의 30개 호출과 judge가 다 끝난 뒤에야 기록해서, 중단되면
-                    # 이미 돈을 쓴 호출 결과가 통째로 사라지고 재실행 시 전부 다시 호출했다.
-                    # (scores.json은 여전히 셀 단위 — 셀 점수는 전체 샘플이 있어야 확정된다.
-                    #  다만 samples.jsonl이 남으면 어디까지 호출했는지 사후 확인은 가능하다.)
+                    # 병렬 호출은 셀 단위로 먼저 끝나고 이 reduce가 순서대로 flush하므로,
+                    # 하드 킬이 병렬 호출 도중(한 셀 범위)에 나면 그 셀 호출은 저장 전이라
+                    # resume이 그 셀을 다시 부른다(다른 완료 셀은 이미 flush돼 안전). 산발
+                    # 실패·정상 종료 경로에서는 예전과 동일하게 5개마다 디스크에 남는다.
                     if len(cell_results) >= SAMPLE_FLUSH_EVERY:
                         append_sample_results(run_dir, cell_results)
                         cell_results.clear()
@@ -806,10 +871,12 @@ def _run_samples(
                     print(f"  [judge] {model.id}/{task_id}/{mode}: {len(samples)}샘플 채점...", flush=True)
                     try:
                         if acc is None:
-                            jr = inst.judge_scores(buf_parsed, buf_samples, judge_client, models_cfg.judge)
+                            jr = inst.judge_scores(buf_parsed, buf_samples, judge_client,
+                                                   models_cfg.judge, judge_concurrency=cell_concurrency)
                         else:
                             jr = _run_judge_streaming(
-                                inst, samples, run_dir, model.id, mode, judge_client, models_cfg.judge
+                                inst, samples, run_dir, model.id, mode, judge_client,
+                                models_cfg.judge, judge_concurrency=cell_concurrency,
                             )
                         metrics.update(_normalize_judge(jr))
                     except Exception as e:
@@ -1343,25 +1410,25 @@ def _exit_code(
     return 0
 
 
-def _run_judge_streaming(inst, samples, run_dir, model_id, mode, judge_client, judge_endpoint):
+def _run_judge_streaming(inst, samples, run_dir, model_id, mode, judge_client, judge_endpoint,
+                         *, judge_concurrency: int = 1):
     """누적기 경로에서 per-task judge를 수행.
 
     judge_scores()는 parsed 리스트를 요구하지만, 스트리밍에선 parsed를 보관하지 않으므로
-    이 시점에 samples.jsonl에서 해당 셀의 model_output을 읽어 parsed를 재구성한다(디스크 기반, O(샘플)이지만
-    한 셀 범위라 작음). 태스크의 judge_scores 계약을 그대로 사용한다.
+    이 시점에 samples.jsonl에서 해당 셀의 model_output을 읽어 parsed를 재구성한다. **이 셀의
+    필요한 sample_id 행만** 스트리밍으로 읽는다(`_load_cell_rows`) — 예전엔
+    `load_sample_results(run_dir)`로 파일 전체를 리스트로 만들어, judge 셀마다 전체 재스캔
+    (O(judge셀수 × 전체행수)) + 러너의 O(1) 메모리 계약 위반이었다(2026-08 성능 지적과 같은 결).
 
     **호출이 실패한 샘플은 judge에 보내지 않는다** (2026-08-06 수정). 예전엔 저장된
     `"__ERROR__: FMAPIError ..."` 문자열을 다시 parse_output에 넘겨, 그 오류 메시지를
     모델 답변으로 취급해 judge에게 채점을 요청했다(judge 비용 낭비 + 오류 문구에 대한
     무의미한 점수). 실패 샘플은 아예 제외하고, 그 사실을 judge 결과에 남긴다.
     """
-    from src.results import load_sample_results
-
-    rows = [
-        r for r in load_sample_results(run_dir)
-        if r.model_id == model_id and r.task_id == inst.task_id and r.reasoning_mode == mode
-    ]
-    by_sid = {r.sample_id: r for r in rows}
+    samples_path = Path(run_dir) / "samples.jsonl"
+    by_sid = _load_cell_rows(
+        samples_path, model_id, inst.task_id, mode, {s.sample_id for s in samples}
+    )
     parsed: list[Any] = []
     kept_samples = []
     n_call_failed = 0
@@ -1382,7 +1449,8 @@ def _run_judge_streaming(inst, samples, run_dir, model_id, mode, judge_client, j
         return {"judge_mean": None, "judge_scores": [], "n_judged": 0,
                 "n_judge_skipped_call_failed": n_call_failed}
 
-    result = inst.judge_scores(parsed, kept_samples, judge_client, judge_endpoint)
+    result = inst.judge_scores(parsed, kept_samples, judge_client, judge_endpoint,
+                               judge_concurrency=judge_concurrency)
     if n_call_failed and isinstance(result, dict):
         result["n_judge_skipped_call_failed"] = n_call_failed
     return result

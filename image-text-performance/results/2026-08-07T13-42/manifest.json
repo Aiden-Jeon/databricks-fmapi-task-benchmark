@@ -1,0 +1,158 @@
+{
+  "run_id": "2026-08-07T13-42",
+  "created_at": "2026-08-07T13:42:41.967918+00:00",
+  "models": [
+    {
+      "id": "opus",
+      "endpoint": "databricks-claude-opus-5",
+      "family": "claude"
+    },
+    {
+      "id": "sol",
+      "endpoint": "databricks-gpt-5-6-sol",
+      "family": "openai"
+    },
+    {
+      "id": "glm",
+      "endpoint": "databricks-glm-5-2",
+      "family": "openai"
+    },
+    {
+      "id": "kimi",
+      "endpoint": "databricks-kimi-k3",
+      "family": "moonshot"
+    }
+  ],
+  "reasoning_modes": [
+    "minimal"
+  ],
+  "task_ids": [
+    "IMG-1",
+    "IMG-2",
+    "IMG-3",
+    "IMG-4",
+    "IMG-5",
+    "IMG-6",
+    "TXT-1",
+    "TXT-2",
+    "TXT-3",
+    "TXT-4",
+    "TXT-5",
+    "TXT-6",
+    "TXT-7",
+    "TXT-8"
+  ],
+  "git_commit": "cb209d4",
+  "datasets": {
+    "img_caption": {
+      "hf_id": "yerevann/coco-karpathy",
+      "split": "validation",
+      "config": null,
+      "revision": "448fdb1bc7b2d09e46881c4541a14d796a3d41e8"
+    },
+    "img_tags": {
+      "hf_id": "detection-datasets/coco",
+      "split": "val",
+      "config": "default",
+      "revision": "cf0b22332314a937e9dc8a1957b21725430bb41d"
+    },
+    "weapon": {
+      "hf_id": "Subh775/WeaponDetection",
+      "split": "validation",
+      "config": null,
+      "revision": "4d890abee5b4fbdfac310cf83122f70b05657b57"
+    },
+    "nsfw": {
+      "hf_id": "DarkyMan/nsfw-image-classification",
+      "split": "default",
+      "config": null,
+      "revision": "9269f2f123b529a706d037cd7901e6afbf622d50"
+    },
+    "img_person": {
+      "hf_id": "detection-datasets/coco",
+      "split": "val",
+      "config": "default",
+      "revision": "cf0b22332314a937e9dc8a1957b21725430bb41d"
+    },
+    "table_image": {
+      "hf_id": "apoidea/pubtabnet-html",
+      "split": "validation",
+      "config": "default",
+      "revision": "0d58324674ff93825c972f7fdfd2887e0ae0a247"
+    },
+    "doc_vqa": {
+      "hf_id": "nielsr/docvqa_1200_examples",
+      "split": "test",
+      "config": null,
+      "revision": "dc77ab0c3d98855d0f3cb3a00832f2423fbe7528"
+    },
+    "table_qa": {
+      "hf_id": "lighteval/wikitablequestions",
+      "split": "test",
+      "config": null,
+      "revision": "67b828bd683501fd24e8a5ce34d3886614e46898"
+    },
+    "table_struct": {
+      "hf_id": "apoidea/pubtabnet-html",
+      "split": "validation",
+      "config": "default",
+      "revision": "0d58324674ff93825c972f7fdfd2887e0ae0a247"
+    },
+    "korquad": {
+      "hf_id": "KorQuAD/squad_kor_v1",
+      "split": "train",
+      "config": null,
+      "revision": "01aad23853355e5f4f6317eeaaa8186811424834"
+    },
+    "summarization_en": {
+      "hf_id": "abisee/cnn_dailymail",
+      "split": "validation",
+      "config": "3.0.0",
+      "revision": "96df5e686bee6baa90b8bee7c28b81fa3fa6223d"
+    },
+    "summarization_ko": {
+      "hf_id": "daekeun-ml/naver-news-summarization-ko",
+      "split": "train",
+      "config": null,
+      "revision": "916dfe6aed651b2ecd9d04fa0a704f8953e90762"
+    },
+    "sentiment_en": {
+      "hf_id": "stanfordnlp/sst2",
+      "split": "validation",
+      "config": null,
+      "revision": "8d51e7e4887a4caaa95b3fbebbf53c0490b58bbb"
+    },
+    "sentiment_ko": {
+      "hf_id": "Blpeng/nsmc",
+      "split": "train",
+      "config": null,
+      "revision": "5d5e4a5187d8f54ace4d58e275f9df4cccc3ff59"
+    },
+    "keyphrase": {
+      "hf_id": "memray/inspec",
+      "split": "test",
+      "config": null,
+      "revision": "ec922df510368d1bab299d0ec8ba1611aae282bc"
+    },
+    "toxicity_en": {
+      "hf_id": "thesofakillers/jigsaw-toxic-comment-classification-challenge",
+      "split": "train",
+      "config": null,
+      "revision": "50f3c926ec8c07b440cb17b55d8cd80e8484497e"
+    },
+    "toxicity_ko": {
+      "hf_id": "jason9693/APEACH",
+      "split": "train",
+      "config": null,
+      "revision": "e57e10cf1f793a854486c7dc040ac18d59595199"
+    }
+  },
+  "pricing": {
+    "usd_per_dbu": 0.07,
+    "routing": "global"
+  },
+  "samples_per_task": 30,
+  "seed": 42,
+  "profile": "ai_devtools",
+  "notes": "full run"
+}

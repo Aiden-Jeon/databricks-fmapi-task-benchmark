@@ -19,7 +19,7 @@ from src.adapters.images import pil_to_data_url
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MeanAccumulator, is_call_failed
 from src.scoring.metrics import bertscore_f1, token_f1
-from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge_batch, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
 
 # BERTScore용 버퍼 상한 (TXT-5와 동일 이유 — 배치 메트릭이라 모아야 하는데 O(1) 스트리밍을
@@ -236,11 +236,14 @@ class Img1Task(Task):
         samples: list[Sample],
         judge_client: FMAPIClient,
         judge_endpoint: str = "databricks-gemini-3-1-pro",
+        *,
+        judge_concurrency: int = 1,
     ) -> dict[str, Any]:
         """LLM-as-judge로 캡션 품질 평가.
 
         생성된 캡션과 참고 캡션을 텍스트로만 비교 (이미지는 불필요).
         각 샘플마다 judge 모델을 호출해 1-5 점수를 얻는다.
+        judge_concurrency>1이면 호출을 병렬로 겹쳐 실행한다(점수·순서는 동일).
         """
         if not parsed or not samples:
             return {
@@ -266,21 +269,20 @@ class Img1Task(Task):
             print(f"Warning: 루브릭 로드 실패: {e}")
             rubric = {}
 
-        judge_scores = []
-
+        # judge 프롬프트를 샘플 순서대로 구성한 뒤 병렬로 채점한다(입력 순서 보존).
+        # 빈 예측은 judge를 호출하지 않고 None 슬롯으로 둔다(prompt=None) — 예전 continue 동작
+        # 그대로. max_tokens는 run_judge가 JUDGE_MAX_TOKENS 공용값을 쓴다(256이던 시절 캡션
+        # 판정 근거가 길어 30/30 파싱 실패로 judge_mean=0.0이 찍혔다).
+        items: list[tuple] = []
         for pred, sample in zip(parsed, samples):
             if not pred:
-                judge_scores.append(None)
+                items.append((None, sample.sample_id))   # 빈 예측 → 호출 없이 None
                 continue
-
             references = sample.reference
             if not isinstance(references, list):
                 references = [references]
-
             # 최고 점수의 참고 캡션을 선택
             best_reference = references[0] if references else ""
-
-            # Judge 프롬프트 구성
             judge_prompt = build_judge_prompt(
                 task_id=self.task_id,
                 question="Describe this image in one sentence.",
@@ -288,13 +290,11 @@ class Img1Task(Task):
                 candidate=pred,
                 rubric=rubric,
             )
+            items.append((judge_prompt, sample.sample_id))
 
-            # 호출·파싱·실패로그는 run_judge가 담당(max_tokens=JUDGE_MAX_TOKENS 공용).
-            # 이 태스크가 max_tokens=256을 쓰던 동안 캡션 판정 근거가 길어 30/30 파싱 실패 →
-            # 리포트에 judge_mean=0.0이 찍혔다(정량 caption_token_f1은 정상이었음).
-            judge_scores.append(
-                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
-            )
+        judge_scores = run_judge_batch(
+            judge_client, judge_endpoint, items, self.task_id, max_workers=judge_concurrency
+        )
 
         # 유효 점수만 평균. 전부 실패면 mean=None(0.0으로 채우면 "최악 판정"처럼 오독된다).
         agg = summarize_judge_scores(judge_scores)

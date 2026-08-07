@@ -1,0 +1,186 @@
+{
+  "per_task_scores": {
+    "IMG-1/minimal": {
+      "opus": 0.3295,
+      "sol": 0.4319,
+      "kimi": 0.3862
+    },
+    "IMG-2/minimal": {
+      "opus": 0.7714,
+      "sol": 0.8434,
+      "kimi": 0.8128
+    },
+    "IMG-3/minimal": {
+      "opus": 0.6667,
+      "sol": 0.6333,
+      "kimi": 0.7
+    },
+    "IMG-4/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9333,
+      "kimi": 0.9333
+    },
+    "IMG-5/minimal": {
+      "opus": 0.9333,
+      "sol": 0.9667,
+      "kimi": 0.9333
+    },
+    "IMG-6/minimal": {
+      "opus": 0.9026,
+      "sol": 0.8579,
+      "kimi": 0.8936
+    },
+    "TXT-1/minimal": {
+      "opus": 0.9521,
+      "sol": 0.8472,
+      "glm": 0.8299,
+      "kimi": 0.8167
+    },
+    "TXT-2/minimal": {
+      "opus": 0.6,
+      "sol": 0.5667,
+      "glm": 0.4667,
+      "kimi": 0.5333
+    },
+    "TXT-3/minimal": {
+      "opus": 0.9758,
+      "sol": 0.9791,
+      "glm": 0.9725,
+      "kimi": 0.9852
+    },
+    "TXT-4/minimal": {
+      "opus": 0.8458,
+      "sol": 0.8313,
+      "glm": 0.956,
+      "kimi": 0.8284
+    },
+    "TXT-5/minimal": {
+      "opus": 0.3296,
+      "sol": 0.3322,
+      "glm": 0.2821,
+      "kimi": 0.3235
+    },
+    "TXT-6/minimal": {
+      "opus": 0.8333,
+      "sol": 0.8333,
+      "glm": 0.8333,
+      "kimi": 0.8
+    },
+    "TXT-7/minimal": {
+      "opus": 0.3584,
+      "sol": 0.4331,
+      "glm": 0.5325,
+      "kimi": 0.4876
+    },
+    "TXT-8/minimal": {
+      "opus": 0.8333,
+      "sol": 0.8333,
+      "glm": 0.9,
+      "kimi": 0.7586
+    }
+  },
+  "task_winners": {
+    "IMG-1/minimal": [
+      "sol"
+    ],
+    "IMG-2/minimal": [
+      "sol"
+    ],
+    "IMG-3/minimal": [
+      "kimi"
+    ],
+    "IMG-4/minimal": [
+      "kimi",
+      "opus",
+      "sol"
+    ],
+    "IMG-5/minimal": [
+      "sol"
+    ],
+    "IMG-6/minimal": [
+      "opus"
+    ],
+    "TXT-1/minimal": [
+      "opus"
+    ],
+    "TXT-2/minimal": [
+      "opus"
+    ],
+    "TXT-3/minimal": [
+      "kimi"
+    ],
+    "TXT-4/minimal": [
+      "glm"
+    ],
+    "TXT-5/minimal": [
+      "sol"
+    ],
+    "TXT-6/minimal": [
+      "glm",
+      "opus",
+      "sol"
+    ],
+    "TXT-7/minimal": [
+      "glm"
+    ],
+    "TXT-8/minimal": [
+      "glm"
+    ]
+  },
+  "win_counts": {
+    "sol": 6,
+    "kimi": 3,
+    "opus": 5,
+    "glm": 4
+  },
+  "n_tied_tasks": 2,
+  "excluded_unreliable": [],
+  "excluded_low_parse_valid": [],
+  "cheapest_model": "glm",
+  "fastest_model": "glm",
+  "unpriced_models": [
+    "kimi"
+  ],
+  "perf": {
+    "opus": {
+      "n_calls": 420,
+      "errors": 1,
+      "latency_ms_median": 1954.2,
+      "latency_ms_p95": 8758.3,
+      "total_usd": 2.510447,
+      "in_tokens": 223728,
+      "out_tokens": 55672
+    },
+    "sol": {
+      "n_calls": 420,
+      "errors": 0,
+      "latency_ms_median": 2786.5,
+      "latency_ms_p95": 10350.1,
+      "total_usd": 2.155324,
+      "in_tokens": 161718,
+      "out_tokens": 44891
+    },
+    "kimi": {
+      "n_calls": 420,
+      "errors": 9,
+      "latency_ms_median": 1427.8,
+      "latency_ms_p95": 19178.8,
+      "total_usd": null,
+      "in_tokens": 180667,
+      "out_tokens": 43512,
+      "pricing_missing": true,
+      "unpriced_calls": 411,
+      "endpoint": "databricks-kimi-k3",
+      "pricing_missing_reason": "endpoint_not_in_pricing_yaml"
+    },
+    "glm": {
+      "n_calls": 240,
+      "errors": 0,
+      "latency_ms_median": 897.2,
+      "latency_ms_p95": 5747.7,
+      "total_usd": 0.249159,
+      "in_tokens": 102954,
+      "out_tokens": 24317
+    }
+  }
+}

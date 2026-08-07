@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -138,7 +139,14 @@ class FMAPIClient:
         self.max_retries = max_retries
         self.backoff_initial_seconds = backoff_initial_seconds
         self._host, self._token = _get_workspace_auth(profile)
-        self._refreshed_this_call = False
+        # 토큰 갱신 동기화(동시 호출 대비). 러너가 이 클라이언트 하나를 여러 스레드에서
+        # 공유해 chat()을 병렬 호출하므로(속도 개선), 만료를 만난 스레드가 저마다 CLI를
+        # 부르면 같은 토큰을 N번 받는다. `_auth_lock`으로 갱신을 직렬화하고,
+        # `_token_generation`(단조 증가 카운터)으로 "내가 보던 토큰이 이미 갱신됐는지"를
+        # 판정한다 — 이미 갱신됐으면 CLI를 다시 부르지 않고 새 토큰만 취한다.
+        # httpx.Client 자체는 스레드 세이프하므로 POST는 잠금 없이 병렬 실행된다.
+        self._auth_lock = threading.Lock()
+        self._token_generation = 0
         self._client = httpx.Client(timeout=timeout_seconds)
 
     def close(self) -> None:
@@ -173,13 +181,19 @@ class FMAPIClient:
         payload: dict[str, Any] = {"messages": messages, "max_tokens": max_tokens}
         if extra_params:
             payload.update(extra_params)
+        # 이 요청 헤더가 어느 토큰 세대로 만들어졌는지 기록한다 — 동시 호출에서 다른 스레드가
+        # 이미 토큰을 갱신했으면 CLI를 또 부르지 않고 그 토큰을 취하기 위한 기준값이다.
+        req_generation = self._token_generation
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
         }
         attempts = max_retries if max_retries is not None else self.max_retries
         req_timeout = timeout_seconds if timeout_seconds is not None else self.timeout_seconds
-        self._refreshed_this_call = False   # 이 호출에서 토큰 갱신을 이미 썼는지
+        # 이 호출에서 토큰 갱신을 이미 시도했는지(호출당 1회로 제한). **로컬 변수**여야 한다 —
+        # 예전엔 인스턴스 속성(self._refreshed_this_call)이라, 한 클라이언트를 여러 스레드가
+        # 공유해 병렬 호출하면 한 스레드의 리셋이 다른 스레드의 "이미 갱신함"을 지워 경합했다.
+        refreshed_this_call = False
 
         last_err: Exception | None = None
         # 토큰 갱신은 **재시도 예산을 쓰지 않는다.** 갱신은 백오프가 필요한 "장애 재시도"가
@@ -212,13 +226,15 @@ class FMAPIClient:
             # type"**. 둘 다 갱신 대상이다. 갱신해도 같은 응답이면 아래 일반 4xx 경로로
             # 떨어져 즉시 실패한다(진짜 권한·설정 문제).
             if _is_auth_expiry(resp.status_code, resp.text):
-                if self._refresh_auth(resp.status_code):
+                if not refreshed_this_call and self._refresh_auth(resp.status_code, req_generation):
+                    refreshed_this_call = True
+                    req_generation = self._token_generation
                     headers["Authorization"] = f"Bearer {self._token}"
                     last_err = FMAPIError(
                         f"{endpoint} HTTP {resp.status_code}: 인증 만료(갱신 후 재시도)"
                     )
                     # attempt를 올리지 않고 예산만 1 늘린다 → 갱신이 재시도 기회를 잡아먹지 않는다.
-                    # _refresh_auth가 호출당 1회만 True를 주므로 이 경로는 최대 한 번이다.
+                    # 호출당 갱신은 1회(refreshed_this_call)라 이 경로도 최대 한 번이다.
                     budget += 1
                     continue
             if resp.status_code != 200:
@@ -245,21 +261,28 @@ class FMAPIClient:
             raw=data,
         )
 
-    def _refresh_auth(self, status_code: int) -> bool:
-        """토큰을 다시 받아 온다(만료 대응). 갱신에 성공했으면 True.
+    def _refresh_auth(self, status_code: int, req_generation: int) -> bool:
+        """토큰을 다시 받아 온다(만료 대응). 새 토큰을 쓸 수 있으면 True.
 
-        **호출당 한 번만** 시도한다(`_refreshed_this_call`). 안 그러면 진짜 권한 문제일 때
-        재시도 횟수를 갱신으로 다 태우고, CLI를 max_retries번 호출해 느려진다.
+        호출부가 `refreshed_this_call`(로컬)로 **호출당 1회**를 이미 보장하므로, 여기서는
+        **동시 호출 간 CLI 중복만** 막는다. 잠금 안에서 `_token_generation`을 확인해:
+        - 내가 보던 토큰(req_generation)이 아직 최신이면 → CLI로 새로 받고 세대를 올린다.
+        - 다른 스레드가 이미 갱신했으면(세대가 앞섰으면) → CLI를 부르지 않고 그 토큰을 취한다
+          (그 스레드의 새 토큰을 그대로 재시도에 쓴다).
+
+        이렇게 하면 만료를 동시에 만난 N개 스레드가 CLI를 한 번만 부른다.
         갱신에 실패하면(CLI 오류 등) False를 돌려 호출부가 일반 4xx 실패로 처리하게 한다.
         """
-        if self._refreshed_this_call:
-            return False
-        self._refreshed_this_call = True
-        try:
-            self._host, self._token = _get_workspace_auth(self.profile)
-        except Exception as e:
-            print(f"    [토큰 갱신 실패] {type(e).__name__}: {e}")
-            return False
+        with self._auth_lock:
+            if self._token_generation != req_generation:
+                # 다른 스레드가 이미 갱신함 — 그 토큰을 재사용한다(CLI 재호출 없음).
+                return True
+            try:
+                self._host, self._token = _get_workspace_auth(self.profile)
+            except Exception as e:
+                print(f"    [토큰 갱신 실패] {type(e).__name__}: {e}")
+                return False
+            self._token_generation += 1
         print(f"    [토큰 갱신] HTTP {status_code} 인증 만료 → 새 토큰으로 재시도")
         return True
 

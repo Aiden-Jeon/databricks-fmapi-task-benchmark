@@ -15,7 +15,7 @@ from typing import Any
 
 from src.adapters.fmapi import FMAPIClient, build_text_message
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
-from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge_batch, summarize_judge_scores
 from src.scoring.accumulators import CALL_FAILED
 from src.scoring.metrics import bertscore_f1
 from src.scoring.tokenizers import korean_tokenizer_backend, tokenize
@@ -226,6 +226,8 @@ Summary:"""
         samples: list[Sample],
         judge_client: FMAPIClient,
         judge_endpoint: str = "databricks-gemini-3-1-pro",
+        *,
+        judge_concurrency: int = 1,
     ) -> dict[str, Any]:
         """LLM 판사를 이용한 요약 품질 평가.
 
@@ -251,15 +253,14 @@ Summary:"""
         rubrics = load_rubrics()
         rubric = rubrics.get("TXT-5", {})
 
-        scores = []
-        scores_per_lang = {"en": [], "ko": []}
-
+        # 판사 프롬프트를 샘플 순서대로 구성한 뒤 병렬로 채점한다(입력 순서 보존 → 언어별
+        # 분리가 그대로 유지된다). 실패는 None으로 남겨 집계에서 제외한다 — 옛 코드는 3점으로
+        # 메워 평균을 오염시켰다.
+        items = []
         for pred, sample in zip(parsed, samples):
             document = sample.inputs["document"]
             reference = sample.reference
             lang = sample.lang
-
-            # 판사 프롬프트 구성
             judge_prompt = build_judge_prompt(
                 task_id="TXT-5",
                 question=f"Summarize the following document (language: {lang}):",
@@ -267,14 +268,15 @@ Summary:"""
                 candidate=pred,
                 rubric=rubric,
             )
+            items.append((judge_prompt, sample.sample_id))
 
-            # 호출·파싱·실패로그는 run_judge가 담당(max_tokens는 JUDGE_MAX_TOKENS 공용).
-            # 실패는 None으로 남겨 집계에서 제외한다 — 옛 코드는 3점으로 메워 평균을 오염시켰다.
-            judge_score = run_judge(
-                judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id
-            )
-            scores.append(judge_score)
-            scores_per_lang[lang].append(judge_score)
+        scores = run_judge_batch(
+            judge_client, judge_endpoint, items, self.task_id, max_workers=judge_concurrency
+        )
+        # 순서가 보존되므로 samples와 zip해 언어별로 되나눈다.
+        scores_per_lang = {"en": [], "ko": []}
+        for sample, judge_score in zip(samples, scores):
+            scores_per_lang.setdefault(sample.lang, []).append(judge_score)
 
         # 언어별 평균 — None(실패) 제외
         per_language = {}

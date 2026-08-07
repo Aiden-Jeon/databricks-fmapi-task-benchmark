@@ -41,6 +41,17 @@ models:
     dbu_in: 20.000
     dbu_out: 62.857
 
+  # databricks-kimi-k3: 단가 미등록 — **아직 확정 전이라 못 넣는다**(2026-08-08 내부 자료 확인).
+  #   근거(1차 소스): Kimi K3 런칭 티켓 DOC-27032은 "Pricing table intentionally left unchanged
+  #   until input and output DBU rates are finalized", "Input/output DBU pricing rates (pending)"라고
+  #   두 번 명시. 후속 티켓 DOC-27230도 단가를 아직 '필요' 항목으로 둠. Microsoft Learn DBU 표
+  #   (2026-08-05 갱신)·foundation-model-serving 페이지 어디에도 kimi-k3 행이 없다(신규 오픈모델은
+  #   Money API intake 지연으로 등재가 늦음 — Slack CPS3MLXUJ 스레드). 티켓의 "copy GLM 5.2"는
+  #   **product availability**(PT·AI Functions 등) 얘기지 DBU 단가가 아니다 — GLM 값(20/62.857)을
+  #   베끼면 근거 없는 수치가 된다. 그래서 비워 둔다(validator 경고=치명 아님, 리포트는 '단가 미등록'
+  #   표기 + **비용 비교에서만** 제외, 성능 비교는 정상).
+  #   → 확정되면(위 티켓/pricing 페이지에 kimi-k3 행이 뜨면) dbu_in/dbu_out을 여기 추가하면 비용도 채워진다.
+
   databricks-gemini-3-1-pro:
     context_threshold_tokens: 200000
     promo_multiplier: 0.80               # 20% 할인 (~2027-01-31), 적용 여부 결정

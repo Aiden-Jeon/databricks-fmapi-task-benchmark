@@ -298,3 +298,59 @@ def test_persistent_expiry_terminates(client, monkeypatch):
     with pytest.raises(FMAPIError):
         client.chat("databricks-glm-5-2", [{"role": "user", "content": "x"}])
     assert calls["n"] == 2, f"최초 1회 + 갱신 후 1회여야 한다(실제 {calls['n']}회)"
+
+
+# ---------------------------------------------------------------------------
+# 동시 호출 안전성 (병렬 실행 도입) — 한 클라이언트를 여러 스레드가 공유해 chat()을
+# 병렬 호출할 때, 만료를 동시에 만나도 토큰 갱신(CLI 호출)은 한 번만 일어나야 한다.
+# 예전 구조(self._refreshed_this_call 인스턴스 속성)는 스레드 간 리셋이 경합해
+# (a) 갱신을 여러 번 하거나 (b) 한 스레드가 다른 스레드의 "이미 갱신함"을 지웠다.
+# ---------------------------------------------------------------------------
+
+def test_concurrent_calls_refresh_token_once(monkeypatch):
+    """만료를 동시에 만난 여러 스레드가 CLI(_get_workspace_auth)를 딱 한 번만 부른다.
+
+    각 스레드는 처음엔 만료(403)를 받고, 토큰이 갱신된 뒤엔 성공한다.
+    갱신 자체(CLI 호출)는 스레드 수와 무관하게 1회여야 한다 — 아니면 동시 실행에서
+    같은 토큰을 N번 받아 CLI를 헛되게 두드린다.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    auth_calls = {"n": 0}
+    auth_lock = threading.Lock()
+
+    def fake_auth(profile):
+        with auth_lock:
+            auth_calls["n"] += 1
+            gen = auth_calls["n"]
+        return ("https://host", f"token-gen-{gen}")
+
+    monkeypatch.setattr(fmapi, "_get_workspace_auth", fake_auth)
+    c = FMAPIClient("ai_devtools", max_retries=3, backoff_initial_seconds=0)
+    monkeypatch.setattr(c, "_sleep_backoff", lambda attempt: None)
+
+    # 첫 토큰 세대(token-gen-1)로 만든 요청은 만료, 갱신된 세대는 성공하게 한다.
+    post_lock = threading.Lock()
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        with post_lock:
+            token = headers["Authorization"]
+        # 최초 토큰(gen-1)이면 만료, 갱신 후(gen-2)면 정상.
+        if token == "Bearer token-gen-1":
+            return _Resp(403, "Invalid Token")
+        return _Resp(200, payload=_OK_PAYLOAD)
+
+    monkeypatch.setattr(c._client, "post", fake_post)
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = list(ex.map(
+            lambda _: c.chat("databricks-claude-opus-5", [{"role": "user", "content": "x"}]).text,
+            range(8),
+        ))
+
+    assert all(r == "정상 응답" for r in results), "모든 스레드가 갱신 후 성공해야 한다"
+    assert auth_calls["n"] == 2, (
+        f"초기 인증 1회 + 만료 대응 갱신 1회 = 2회여야 한다(실제 {auth_calls['n']}회). "
+        f"스레드마다 갱신하면 CLI를 헛되게 여러 번 부른다"
+    )

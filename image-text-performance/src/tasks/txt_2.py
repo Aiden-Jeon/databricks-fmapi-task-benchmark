@@ -23,7 +23,7 @@ from src.adapters.fmapi import build_text_message, FMAPIClient
 from src.datasets_loader import load_hf_split, load_registry, resolve_dataset_entry
 from src.scoring.accumulators import MultiMeanAccumulator
 from src.scoring.metrics import token_f1
-from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge, summarize_judge_scores
+from src.scoring.judge import build_judge_prompt, load_rubrics, run_judge_batch, summarize_judge_scores
 from src.tasks.base import Task, Sample, register
 
 
@@ -310,10 +310,13 @@ Answer:"""
         samples: list[Sample],
         judge_client: FMAPIClient,
         judge_endpoint: str = "databricks-gemini-3-1-pro",
+        *,
+        judge_concurrency: int = 1,
     ) -> dict[str, Any]:
         """LLM 판사를 사용한 정성적 평가.
 
         각 샘플에 대해 판사 모델을 호출해 1-5 점수를 얻는다.
+        judge_concurrency>1이면 호출을 병렬로 겹쳐 실행한다(점수·순서는 동일).
         """
         if not parsed or not samples:
             return {
@@ -345,14 +348,14 @@ Answer:"""
                 }
             }
 
-        judge_scores = []
+        # judge 프롬프트를 샘플 순서대로 구성한 뒤 병렬로 채점한다(입력 순서 보존).
+        # 실패는 None(집계 제외) — 옛 코드의 "3점으로 메우기"는 judge 평균을 조용히 오염시켰다.
+        items = []
         for pred, sample in zip(parsed, samples):
             question = sample.inputs["question"]
             table = sample.inputs["table"]
             # reference_list 중 첫 번째를 참고정답으로 사용
             reference = sample.reference[0] if sample.reference else ""
-
-            # Judge prompt 구성
             judge_prompt = build_judge_prompt(
                 task_id="TXT-2",
                 question=f"Table:\n{table}\n\nQuestion: {question}",
@@ -360,13 +363,11 @@ Answer:"""
                 candidate=pred,
                 rubric=rubric,
             )
+            items.append((judge_prompt, sample.sample_id))
 
-            # 호출·파싱·실패로그는 run_judge가 담당. 실패는 None(집계 제외) — 옛 코드의
-            # "3점으로 메우기"는 judge 평균을 조용히 오염시켰다.
-            judge_scores.append(
-                run_judge(judge_client, judge_endpoint, judge_prompt, self.task_id, sample.sample_id)
-            )
-
+        judge_scores = run_judge_batch(
+            judge_client, judge_endpoint, items, self.task_id, max_workers=judge_concurrency
+        )
         return summarize_judge_scores(judge_scores)
 
 

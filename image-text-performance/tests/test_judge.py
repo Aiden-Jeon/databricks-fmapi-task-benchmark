@@ -12,6 +12,7 @@ from src.scoring.judge import (
     build_judge_prompt,
     parse_judge_score,
     run_judge,
+    run_judge_batch,
     summarize_judge_scores,
 )
 
@@ -187,3 +188,54 @@ def test_summarize_keeps_raw_scores_for_audit():
 def test_summarize_handles_empty_input():
     out = summarize_judge_scores([])
     assert out["judge_mean"] is None and out["n_judged"] == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# run_judge_batch — 병렬 채점(순서 보존·None 슬롯 스킵·실패=None 계약)
+# ─────────────────────────────────────────────────────────────────────────────
+class _ScriptedClient:
+    """프롬프트 텍스트에서 기대 점수를 읽어 돌려주는 judge 대역(스레드 세이프)."""
+
+    def __init__(self):
+        self.n_calls = 0
+        import threading
+        self._lock = threading.Lock()
+
+    def chat(self, *, endpoint, messages, max_tokens):
+        with self._lock:
+            self.n_calls += 1
+        # 프롬프트에 "WANT:N"을 넣으면 그 점수를 준다.
+        text = messages[0]["content"]
+        want = text.split("WANT:", 1)[1].strip()
+        return _FakeResponse(f"Score: {want}")
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+def test_run_judge_batch_preserves_order(workers):
+    """병렬이어도 점수가 입력 순서대로 온다 — per-language 분리 등이 순서에 의존한다."""
+    client = _ScriptedClient()
+    items = [(f"prompt WANT:{i % 5 + 1}", i) for i in range(10)]
+    out = run_judge_batch(client, "judge-ep", items, "TXT-5", max_workers=workers)
+    assert out == [i % 5 + 1 for i in range(10)]
+    assert client.n_calls == 10
+
+
+def test_run_judge_batch_skips_none_prompt_without_calling():
+    """prompt=None 슬롯은 호출 없이 None으로 채운다(IMG-1 빈 예측 동작 보존)."""
+    client = _ScriptedClient()
+    items = [("prompt WANT:4", 0), (None, 1), ("prompt WANT:2", 2)]
+    out = run_judge_batch(client, "judge-ep", items, "IMG-1", max_workers=4)
+    assert out == [4, None, 2]
+    assert client.n_calls == 2, "None 슬롯은 judge를 부르면 안 된다(비용·시간 낭비)"
+
+
+def test_run_judge_batch_failures_are_none():
+    """호출 실패는 None(집계 제외) — 점수를 지어내지 않는다."""
+    client = _FakeClient(raises=RuntimeError("HTTP 403"))
+    items = [("p WANT:x", 0), ("p WANT:y", 1)]
+    out = run_judge_batch(client, "judge-ep", items, "TXT-2", max_workers=4)
+    assert out == [None, None]
+
+
+def test_run_judge_batch_empty():
+    assert run_judge_batch(_ScriptedClient(), "judge-ep", [], "TXT-1", max_workers=4) == []

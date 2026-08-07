@@ -26,9 +26,12 @@ runtime:
   # 아니라 엔드포인트 문제). 5회 × 2s면 2+4+8+16 = 30초를 커버한다.
   max_retries: 5                        # 지수 backoff
   backoff_initial_seconds: 2.0
-  # ⚠️ max_concurrency는 **현재 미사용**이다(러너가 순차 실행). 값을 올려도 빨라지지 않는다.
-  # 병렬화 시 참고용으로만 남겨둔다(실측: rate limit 넉넉, 429 미관측 → 5~10 안전).
-  max_concurrency: 8
+  # 셀 내 샘플 호출·judge 호출을 이 수만큼 동시에 겹쳐 실행한다(벽시계 시간 단축).
+  # 채점·저장은 병렬화하지 않아 수치는 순차와 동일(scores.json bit-identical — 테스트로 고정).
+  # 기본 4: 8은 실측(2026-08-07)에서 kimi 엔드포인트에 429를 유발했다. 강한 엔드포인트는 견디지만
+  # 새 모델이 깨지는 것보다 4에서 시작해 필요 시 올리는 게 안전하다. 모델별로 낮추려면
+  # models[].runtime.max_concurrency(kimi=2), 전 모델 강제는 `--concurrency N`.
+  max_concurrency: 4
   max_tokens: 1024                      # reasoning 모델이 사고에 소진하지 않도록 충분히
 
 models:
@@ -80,6 +83,23 @@ models:
     # 채점 제외로 처리되지만, 표본이 줄어드는 것 자체가 손실이다.
     runtime:
       timeout_seconds: 120
+
+  - id: kimi
+    endpoint: databricks-kimi-k3
+    family: moonshot                    # 계열 표기용. 스키마는 OpenAI 호환(content=string, reasoning_content 별도).
+    capabilities: [text, vision]        # 2026-08-07 실호출 검증: vision ✅(red→"Red", blue→"Blue", finish=stop)
+    # 실측(2026-08-07): reasoning 모델이다. **파라미터 없이 부르면 사고를 content에 써서
+    # finish=length로 잘린다**(glm과 같은 함정). GPT/glm 계열처럼 reasoning_effort로 제어한다:
+    #   none → 즉답 "PONG"/"Blue" finish=stop ✅,  high → 정상 응답 ✅.
+    # thinking:{type:disabled}도 통과했지만 명시적으로 동작이 확인된 reasoning_effort를 쓴다.
+    reasoning:
+      minimal: {reasoning_effort: none}
+      full: {reasoning_effort: high}
+    # kimi 엔드포인트는 동시 호출에 약하다(실측 2026-08-07): 전역 concurrency=8에서 TXT-4·TXT-7이
+    # 429 REQUEST_LIMIT_EXCEEDED로 16/30 실패→unreliable. concurrency=2로 --resume하니 전부 복구.
+    # 다른 모델은 8도 견디므로 전역값을 낮추기보다 kimi만 2로 묶는다(glm의 timeout 오버라이드와 같은 패턴).
+    runtime:
+      max_concurrency: 2
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 모델 추가 체크리스트 (하나라도 빠지면 실행 전 검증이 막는다 — src/config.py)

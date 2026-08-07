@@ -30,7 +30,14 @@ class RuntimeConfig(BaseModel):
     timeout_seconds: float = 15.0
     max_retries: int = 3
     backoff_initial_seconds: float = 0.5
-    max_concurrency: int = 8   # 미사용(러너는 순차 실행) — 병렬화 시 사용 예정
+    # 셀 내 샘플 호출(및 judge 호출)의 최대 동시 실행 수. 러너가 이 값으로 FMAPI 호출을
+    # 겹쳐 실행해 벽시계 시간을 줄인다. 채점·저장은 병렬화하지 않으므로 수치는 순차와 동일
+    # (입력 순서 보존). 1이면 순차. 모델별로 낮추려면 models[].runtime.max_concurrency,
+    # 전 모델 강제는 --concurrency.
+    # 기본값 4: 8은 실측(2026-08-07)에서 kimi 엔드포인트에 429를 유발했다. 대부분 엔드포인트는
+    # 8도 견디지만, 새 모델을 붙일 때 429로 run이 깨지는 것보다 4에서 시작해 필요하면 올리는 게
+    # 안전하다(강한 엔드포인트는 --concurrency 8로 그때만 올리면 된다).
+    max_concurrency: int = 4
     max_tokens: int = 1024
 
 
@@ -46,6 +53,10 @@ class ModelRuntimeOverride(BaseModel):
     max_retries: int | None = None
     backoff_initial_seconds: float | None = None
     max_tokens: int | None = None
+    # 모델별 동시 호출 상한. 엔드포인트마다 rate limit이 달라, 전역값이 높으면 약한
+    # 엔드포인트가 429(REQUEST_LIMIT_EXCEEDED)를 낸다(실측 2026-08-07: kimi가 concurrency=8에서
+    # TXT-4·TXT-7 절반 실패→unreliable, concurrency=2에서 정상). 느린 모델의 timeout처럼 여기서 낮춘다.
+    max_concurrency: int | None = None
 
 
 class ModelConfig(BaseModel):
