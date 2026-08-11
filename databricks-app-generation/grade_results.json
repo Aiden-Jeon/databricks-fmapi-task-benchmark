@@ -1,0 +1,300 @@
+{
+  "tier_rows": [
+    {
+      "tier": "tier1-gate",
+      "candidate": "glm",
+      "harness": "direct-fmapi",
+      "model": "databricks-glm-5-2",
+      "timed_out": false,
+      "wall_seconds": 445.35,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 1.0,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "T1-title": "pass",
+        "T2-kpi-count": "pass",
+        "T3-kpi-fare": "pass",
+        "T4-kpi-distance": "pass",
+        "T5-filter-updates-table": "pass",
+        "T5b-kpi-not-requeried": "pass",
+        "T6-chart-present": "pass",
+        "T7-empty-state": "pass"
+      },
+      "auto_score": 1.0,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "T5b: KPI cache verified via query history; contract misses (fallback used): ['trips_table']; deploy skipped; renormalized over available components (skipped: deploy)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier1-gate",
+      "candidate": "opus",
+      "harness": "direct-fmapi",
+      "model": "databricks-claude-opus-4-8",
+      "timed_out": false,
+      "wall_seconds": 21.58,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 1.0,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "T1-title": "pass",
+        "T2-kpi-count": "pass",
+        "T3-kpi-fare": "pass",
+        "T4-kpi-distance": "pass",
+        "T5-filter-updates-table": "pass",
+        "T5b-kpi-not-requeried": "pass",
+        "T6-chart-present": "pass",
+        "T7-empty-state": "pass"
+      },
+      "auto_score": 1.0,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "T5b: KPI cache verified via query history; contract misses (fallback used): ['trips_table']; deploy skipped; renormalized over available components (skipped: deploy)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier1-gate",
+      "candidate": "sol",
+      "harness": "direct-fmapi",
+      "model": "databricks-gpt-5-6-sol",
+      "timed_out": false,
+      "wall_seconds": 82.89,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 1.0,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "T1-title": "pass",
+        "T2-kpi-count": "pass",
+        "T3-kpi-fare": "pass",
+        "T4-kpi-distance": "pass",
+        "T5-filter-updates-table": "pass",
+        "T5b-kpi-not-requeried": "pass",
+        "T6-chart-present": "pass",
+        "T7-empty-state": "pass"
+      },
+      "auto_score": 1.0,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "T5b: KPI cache verified via query history; contract misses (fallback used): ['trips_table']; deploy skipped; renormalized over available components (skipped: deploy)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier2-core",
+      "candidate": "glm",
+      "harness": "direct-fmapi",
+      "model": "databricks-glm-5-2",
+      "timed_out": false,
+      "wall_seconds": 479.03,
+      "static": 0.0,
+      "boot": null,
+      "gui": null,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": null,
+      "gui_results": {},
+      "auto_score": 0.0,
+      "screenshots": [],
+      "note": "missing files: app/app.py, app/app.yaml, app/requirements.txt",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier2-core",
+      "candidate": "opus",
+      "harness": "direct-fmapi",
+      "model": "databricks-claude-opus-4-8",
+      "timed_out": false,
+      "wall_seconds": 43.46,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 1.0,
+      "deploy": null,
+      "engineering": 0.5,
+      "robustness": null,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "C1-title": "pass",
+        "C2-kpi-initial": "pass",
+        "C3-filter-combined": "pass",
+        "C4-trend-mom": "pass",
+        "C5-segment-chart": "pass",
+        "C6-pagination": "pass",
+        "C7-csv": "pass",
+        "C8-empty-state": "pass",
+        "C9-injection-probe": "skip"
+      },
+      "auto_score": 0.875,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "contract misses (fallback used): ['orders_table']; E1[initial]: 6 queries (cap 6) OK; E1[filter_change]: 5 queries (cap 4) OVER; E1[page_change]: 1 queries (cap 1) OK; E2: 2 distinct-segment lookup(s); E3: 0 unbounded big-table quer(ies); E4: filter change 18.5s (cap 15s)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier2-core",
+      "candidate": "sol",
+      "harness": "direct-fmapi",
+      "model": "databricks-gpt-5-6-sol",
+      "timed_out": false,
+      "wall_seconds": 134.4,
+      "static": 1.0,
+      "boot": 0.0,
+      "gui": 0.0,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": 1.0,
+      "gui_results": {},
+      "auto_score": 0.133,
+      "screenshots": [],
+      "note": "boot failed: pip install failed: error: Request failed after 3 retries in 45.5s\n  Caused by: Failed to fetch: `https://pypi-proxy.cloud.databricks.com/simple/databricks-sql-connector/`\n  Caused by: error sending request for url (https://pypi-proxy.cloud.databricks.com/simple/databricks-sql-connector/)\n  Caused by: client error (Connect)\n  Caused by: operation timed out\n; renormalized over available components (skipped: engineering)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier3-differentiator",
+      "candidate": "glm",
+      "harness": "direct-fmapi",
+      "model": "databricks-glm-5-2",
+      "timed_out": false,
+      "wall_seconds": 403.44,
+      "static": 0.0,
+      "boot": null,
+      "gui": null,
+      "deploy": null,
+      "engineering": null,
+      "robustness": null,
+      "contract_compliance": null,
+      "gui_results": {},
+      "auto_score": 0.0,
+      "screenshots": [],
+      "note": "missing files: app/app.py, app/app.yaml, app/requirements.txt",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier3-differentiator",
+      "candidate": "opus",
+      "harness": "direct-fmapi",
+      "model": "databricks-claude-opus-4-8",
+      "timed_out": false,
+      "wall_seconds": 31.22,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 0.556,
+      "deploy": null,
+      "engineering": null,
+      "robustness": 0.429,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "T1-title": "fail",
+        "T2-kpi-count": "pass",
+        "T3-kpi-fare": "pass",
+        "T4-kpi-distance": "fail",
+        "T5-filter-updates-table": "pass",
+        "T5b-kpi-not-requeried": "fail",
+        "T6-chart-present": "pass",
+        "T7-empty-state": "pass",
+        "R3-fuzzer": "fail"
+      },
+      "auto_score": 0.563,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "possible SQL string interpolation (4 site(s)); contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) \u2014 robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
+      "_cost_usd": null
+    },
+    {
+      "tier": "tier3-differentiator",
+      "candidate": "sol",
+      "harness": "direct-fmapi",
+      "model": "databricks-gpt-5-6-sol",
+      "timed_out": false,
+      "wall_seconds": 134.8,
+      "static": 1.0,
+      "boot": 1.0,
+      "gui": 0.333,
+      "deploy": null,
+      "engineering": null,
+      "robustness": 1.0,
+      "contract_compliance": 1.0,
+      "gui_results": {
+        "T1-title": "fail",
+        "T2-kpi-count": "fail",
+        "T3-kpi-fare": "fail",
+        "T4-kpi-distance": "fail",
+        "T5-filter-updates-table": "fail",
+        "T5b-kpi-not-requeried": "fail",
+        "T6-chart-present": "pass",
+        "T7-empty-state": "pass",
+        "R3-fuzzer": "pass"
+      },
+      "auto_score": 0.647,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) \u2014 robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
+      "_cost_usd": null
+    }
+  ],
+  "suite": [
+    {
+      "candidate": "glm",
+      "gated_out": false,
+      "quality": 0.15,
+      "tier_scores": {
+        "tier1-gate": 1.0,
+        "tier2-core": 0.0,
+        "tier3-differentiator": 0.0
+      },
+      "elapsed_minutes": 22.1,
+      "time_score": 0.684,
+      "cost_usd": null,
+      "cost_score": null,
+      "final_score": 0.244
+    },
+    {
+      "candidate": "opus",
+      "gated_out": false,
+      "quality": 0.785,
+      "tier_scores": {
+        "tier1-gate": 1.0,
+        "tier2-core": 0.875,
+        "tier3-differentiator": 0.563
+      },
+      "elapsed_minutes": 1.6,
+      "time_score": 0.977,
+      "cost_usd": null,
+      "cost_score": null,
+      "final_score": 0.819
+    },
+    {
+      "candidate": "sol",
+      "gated_out": false,
+      "quality": 0.443,
+      "tier_scores": {
+        "tier1-gate": 1.0,
+        "tier2-core": 0.133,
+        "tier3-differentiator": 0.647
+      },
+      "elapsed_minutes": 5.9,
+      "time_score": 0.916,
+      "cost_usd": null,
+      "cost_score": null,
+      "final_score": 0.526
+    }
+  ]
+}

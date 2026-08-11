@@ -1,0 +1,41 @@
+{
+  "task_id": "databricks-app-generation/tier2-core",
+  "weights": { "static": 0.1, "boot": 0.1, "gui_tests": 0.55, "engineering": 0.25 },
+  "budget_minutes": 30,
+  "timeout_is_failure": true,
+  "selector_policy": { "same_as": "../tier1-gate/test_cases.json" },
+  "contract_compliance": { "reported_separately": true, "weight_in_static": 0.3 },
+  "static_checks": {
+    "required_files": ["app/app.py", "app/app.yaml", "app/requirements.txt"],
+    "app_yaml_must_have": ["command"],
+    "requirements_must_match_any": ["databricks-sql-connector", "databricks-sdk"],
+    "forbidden_patterns": [
+      "(?i)dapi[0-9a-f]{16,}",
+      "https?://[a-z0-9-]+\\.cloud\\.databricks\\.com",
+      "https?://adb-[0-9]+",
+      "/sql/1\\.0/warehouses/[0-9a-f]{16}"
+    ],
+    "required_patterns": ["DATABRICKS_WAREHOUSE_ID"],
+    "injection_static_scan": "f-string/%/+ interpolation of widget values into SQL text → engineering 감점 (fail T-INJ와 중복 감점 아님, 둘 중 하나만)"
+  },
+  "boot": { "health_url": "http://localhost:8501", "timeout_seconds": 90 },
+  "ground_truth_sql": "ground_truth.sql",
+  "gui_test_cases": [
+    { "id": "C1-title", "operation": "Load root page.", "expected": "Heading 'TPC-H Revenue Explorer'." },
+    { "id": "C2-kpi-initial", "operation": "Read the three KPI metrics with no filters.", "expected": "Match gt_kpis over full date span, all segments (±0.01 money, ±0.1pp rate)." },
+    { "id": "C3-filter-combined", "operation": "Select segments {BUILDING, MACHINERY} and a 6-month window; read KPIs.", "expected": "Match gt_kpis for that exact filter combination — verifies filters interact (AND semantics)." },
+    { "id": "C4-trend-mom", "operation": "Inspect trend_chart and 'MoM Change' metric under C3 filters.", "expected": "Monthly points match gt_monthly_revenue (months ASC); MoM value matches ground truth for latest complete month (±0.1pp)." },
+    { "id": "C5-segment-chart", "operation": "Inspect segment_chart under C3 filters.", "expected": "Bars match gt_segment_revenue, ordered revenue DESC then segment ASC." },
+    { "id": "C6-pagination", "operation": "On orders_table: check page 1 row count, click page_next to last page, click page_prev.", "expected": "50 rows/page; page contents match gt_orders_page offsets; last page has remainder rows; prev returns to identical page 1; no KPI re-query on paging." },
+    { "id": "C7-csv", "operation": "Click download_csv under C3 filters; parse the file.", "expected": "Columns/ordering match gt_orders_full (cap 10000); row values equal the table's source query results." },
+    { "id": "C8-empty-state", "operation": "Set a date range with zero orders.", "expected": "Friendly empty state on all sections; no exception element; process alive." },
+    { "id": "C9-injection-probe", "operation": "If segment values can be manipulated (URL params/text input), submit `' OR 1=1 --`; also verify via source that widget values are bound, not concatenated.", "expected": "No SQL error surfaced, no data leak beyond filters; parameterized or safely rejected." }
+  ],
+  "engineering_checks": [
+    { "id": "E1-query-budget", "method": "warehouse query history (filter by session/user + time window)", "expected": "initial load ≤ 6 queries; filter change ≤ 4; page change ≤ 1", "weight": 0.4 },
+    { "id": "E2-caching", "method": "query history + code inspection", "expected": "distinct-segment list queried once per session (st.cache_data); KPIs not recomputed on paging", "weight": 0.2 },
+    { "id": "E3-boundedness", "method": "query history text scan", "expected": "no unbounded SELECT over lineitem/orders (every query aggregates or LIMITs)", "weight": 0.2 },
+    { "id": "E4-latency", "method": "Playwright timing", "expected": "filter-change interaction p95 < 15s on 2X-Small warehouse (warm)", "weight": 0.2 }
+  ],
+  "deploy": { "enabled": false, "note": "배포 검증은 tier1에서만 수행 (비용 통제). tier2는 로컬 실행 채점." }
+}

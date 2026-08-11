@@ -1,0 +1,10 @@
+{
+  "_comment": "모델별 단가 ($/1M tokens). 라운드 시작 전 FMAPI/DBU 요율표 기준으로 확정하고 라운드 중 변경 금지. 아래 값은 PLACEHOLDER — 확정 필요.",
+  "currency": "USD",
+  "models": {
+    "databricks-claude-opus-4-8":  { "input": null, "output": null, "cached_input": null },
+    "databricks-gpt-5-6-sol":      { "input": null, "output": null, "cached_input": null },
+    "databricks-glm-5-2":          { "input": null, "output": null, "cached_input": null },
+    "system.ai.claude-opus-5":     { "input": null, "output": null, "cached_input": null }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "task_id": "databricks-app-generation/tier3-differentiator",
+  "weights": { "static": 0.1, "repair": 0.45, "extend": 0.15, "robustness": 0.3 },
+  "budget_minutes": 25,
+  "timeout_is_failure": true,
+  "selector_policy": { "same_as": "../tier1-gate/test_cases.json" },
+  "contract_compliance": { "reported_separately": true, "weight_in_static": 0.3 },
+  "static_checks": { "same_as": "../tier1-gate/test_cases.json" },
+  "ground_truth_sql": "../tier1-gate/ground_truth.sql",
+  "seeded_defects": {
+    "_comment": "채점기 전용 — 후보에게 비공개. legacy_app에 의도적으로 심은 결함과 검증 방법.",
+    "D1-sql-injection": { "where": "zip_filter/date f-string interpolation", "verify": "injection probe + source scan", "bucket": "repair" },
+    "D2-kpi-after-limit": { "where": "KPIs computed from LIMIT 1000 sample in pandas", "verify": "KPI vs ground-truth SQL over full filter", "bucket": "repair" },
+    "D3-hardcoded-http-path": { "where": "HTTP_PATH default '/sql/1.0/warehouses/8f2e...'", "verify": "static scan + boots with only DATABRICKS_WAREHOUSE_ID set", "bucket": "repair" },
+    "D4-empty-crash": { "where": "fare_amount.idxmax()/mean() on empty DataFrame", "verify": "zero-result date range → no exception", "bucket": "repair" },
+    "D5-silent-except": { "where": "bare except returns empty DataFrame", "verify": "simulated query failure → visible st.error + retry, not silent empty dashboard", "bucket": "repair" },
+    "D6-date-off-by-one": { "where": "'<= end_date' string compare drops the end day after 00:00", "verify": "window row count vs half-open ground truth", "bucket": "repair" },
+    "D7-null-zip-in-chart": { "where": "groupby includes NULL pickup_zip", "verify": "chart categories vs ground truth", "bucket": "repair" },
+    "D8-no-caching": { "where": "full re-query on every rerun, new connection per query", "verify": "query history: filter change ≤ 3 queries, unchanged rerun 0", "bucket": "repair" }
+  },
+  "repair_scoring": "repair 점수 = 수정 확인된 결함 수 / 8 (부분점수 없음, 결함별 pass/fail)",
+  "extend_test_cases": [
+    { "id": "X1-dropoff-chart", "operation": "Apply a known window; inspect dropoff_chart.", "expected": "Top-10 dropoff_zip matches ground truth (NULL 제외, tie는 zip ASC)." },
+    { "id": "X2-csv", "operation": "Download CSV under the same window.", "expected": "Columns/ordering match the table's ground-truth query, cap 10000." }
+  ],
+  "robustness_scenarios": [
+    { "id": "R1-bad-warehouse", "inject": "DATABRICKS_WAREHOUSE_ID=invalid at boot", "expected": "App renders with error state + retry button; no crash loop.", "weight": 0.3 },
+    { "id": "R2-timeout", "inject": "grader proxy delays SQL responses beyond client timeout mid-session", "expected": "st.error + retry; process alive; recovers when backend restored.", "weight": 0.3 },
+    { "id": "R3-fuzzer", "inject": "Playwright fuzzer: 5 min random clicks/keystrokes/date combos (fixed seed)", "expected": "0 unhandled exceptions; crash count reported as metric.", "weight": 0.4 }
+  ],
+  "deploy": { "enabled": false }
+}

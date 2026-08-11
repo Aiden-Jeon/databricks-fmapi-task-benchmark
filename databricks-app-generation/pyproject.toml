@@ -1,0 +1,23 @@
+[project]
+name = "databricks-app-generation-benchmark"
+version = "0.1.0"
+description = "Benchmark FMAPI models x agent harnesses on building Databricks Apps (3-tier suite)"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "playwright>=1.40",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+    "databricks-sql-connector>=3.0",
+]
+
+[project.scripts]
+run-task = "benchmark.run_task:main"
+grade-task = "benchmark.grade_tasks:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/benchmark"]

@@ -1,0 +1,81 @@
+{
+  "task_id": "databricks-app-generation/tier1-gate",
+  "weights": { "static": 0.15, "boot": 0.15, "gui_tests": 0.4, "deploy": 0.3 },
+  "budget_minutes": 15,
+  "timeout_is_failure": true,
+  "selector_policy": {
+    "primary": "streamlit key= / metric label (as specified in the contract)",
+    "fallback": "semantic — visible heading/label text, element role, chart svg presence",
+    "note": "기능 테스트는 폴백으로도 채점한다. 키 불일치는 기능 점수가 아니라 contract_compliance에서만 감점."
+  },
+  "contract_compliance": {
+    "reported_separately": true,
+    "weight_in_static": 0.3,
+    "checks": ["exact widget keys", "metric label spelling", "single page", "file layout"]
+  },
+  "static_checks": {
+    "required_files": ["app/app.py", "app/app.yaml", "app/requirements.txt"],
+    "app_yaml_must_have": ["command"],
+    "requirements_must_match_any": ["databricks-sql-connector", "databricks-sdk"],
+    "forbidden_patterns": [
+      "(?i)dapi[0-9a-f]{16,}",
+      "https?://[a-z0-9-]+\\.cloud\\.databricks\\.com",
+      "https?://adb-[0-9]+",
+      "/sql/1\\.0/warehouses/[0-9a-f]{16}",
+      "(?i)warehouse_id\\s*=\\s*[\"'][0-9a-f]{16}[\"']"
+    ],
+    "required_patterns": ["DATABRICKS_WAREHOUSE_ID"]
+  },
+  "boot": { "health_url": "http://localhost:8501", "timeout_seconds": 60 },
+  "ground_truth_sql": "ground_truth.sql",
+  "gui_test_cases": [
+    {
+      "id": "T1-title",
+      "operation": "Load the app root page and wait for network idle.",
+      "expected": "Main heading text equals 'NYC Taxi Explorer'."
+    },
+    {
+      "id": "T2-kpi-count",
+      "operation": "Read the 'Total Trips' metric value.",
+      "expected": "Equals ground-truth COUNT(*) of samples.nyctaxi.trips (exact integer, commas allowed)."
+    },
+    {
+      "id": "T3-kpi-fare",
+      "operation": "Read the 'Avg Fare' metric value.",
+      "expected": "Equals ground-truth AVG(fare_amount) rounded to 2 decimals (tolerance ±0.01)."
+    },
+    {
+      "id": "T4-kpi-distance",
+      "operation": "Read the 'Avg Distance' metric value.",
+      "expected": "Equals ground-truth AVG(trip_distance) rounded to 2 decimals (tolerance ±0.01)."
+    },
+    {
+      "id": "T5-filter-updates-table",
+      "operation": "Set start_date/end_date to a one-week window known to contain trips; wait for rerun.",
+      "expected": "trips_table rows fall inside the half-open window [start 00:00, end+1d 00:00); rows ordered by tpep_pickup_datetime ASC; row count matches ground-truth query (capped at 100)."
+    },
+    {
+      "id": "T5b-kpi-not-requeried",
+      "operation": "After the filter change in T5, compare KPI values and (if query history is available) count KPI queries issued since page load.",
+      "expected": "KPI values unchanged (full-table); no additional full-table aggregation query triggered by the filter change."
+    },
+    {
+      "id": "T6-chart-present",
+      "operation": "Inspect the zip_chart container after the filter from T5.",
+      "expected": "A bar chart with at most 10 bars; NULL pickup_zip excluded; ranking matches ground truth with ties broken by pickup_zip ASC."
+    },
+    {
+      "id": "T7-empty-state",
+      "operation": "Set a date window with zero trips (e.g. year 1999).",
+      "expected": "A friendly empty-state message is shown; no stack trace, no Streamlit exception element, app process still alive."
+    }
+  ],
+  "deploy": {
+    "app_name_pattern": "bench-nyctaxi-{candidate}-{ts}",
+    "resources": [{ "type": "sql-warehouse", "permission": "CAN_USE", "env_key": "DATABRICKS_WAREHOUSE_ID" }],
+    "expect_status": "RUNNING",
+    "smoke_test_case": "T1-title",
+    "stop_after_grading": true,
+    "delete_after_grading": true
+  }
+}

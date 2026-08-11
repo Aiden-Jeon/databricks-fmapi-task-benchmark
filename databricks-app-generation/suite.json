@@ -1,0 +1,18 @@
+{
+  "suite_id": "databricks-app-generation",
+  "tiers": [
+    { "dir": "tier1-gate", "weight": 0.15, "gate": true, "budget_minutes": 15, "deploy": true },
+    { "dir": "tier2-core", "weight": 0.5, "gate": false, "budget_minutes": 30, "deploy": false },
+    { "dir": "tier3-differentiator", "weight": 0.35, "gate": false, "budget_minutes": 25, "deploy": false }
+  ],
+  "gate_rule": "tier1 auto_score < 0.5 이면 suite 전체 0점 (부팅·기본 기능도 안 되는 후보의 상위 채점 방지)",
+  "efficiency": {
+    "final_score_weights": { "quality": 0.7, "time": 0.15, "cost": 0.15 },
+    "time_score": "max(0, 1 - total_elapsed_minutes / 70)",
+    "cost_score": "max(0, 1 - total_cost_usd / reference_cost_usd)",
+    "reference_cost_usd": 5.0,
+    "pricing_file": "pricing.json",
+    "notes": "tier별 elapsed/cost를 합산. timeout된 tier는 해당 tier 0점 + elapsed는 budget으로 캡. 품질(가중 tier 합) 0이면 final=0."
+  },
+  "repetitions": { "default": 3, "report": "mean ± stddev, tier별 병기" }
+}
