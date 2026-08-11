@@ -153,16 +153,18 @@
       "timed_out": false,
       "wall_seconds": 134.4,
       "static": 1.0,
-      "boot": 0.0,
-      "gui": 0.0,
+      "boot": 1.0,
+      "gui": 0.62,
       "deploy": null,
-      "engineering": null,
+      "engineering": 0.676,
       "robustness": null,
       "contract_compliance": 1.0,
       "gui_results": {},
-      "auto_score": 0.133,
-      "screenshots": [],
-      "note": "boot failed: pip install failed: error: Request failed after 3 retries in 45.5s\n  Caused by: Failed to fetch: `https://pypi-proxy.cloud.databricks.com/simple/databricks-sql-connector/`\n  Caused by: error sending request for url (https://pypi-proxy.cloud.databricks.com/simple/databricks-sql-connector/)\n  Caused by: client error (Connect)\n  Caused by: operation timed out\n; renormalized over available components (skipped: engineering)",
+      "auto_score": 0.71,
+      "screenshots": [
+        "screenshots/app_home.png"
+      ],
+      "note": "re-graded after pip-proxy recovery; boot OK. contract misses (fallback): ['segment_chart']; E1[initial]4/filter_change0/page_change0 OK; E2:2 seg-lookups; E3:0 unbounded; E4:88.6s (cap 15s)",
       "_cost_usd": null
     },
     {
@@ -214,7 +216,7 @@
       "screenshots": [
         "screenshots/app_home.png"
       ],
-      "note": "possible SQL string interpolation (4 site(s)); contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) \u2014 robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
+      "note": "possible SQL string interpolation (4 site(s)); contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) — robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
       "_cost_usd": null
     },
     {
@@ -246,7 +248,7 @@
       "screenshots": [
         "screenshots/app_home.png"
       ],
-      "note": "contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) \u2014 robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
+      "note": "contract misses (fallback used): ['trips_table', 'zip_chart']; R2 skipped (OPEN ITEM) — robustness renormalized over R1+R3; renormalized over available components (skipped: extend)",
       "_cost_usd": null
     }
   ],
@@ -284,17 +286,17 @@
     {
       "candidate": "sol",
       "gated_out": false,
-      "quality": 0.443,
+      "quality": 0.731,
       "tier_scores": {
         "tier1-gate": 1.0,
-        "tier2-core": 0.133,
+        "tier2-core": 0.71,
         "tier3-differentiator": 0.647
       },
       "elapsed_minutes": 5.9,
       "time_score": 0.916,
       "cost_usd": null,
       "cost_score": null,
-      "final_score": 0.526
+      "final_score": 0.764
     }
   ]
 }
