@@ -495,11 +495,55 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
         tops = sorted(k for k, v in wc.items() if v == best)
         counts = ", ".join(f"{k} {v}회" for k, v in sorted(wc.items(), key=lambda x: -x[1]))
         if len(tops) == 1:
-            parts.append(f"태스크별 1위 횟수는 {counts}로 **{tops[0]}**가 가장 많다.")
+            parts.append(f"태스크별 1위 횟수는 {counts}이며, 가장 많은 모델은 **{tops[0]}**이다.")
         else:
             parts.append(f"태스크별 1위 횟수는 {counts}로 **{', '.join(tops)}**가 공동 최다다.")
     if facts.get("n_tied_tasks"):
         parts.append(f"이 중 {facts['n_tied_tasks']}개 태스크는 동점이라 공동 1위로 집계했다.")
+
+    # 단순 승수만으로는 모델의 성격이 보이지 않으므로, 대표 메트릭 1위 태스크를 모델별로
+    # 풀어 쓴다. 단독 1위와 공동 1위를 구분해 과도한 우열 해석을 피한다.
+    winners = facts.get("task_winners", {})
+    if winners:
+        labels = {
+            "IMG-1": "이미지 캡션", "IMG-2": "객체 태그", "IMG-3": "무기 판별",
+            "IMG-4": "NSFW 판별", "IMG-5": "사람 판별", "IMG-6": "이미지 표 추출",
+            "TXT-1": "문서 QA", "TXT-2": "표 QA", "TXT-3": "텍스트 표 추출",
+            "TXT-4": "한국어 독해", "TXT-5": "요약", "TXT-6": "감정 분석",
+            "TXT-7": "키워드 추출", "TXT-8": "유해성 판별",
+        }
+        per_model: dict[str, dict[str, list[str]]] = {}
+        domain_counts: dict[str, dict[str, int]] = {"image": {}, "text": {}}
+        for task_mode, model_ids in winners.items():
+            task_id = task_mode.split("/", 1)[0]
+            bucket = "solo" if len(model_ids) == 1 else "tie"
+            domain = "image" if task_id.startswith("IMG-") else "text"
+            for model_id in model_ids:
+                per_model.setdefault(model_id, {"solo": [], "tie": []})[bucket].append(
+                    labels.get(task_id, task_id)
+                )
+                domain_counts[domain][model_id] = domain_counts[domain].get(model_id, 0) + 1
+        traits = []
+        for model_id in sorted(per_model, key=lambda m: (-wc.get(m, 0), m)):
+            groups = per_model[model_id]
+            detail = []
+            if groups["solo"]:
+                detail.append("단독 우세 " + "·".join(groups["solo"]))
+            if groups["tie"]:
+                detail.append("공동 우세 " + "·".join(groups["tie"]))
+            traits.append(f"**{model_id}**: " + ", ".join(detail))
+        parts.append("태스크별 경향은 " + "; ".join(traits) + ".")
+        domain_text = []
+        for domain, title in (("image", "이미지"), ("text", "텍스트")):
+            counts = domain_counts[domain]
+            if counts:
+                ordered = ", ".join(
+                    f"{model_id} {count}개"
+                    for model_id, count in sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+                )
+                domain_text.append(f"{title} 영역(공동 1위 포함)은 {ordered}")
+        if domain_text:
+            parts.append("영역별 1위 분포를 보면 " + "; ".join(domain_text) + "다.")
     if facts.get("excluded_unreliable"):
         # 제외 사실을 요약에 남긴다 — 조용히 빼면 "왜 이 태스크가 없나"를 알 수 없다.
         parts.append(
@@ -514,7 +558,20 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
         )
     if facts.get("fastest_model"):
         f = facts["fastest_model"]
-        parts.append(f"응답 속도는 **{f}**가 가장 빠르다(median {facts['perf'][f]['latency_ms_median']}ms).")
+        parts.append(f"응답 속도가 가장 빠른 모델은 **{f}**이다(median {facts['perf'][f]['latency_ms_median']}ms).")
+
+    perf = facts.get("perf", {})
+    measured = [(m, p) for m, p in perf.items() if isinstance(p.get("latency_ms_median"), (int, float))]
+    if measured:
+        latency_order = ", ".join(
+            f"{m} {p['latency_ms_median']:.1f}ms"
+            for m, p in sorted(measured, key=lambda item: item[1]["latency_ms_median"])
+        )
+        parts.append(f"중앙 지연시간 순서는 {latency_order}다.")
+        errors = [(m, p.get("errors", 0), p.get("n_calls", 0)) for m, p in measured]
+        if any(n for _, n, _ in errors):
+            error_text = ", ".join(f"{m} {n}/{calls}" for m, n, calls in errors if n)
+            parts.append(f"안정성 측면에서는 호출 오류가 {error_text}로 관측됐다.")
     if facts.get("cheapest_model"):
         ch = facts["cheapest_model"]
         parts.append(f"비용은 **{ch}**가 가장 낮다(${facts['perf'][ch]['total_usd']}).")
@@ -528,6 +585,12 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
                 f"{model} ${cost:.6f}" for model, cost in sorted(priced_costs, key=lambda x: x[1])
             )
             parts.append(f"전체 추정 비용은 낮은 순서로 {ordered}다.")
+            call_counts = {values.get("n_calls") for values in facts.get("perf", {}).values()}
+            if len(call_counts) > 1:
+                parts.append(
+                    "단, 총비용은 실제 실행 호출 수 기준이며 vision 미지원 모델은 이미지 태스크가 "
+                    "제외되므로 모델 간 동일 호출량의 정규화 비용 비교는 아니다."
+                )
     if facts.get("unpriced_models"):
         # 단가 누락을 요약에 명시한다 — 조용히 빼면 "왜 이 모델이 비용 비교에 없나"를 알 수 없다.
         parts.append(

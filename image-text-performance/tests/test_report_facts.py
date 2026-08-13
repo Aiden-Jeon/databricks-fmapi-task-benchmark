@@ -216,6 +216,33 @@ def test_rule_based_summary_lists_all_priced_models():
     assert "glm $0.249159, kimi $1.194680, sol $2.155324" in summary
 
 
+def test_rule_based_summary_explains_task_traits_and_tradeoffs():
+    """요약은 승수뿐 아니라 단독/공동 강점, 오류, 비용 비교 한계까지 설명한다."""
+    from src.report.generate import _rule_based_summary
+
+    facts = {
+        "win_counts": {"sol": 2, "kimi": 1},
+        "task_winners": {
+            "IMG-1/minimal": ["sol"],
+            "IMG-4/minimal": ["kimi", "sol"],
+        },
+        "fastest_model": "kimi",
+        "cheapest_model": "kimi",
+        "perf": {
+            "sol": {"latency_ms_median": 20.0, "errors": 0, "n_calls": 60, "total_usd": 2.0},
+            "kimi": {"latency_ms_median": 10.0, "errors": 1, "n_calls": 30, "total_usd": 1.0},
+        },
+    }
+
+    summary = _rule_based_summary(facts)
+
+    assert "단독 우세 이미지 캡션" in summary
+    assert "공동 우세 NSFW 판별" in summary
+    assert "이미지 영역(공동 1위 포함)은 sol 2개, kimi 1개" in summary
+    assert "kimi 1/30" in summary
+    assert "동일 호출량의 정규화 비용 비교는 아니다" in summary
+
+
 # ──────────────────────────── 파싱 유효률 미달 셀 제외 (P0-1, 2026-08-06)
 
 
