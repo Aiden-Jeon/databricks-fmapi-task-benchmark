@@ -5,13 +5,13 @@
 프로젝트 개요·사용법은 [README.md](./README.md), 설계 결정은 [plan.md](./plan.md) 참고.
 
 ## 한 줄 요약
-Databricks FMAPI 모델(opus·sol·glm)의 이미지·텍스트 성능을 표준 데이터셋으로 측정해
+Databricks FMAPI 모델(opus·sol·glm·kimi)의 이미지·텍스트 성능을 표준 데이터셋으로 측정해
 수치·그래프·정성 갤러리·고객용 HTML 프레젠테이션 리포트를 자동 생성하는 벤치마크.
-**14개 태스크**(IMG-1~6, TXT-1~8) × **3모델**(opus·sol·glm) → glm vision 미지원으로
-이미지 6태스크 N/A → 실행 **36셀**. 모델 추가는 `config/models.yaml`(+`pricing.yaml`)만 고치면 되고,
-빠진 항목은 실행 전 검증이 막는다(README "모델 추가하기"). 2026-08-06에 sonnet-5를 붙여
-설정검증·dry-run 50셀·**2샘플 실호출 28셀 완주**까지 확인했다(4모델 30샘플 전체 완주는 안 함).
-이후 3모델로 되돌렸다 — models.yaml에 주석으로 남아 있어 풀면 바로 4모델이 된다.
+**14개 태스크**(IMG-1~6, TXT-1~8) × **4모델**(opus·sol·glm·kimi) → glm vision 미지원으로
+이미지 6태스크 N/A → 실행 **50셀**. 모델 추가는 `config/models.yaml`(+`pricing.yaml`)만 고치면 되고,
+빠진 항목은 실행 전 검증이 막는다(README "모델 추가하기"). 최신 30샘플 run은
+`2026-08-07T13-42`이며 Kimi K3까지 포함한다. Kimi K3 단가는 2026-08-13 공식 가격표에서
+입력 42.857·출력 214.286 DBU/백만 토큰으로 확인했다.
 
 ## 전제
 - Databricks CLI 프로파일 필요. 기본값은 `config/models.yaml`의 `profile`(현재 `ai_devtools`)이고

@@ -198,6 +198,24 @@ def test_perf_table_distinguishes_two_missing_reasons():
     assert "가장 저렴한 모델' 선정에서 제외" in table
 
 
+def test_rule_based_summary_lists_all_priced_models():
+    """단가가 모두 있으면 전체 비용 순서가 Executive Summary에도 반영된다."""
+    from src.report.generate import _rule_based_summary
+
+    facts = {
+        "cheapest_model": "glm",
+        "perf": {
+            "kimi": {"total_usd": 1.19468},
+            "glm": {"total_usd": 0.249159},
+            "sol": {"total_usd": 2.155324},
+        },
+    }
+
+    summary = _rule_based_summary(facts)
+
+    assert "glm $0.249159, kimi $1.194680, sol $2.155324" in summary
+
+
 # ──────────────────────────── 파싱 유효률 미달 셀 제외 (P0-1, 2026-08-06)
 
 

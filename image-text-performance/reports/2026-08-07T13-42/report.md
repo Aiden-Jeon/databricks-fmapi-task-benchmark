@@ -15,11 +15,7 @@
 
 ## Executive Summary
 
-제공된 데이터에 기반한 요약은 다음과 같습니다.
-
-'sol' 모델은 이미지(IMG) 태스크를 중심으로 총 6개 부문에서 1위를 차지해 가장 우수한 종합 성적을 보였으며, 'glm'은 텍스트(TXT) 태스크에서만 평가되었음에도 4개 부문에서 우승하며 강점을 보였습니다. 반면 'kimi'는 1위 횟수가 3회로 가장 적고 유일하게 9번의 오류가 발생해 안정성이 떨어지며, 'opus'는 5개 부문에서 우승하며 준수한 성능을 냈으나 총비용이 약 2.51달러로 가장 비쌉니다. 속도와 비용의 트레이드오프 측면에서 'glm'은 가장 저렴하면서도 응답 속도(중앙값 897.2ms)가 가장 빠른 반면, 우승 횟수가 가장 많은 'sol'은 응답 속도(중앙값 2786.5ms)가 가장 느리다는 특징이 있습니다.
-
-<sub>규칙 기반 요약(대조용): 태스크별 1위 횟수는 sol 6회, opus 5회, glm 4회, kimi 3회로 **sol**가 가장 많다. 이 중 2개 태스크는 동점이라 공동 1위로 집계했다. 응답 속도는 **glm**가 가장 빠르다(median 897.2ms). 비용은 **glm**가 가장 낮다($0.249159). 단, kimi는 `pricing.yaml`에 단가가 없어 비용을 계산하지 못했고 비용 비교에서 제외했다.</sub>
+태스크별 1위 횟수는 sol 6회, opus 5회, glm 4회, kimi 3회로 **sol**가 가장 많다. 이 중 2개 태스크는 동점이라 공동 1위로 집계했다. 응답 속도는 **glm**가 가장 빠르다(median 897.2ms). 비용은 **glm**가 가장 낮다($0.249159). 전체 추정 비용은 낮은 순서로 glm $0.249159, kimi $1.194680, sol $2.155324, opus $2.510447다.
 
 ## 비교 그래프
 
@@ -132,13 +128,9 @@
 | 모델 | 호출 | 오류 | latency median(ms) | p95(ms) | 입력토큰 | 출력토큰 | 비용(USD) |
 |---|---|---|---|---|---|---|---|
 | glm | 240 | 0 | 897.2 | 5747.7 | 102954 | 24317 | 0.249159 |
-| kimi | 420 | 9 | 1427.8 | 19178.8 | 180667 | 43512 | ⚠️ 단가 미등록 |
+| kimi | 420 | 9 | 1427.8 | 19178.8 | 180667 | 43512 | 1.19468 |
 | opus | 420 | 1 | 1954.2 | 8758.3 | 223728 | 55672 | 2.510447 |
 | sol | 420 | 0 | 2786.5 | 10350.1 | 161718 | 44891 | 2.155324 |
-
-> ⚠️ **비용 계산 불가(단가 미등록)**: `kimi`(endpoint `databricks-kimi-k3`)가 `config/pricing.yaml`의 `models:`에 없습니다. 해당 모델의 DBU 단가(`dbu_in`/`dbu_out`)를 추가하면 비용이 계산됩니다.
-
-> 위 모델들은 **비용 비교·'가장 저렴한 모델' 선정에서 제외**했습니다 — 0으로 두면 계산 불가가 최저 비용으로 오독됩니다.
 
 > 비용은 `config/pricing.yaml` DBU 단가 기반 추정(usd_per_dbu 가정값). 정밀 비용은 `system.ai_gateway.usage` 조인 필요(§10).
 
@@ -613,9 +605,7 @@ Police, family, volunteers search for eighth-grader .
   "excluded_low_parse_valid": [],
   "cheapest_model": "glm",
   "fastest_model": "glm",
-  "unpriced_models": [
-    "kimi"
-  ],
+  "unpriced_models": [],
   "perf": {
     "opus": {
       "n_calls": 420,
@@ -640,13 +630,9 @@ Police, family, volunteers search for eighth-grader .
       "errors": 9,
       "latency_ms_median": 1427.8,
       "latency_ms_p95": 19178.8,
-      "total_usd": null,
+      "total_usd": 1.19468,
       "in_tokens": 180667,
-      "out_tokens": 43512,
-      "pricing_missing": true,
-      "unpriced_calls": 411,
-      "endpoint": "databricks-kimi-k3",
-      "pricing_missing_reason": "endpoint_not_in_pricing_yaml"
+      "out_tokens": 43512
     },
     "glm": {
       "n_calls": 240,

@@ -518,6 +518,16 @@ def _rule_based_summary(facts: dict[str, Any]) -> str:
     if facts.get("cheapest_model"):
         ch = facts["cheapest_model"]
         parts.append(f"비용은 **{ch}**가 가장 낮다(${facts['perf'][ch]['total_usd']}).")
+        priced_costs = [
+            (model, values.get("total_usd"))
+            for model, values in facts.get("perf", {}).items()
+            if isinstance(values.get("total_usd"), (int, float))
+        ]
+        if len(priced_costs) > 1:
+            ordered = ", ".join(
+                f"{model} ${cost:.6f}" for model, cost in sorted(priced_costs, key=lambda x: x[1])
+            )
+            parts.append(f"전체 추정 비용은 낮은 순서로 {ordered}다.")
     if facts.get("unpriced_models"):
         # 단가 누락을 요약에 명시한다 — 조용히 빼면 "왜 이 모델이 비용 비교에 없나"를 알 수 없다.
         parts.append(

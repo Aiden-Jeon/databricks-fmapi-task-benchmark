@@ -46,6 +46,7 @@ Databricks Foundation Model API(FMAPI)로 서빙되는 LLM들의 **이미지·�
 | opus | `databricks-claude-opus-5` | ✅ | |
 | sol | `databricks-gpt-5-6-sol` | ✅ | |
 | glm | `databricks-glm-5-2` | ❌ | 이미지 입력 미지원 → 이미지 태스크는 **N/A**로 자동 스킵 |
+| kimi | `databricks-kimi-k3` | ✅ | 동시 호출 제한을 고려해 concurrency 2 |
 | judge | `databricks-gemini-3-1-pro` | ✅ | LLM-as-judge (평가 대상과 다른 계열로 bias 최소화, 텍스트·이미지 모두 채점) |
 
 > vision 지원 여부는 `ai_devtools` 워크스페이스에서 **실제 이미지 호출로 검증**됨.
@@ -158,7 +159,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 
 > "image-text-performance 벤치마크를 10샘플로 돌려서 리포트를 새로 뽑아줘."
 
-- 3모델(opus·sol·glm) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **36셀**(모델을 하나 추가하면 +14셀).
+- 4모델(opus·sol·glm·kimi) × 14태스크 × reasoning OFF로 실행하고, `reports/<run-id>/`에 리포트·그래프·정성 갤러리·고객용 프레젠테이션(HTML)을 생성한다. glm은 vision 미지원이라 이미지 6태스크가 N/A → 실제 **50셀**.
 - **종료 코드로 성패를 알린다**: 채점 오류·실패율 과다 셀이 있거나 전체 호출 실패율이 10%를 넘으면 `exit 1`(리포트는 그대로 생성됨). 자동화가 실패를 성공으로 오판하지 않게 하기 위함이다.
 - **리포트를 리셋하고 새로 뽑을 때(`--fresh`) 이전 결과를 먼저 지우지 않는다**: 새 리포트가 완성되고 종료 코드 판정까지 통과한 뒤에 이전 run을 `.trash/`로 옮긴다(삭제 아님). 정리 도중이나 정리 직후 단계에서 실패하면 옮긴 것을 **전부 제자리로 되돌린다**. 그래서 "새 리포트도 없고 옛 리포트도 없는" 상태가 되지 않는다.
 - 빠른 확인만 원하면: > "opus와 sol만 텍스트 태스크로 3샘플만 빠르게 돌려줘."
@@ -212,7 +213,7 @@ reasoning 모드·pricing·코드 커밋 SHA가 기록되어 재현 가능하다
 - **비용 공식**: `usd = usd_per_dbu × (billable_input×dbu_in + billable_output×dbu_out + cache…) / 1e6`
 - **reasoning 토큰 주의**: `billable_output = completion_tokens + reasoning_tokens`. reasoning 토큰이
   `completion_tokens`에 포함되지 않으므로, 이를 빼먹으면 비용이 크게 과소 계상된다.
-- **단가 확정 상태**: DBU 단가는 Databricks 공식 pricing 페이지에서 2개 소스로 교차검증(GLM-5.2는 재확인 완료). `usd_per_dbu=0.07`은 Premium Model Serving 표준단가로 확정 채택 — `system.billing`은 워크스페이스 권한이 없어 계약별 실단가 대조는 불가(권한 확보 시 사후 대조 가능). 계약 단가가 다르면 `pricing.yaml`의 이 한 줄만 바꾸면 전체 비용이 재계산된다.
+- **단가 확정 상태**: DBU 단가는 Databricks 공식 pricing 페이지 기준이며, Kimi K3도 2026-08-13 공식 Foundation Model Serving 가격표에서 입력 42.857·출력 214.286 DBU/백만 토큰으로 확인했다. `usd_per_dbu=0.07`은 Premium Model Serving 표준단가로 채택 — `system.billing`은 워크스페이스 권한이 없어 계약별 실단가 대조는 불가(권한 확보 시 사후 대조 가능). 계약 단가가 다르면 `pricing.yaml`의 이 한 줄만 바꾸면 전체 비용이 재계산된다.
 
 ---
 

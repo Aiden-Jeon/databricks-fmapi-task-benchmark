@@ -138,9 +138,7 @@
   "excluded_low_parse_valid": [],
   "cheapest_model": "glm",
   "fastest_model": "glm",
-  "unpriced_models": [
-    "kimi"
-  ],
+  "unpriced_models": [],
   "perf": {
     "opus": {
       "n_calls": 420,
@@ -165,13 +163,9 @@
       "errors": 9,
       "latency_ms_median": 1427.8,
       "latency_ms_p95": 19178.8,
-      "total_usd": null,
+      "total_usd": 1.19468,
       "in_tokens": 180667,
-      "out_tokens": 43512,
-      "pricing_missing": true,
-      "unpriced_calls": 411,
-      "endpoint": "databricks-kimi-k3",
-      "pricing_missing_reason": "endpoint_not_in_pricing_yaml"
+      "out_tokens": 43512
     },
     "glm": {
       "n_calls": 240,

@@ -15,12 +15,25 @@ def test_load_pricing():
     assert "models" in pricing
     assert pricing["usd_per_dbu"] == 0.07
 
-    # 4개 모델 모두 있어야 함
+    # 평가 모델 4개와 judge 모두 있어야 함
     models = pricing["models"]
     assert "databricks-claude-opus-5" in models
     assert "databricks-gpt-5-6-sol" in models
     assert "databricks-glm-5-2" in models
+    assert "databricks-kimi-k3" in models
     assert "databricks-gemini-3-1-pro" in models
+
+
+def test_compute_usd_kimi_k3_official_flat_rate():
+    """Kimi K3 공식 Global 단가(2026-08-13 확인)를 적용한다."""
+    pricing = load_pricing("config/pricing.yaml")
+    usage = {"prompt_tokens": 100_000, "completion_tokens": 10_000}
+
+    usd = compute_usd("databricks-kimi-k3", usage, pricing)
+
+    expected = 0.07 * (100_000 * 42.857 + 10_000 * 214.286) / 1e6
+    assert usd is not None
+    assert abs(usd - expected) < 0.001
 
 
 def test_compute_usd_glm_flat_rate():

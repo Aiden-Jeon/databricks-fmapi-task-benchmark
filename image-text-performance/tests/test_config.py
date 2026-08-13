@@ -74,11 +74,7 @@ def test_judge_not_in_evaluated_models(config):
     assert config.judge not in {m.endpoint for m in config.models}
 
 
-# 확정 단가를 구하지 못해 **의도적으로** pricing.yaml에서 뺀 모델(비용 비교에서만 제외,
-# 성능 비교는 정상). 추측 단가를 넣으면 "가장 저렴/비싼"으로 오선정되므로 비우는 게 맞다.
-# 여기에 명시된 모델만 미등록이 허용된다 — 그 외 누락은 여전히 실패한다(가드 유지).
-# 확정 단가를 구하면 pricing.yaml에 추가하고 이 목록에서 빼면 된다.
-KNOWN_UNPRICED = {"kimi"}  # databricks-kimi-k3: 공개 단가 미확인(2026-08-07). pricing.yaml 주석 참고.
+KNOWN_UNPRICED: set[str] = set()
 
 
 def test_all_models_have_pricing(config):

@@ -66,7 +66,8 @@ def build_presentation(
     </section>""")
 
     # 슬라이드 3: Executive Summary (규칙기반 대조용 <sub>...</sub> 꼬리는 고객용에선 제거)
-    clean_summary = summary.split("<sub>")[0].strip()
+    # Markdown 강조 표시는 HTML 슬라이드에서 그대로 노출하지 않는다.
+    clean_summary = summary.split("<sub>")[0].strip().replace("**", "").replace("`", "")
     slides.append(f"""
     <section class="slide">
       <h2>핵심 요약 (Executive Summary)</h2>
