@@ -1,0 +1,16 @@
+{
+  "profile": "newjeans-ontos",
+  "catalog": "newjeans_ontos_catalog",
+  "schemas": {"packs": "kmle_packs", "private": "kmle_private", "results": "kmle_results"},
+  "volumes": {"packs": "packs", "private": "private", "results": "artifacts"},
+  "secret_scope": "kmle",
+  "secret_key": "pat",
+  "workspace_runner_dir": "/Users/hyunsung.kim@databricks.com/kmle",
+  "lanes": {
+    "L1": {"agent": "Claude Code", "model": "databricks-claude-opus-5"},
+    "L2": {"agent": "Codex CLI", "model": "gpt-5.6-sol"},
+    "L3": {"agent": "opencode", "model": "databricks-glm-5-2"},
+    "L4": {"agent": "Genie Code (manual)", "model": "as-shipped"}
+  },
+  "caps": {"wall_seconds": 7200, "smoke_seconds": 600}
+}

@@ -9,7 +9,9 @@
 방법론은 OpenAI [MLE-bench](https://github.com/openai/mle-bench)를 한국어·Databricks로 이식했다.
 
 > 상세 결과·해석은 [FINDINGS.md](./FINDINGS.md), 실험 설계는 [METHODOLOGY.md](./METHODOLOGY.md),
-> 비용은 [COST.md](./COST.md). 이 README는 개요·결론·재현법 요약.
+> 비용은 [COST.md](./COST.md), **처음부터 다시 돌리는 법**은 [REPRODUCE.md](./REPRODUCE.md)
+> (하네스 전체가 `harness/`에 있다), **시점별·모델 추가 시 성능 추적**은
+> [TIMELINE.md](./TIMELINE.md). 이 README는 개요·결론·재현법 요약.
 
 ---
 

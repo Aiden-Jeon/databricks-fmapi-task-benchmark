@@ -1,0 +1,73 @@
+task,model,endpoint,metric,higher_is_better,mean,std,se,n
+t1_pubg,opus,databricks-claude-opus-5,MAE,False,0.0572,0.059298,0.034236,3
+t1_pubg,sol,databricks-gpt-5-6-sol,MAE,False,0.024476,0.001278,0.000738,3
+t1_pubg,glm,databricks-glm-5-2,MAE,False,0.123713,0.124577,0.071924,3
+t2_spooky,opus,databricks-claude-opus-5,multiclass log loss,False,0.331945,0.077429,0.044703,3
+t2_spooky,sol,databricks-gpt-5-6-sol,multiclass log loss,False,0.363179,0.012987,0.007498,3
+t2_spooky,glm,databricks-glm-5-2,multiclass log loss,False,0.384283,0.03691,0.02131,3
+t3_ynat,opus,databricks-claude-opus-5,macro-F1,True,0.850042,0.001167,0.000826,2
+t3_ynat,sol,databricks-gpt-5-6-sol,macro-F1,True,0.840196,0.012095,0.006983,3
+t3_ynat,glm,databricks-glm-5-2,macro-F1,True,0.844189,0.001361,0.000963,2
+t4_nsmc,opus,databricks-claude-opus-5,accuracy,True,0.877018,0.006693,0.003864,3
+t4_nsmc,sol,databricks-gpt-5-6-sol,accuracy,True,0.876674,0.001379,0.000796,3
+t4_nsmc,glm,databricks-glm-5-2,accuracy,True,0.870296,0.000424,0.0003,2
+t5_bike,opus,databricks-claude-opus-5,RMSE,False,316.870012,15.69205,9.059809,3
+t5_bike,sol,databricks-gpt-5-6-sol,RMSE,False,223.21323,21.733406,12.547788,3
+t5_bike,glm,databricks-glm-5-2,RMSE,False,249.05025,48.603837,28.061438,3
+t6_klue_nli,opus,databricks-claude-opus-5,accuracy,True,0.8758,0.003394,0.0024,2
+t6_klue_nli,sol,databricks-gpt-5-6-sol,accuracy,True,0.8745,0.034083,0.0241,2
+t6_klue_nli,glm,databricks-glm-5-2,accuracy,True,0.517,0.070812,0.040883,3
+t7_klue_sts,opus,databricks-claude-opus-5,Pearson,True,0.958596,0.00474,0.002737,3
+t7_klue_sts,sol,databricks-gpt-5-6-sol,Pearson,True,0.94813,0.000694,0.000401,3
+t7_klue_sts,glm,databricks-glm-5-2,Pearson,True,0.915756,0.044579,0.025738,3
+t8_beep,opus,databricks-claude-opus-5,macro-F1,True,0.586675,0.01322,0.007633,3
+t8_beep,sol,databricks-gpt-5-6-sol,macro-F1,True,0.563467,0.001677,0.000968,3
+t8_beep,glm,databricks-glm-5-2,macro-F1,True,0.551116,0.012395,0.008765,2
+t9_korquad,opus,databricks-claude-opus-5,char-F1,True,0.515874,0.046723,0.026976,3
+t9_korquad,sol,databricks-gpt-5-6-sol,char-F1,True,0.422683,0.015121,0.010692,2
+t9_korquad,glm,databricks-glm-5-2,char-F1,True,0.048405,0.0,0.0,1
+t10_kornli,opus,databricks-claude-opus-5,accuracy,True,0.623472,0.021397,0.012353,3
+t10_kornli,sol,databricks-gpt-5-6-sol,accuracy,True,0.615222,0.018888,0.010905,3
+t10_kornli,glm,databricks-glm-5-2,accuracy,True,0.527833,0.032598,0.018821,3
+t11_korsts,opus,databricks-claude-opus-5,Pearson,True,0.79144,0.010263,0.005925,3
+t11_korsts,sol,databricks-gpt-5-6-sol,Pearson,True,0.745548,0.008302,0.004793,3
+t11_korsts,glm,databricks-glm-5-2,Pearson,True,0.753396,0.005473,0.00387,2
+t12_kobest_boolq,opus,databricks-claude-opus-5,accuracy,True,0.604821,0.009869,0.005698,3
+t12_kobest_boolq,sol,databricks-gpt-5-6-sol,accuracy,True,0.602547,0.004386,0.002532,3
+t12_kobest_boolq,glm,databricks-glm-5-2,accuracy,True,0.574807,0.042101,0.024307,3
+t13_kobest_copa,opus,databricks-claude-opus-5,accuracy,True,0.639069,0.019024,0.010983,3
+t13_kobest_copa,sol,databricks-gpt-5-6-sol,accuracy,True,0.590368,0.003749,0.002164,3
+t13_kobest_copa,glm,databricks-glm-5-2,accuracy,True,0.603896,0.018366,0.012987,2
+t14_kobest_wic,opus,databricks-claude-opus-5,accuracy,True,0.628514,0.011303,0.006526,3
+t14_kobest_wic,sol,databricks-gpt-5-6-sol,accuracy,True,0.595884,0.008695,0.00502,3
+t14_kobest_wic,glm,databricks-glm-5-2,accuracy,True,0.618223,0.026623,0.018825,2
+t15_kobest_hellaswag,opus,databricks-claude-opus-5,accuracy,True,0.678571,0.047025,0.033251,2
+t15_kobest_hellaswag,sol,databricks-gpt-5-6-sol,accuracy,True,0.627258,0.010254,0.00592,3
+t15_kobest_hellaswag,glm,databricks-glm-5-2,accuracy,True,0.578818,0.030862,0.017818,3
+t16_kobest_sentineg,opus,databricks-claude-opus-5,accuracy,True,0.957534,0.002373,0.00137,3
+t16_kobest_sentineg,sol,databricks-gpt-5-6-sol,accuracy,True,0.953881,0.004185,0.002416,3
+t16_kobest_sentineg,glm,databricks-glm-5-2,accuracy,True,0.95274,0.002906,0.002055,2
+t17_pawsx_ko,opus,databricks-claude-opus-5,accuracy,True,0.797389,0.043754,0.025262,3
+t17_pawsx_ko,sol,databricks-gpt-5-6-sol,accuracy,True,0.760167,0.010702,0.006179,3
+t17_pawsx_ko,glm,databricks-glm-5-2,accuracy,True,0.701334,0.024619,0.014214,3
+t18_klue_re,opus,databricks-claude-opus-5,accuracy,True,0.771251,0.004246,0.003002,2
+t18_klue_re,sol,databricks-gpt-5-6-sol,accuracy,True,0.729237,0.011874,0.006855,3
+t18_klue_re,glm,databricks-glm-5-2,accuracy,True,0.715122,0.00824,0.004757,3
+t19_klue_mrc,opus,databricks-claude-opus-5,char-F1,True,0.33637,0.013934,0.008045,3
+t19_klue_mrc,sol,databricks-gpt-5-6-sol,char-F1,True,0.33746,0.00739,0.004267,3
+t19_klue_mrc,glm,databricks-glm-5-2,char-F1,True,0.027293,0.0,0.0,1
+t20_klue_ner,opus,databricks-claude-opus-5,entity-F1,True,0.786001,0.111484,0.064366,3
+t20_klue_ner,sol,databricks-gpt-5-6-sol,entity-F1,True,0.769161,0.027387,0.015812,3
+t20_klue_ner,glm,databricks-glm-5-2,entity-F1,True,0.756173,0.019141,0.011051,3
+t21_kmmlu,opus,databricks-claude-opus-5,accuracy,True,0.339444,0.014199,0.008198,3
+t21_kmmlu,sol,databricks-gpt-5-6-sol,accuracy,True,0.323889,0.024056,0.013889,3
+t21_kmmlu,glm,databricks-glm-5-2,accuracy,True,0.3075,0.0,0.0,1
+t23_korfin_asc,opus,databricks-claude-opus-5,macro-F1,True,0.718908,0.020814,0.012017,3
+t23_korfin_asc,sol,databricks-gpt-5-6-sol,macro-F1,True,0.675672,0.00388,0.00224,3
+t23_korfin_asc,glm,databricks-glm-5-2,macro-F1,True,0.683072,0.013982,0.009886,2
+t24_kor_unsmile,opus,databricks-claude-opus-5,macro-F1 (multi-label),True,0.705987,0.038311,0.02709,2
+t24_kor_unsmile,sol,databricks-gpt-5-6-sol,macro-F1 (multi-label),True,0.714047,0.006616,0.00382,3
+t24_kor_unsmile,glm,databricks-glm-5-2,macro-F1 (multi-label),True,0.702564,0.009562,0.006761,2
+t25_klue_dp,opus,databricks-claude-opus-5,LAS,True,0.719497,0.129694,0.074879,3
+t25_klue_dp,sol,databricks-gpt-5-6-sol,LAS,True,0.767409,0.029959,0.017297,3
+t25_klue_dp,glm,databricks-glm-5-2,LAS,True,0.698206,0.065514,0.037824,3

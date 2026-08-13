@@ -1,0 +1,32 @@
+{
+  "id": "2026-08-v1",
+  "frozen_utc": "2026-08-13T01:20:37Z",
+  "harness": {
+    "scaffold": "opencode",
+    "pin": "opencode-ai@0.0.0-beta-202605152242",
+    "lanes": {
+      "M1": "opus",
+      "M2": "sol",
+      "M3": "glm"
+    }
+  },
+  "models": {
+    "glm": {
+      "name": "GLM 5.2",
+      "endpoint": "databricks-glm-5-2"
+    },
+    "opus": {
+      "name": "Opus 5",
+      "endpoint": "databricks-claude-opus-5"
+    },
+    "sol": {
+      "name": "GPT-5.6-sol",
+      "endpoint": "databricks-gpt-5-6-sol"
+    }
+  },
+  "campaign_window": {
+    "first_submitted_utc": "2026-07-30T08:53:52Z",
+    "last_submitted_utc": "2026-08-04T03:36:03Z"
+  },
+  "notes": "첫 3모델 캠페인 (Opus 5 / GPT-5.6-sol / GLM 5.2), 24 tasks × n≤3"
+}

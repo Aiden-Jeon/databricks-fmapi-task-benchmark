@@ -20,3 +20,11 @@ __pycache__/
 .env
 *.token
 access_token
+
+# mle-benchmark harness working data — rebuilt locally by fetch_raw25.py /
+# prepare.py. `private/` holds hidden-split ANSWER KEYS: never commit.
+mle-benchmark/raw/
+mle-benchmark/packs/
+mle-benchmark/private/
+mle-benchmark/results/direct/
+mle-benchmark/results/*.log
