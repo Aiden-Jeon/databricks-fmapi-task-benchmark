@@ -1,0 +1,56 @@
+{
+  "run_id": "all",
+  "description": "Custom Agent 벤치마크 통합 런 — 2 시나리오 × 6 케이스 × 3 모델 × 5 회",
+  "generated_utc": "2026-08-14T05:55:04.330756+00:00",
+  "profile": "ai_devtools",
+  "workspace": "ai-devtools-prod (dbc-a5d4177a-49dc)",
+  "arms": {
+    "opus": {
+      "model": "system.ai.claude-opus-5",
+      "params": {
+        "thinking": {
+          "type": "adaptive"
+        }
+      },
+      "concurrency": 6
+    },
+    "sol": {
+      "model": "system.ai.gpt-5-6-sol",
+      "params": {
+        "reasoning_effort": "none"
+      },
+      "concurrency": 6
+    },
+    "glm": {
+      "model": "system.ai.glm-5-2",
+      "params": {
+        "reasoning_effort": "none"
+      },
+      "concurrency": 2
+    }
+  },
+  "scenarios": {
+    "azure_troubleshoot": [
+      "A-1",
+      "A-2",
+      "A-3",
+      "A-4",
+      "A-5",
+      "A-6"
+    ],
+    "insurance_policy": [
+      "B-1",
+      "B-2",
+      "B-3",
+      "B-4",
+      "B-5",
+      "B-6"
+    ]
+  },
+  "repeats": 5,
+  "total_sessions": 180,
+  "outcomes": {
+    "ok": 180
+  },
+  "note": "arm별 병렬 실행 후 병합. raw.jsonl 은 재생성 가능하므로 gitignore, scored/report/manifest 만 커밋."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "A-4",
+  "scenario": "azure_troubleshoot",
+  "title": "어제까지 되던 job 이 cluster 생성 단계에서 실패 — cluster policy 위반 (fault 주입)",
+  "prompt": "매일 돌던 job 이 오늘부터 클러스터 생성 단계에서 실패합니다. 노트북 코드는 바꾼 게 없습니다. 에러에 'Cluster validation error' 가 보입니다. run_id 는 run-8842, job 의 클러스터에는 cluster policy pol-standard 가 걸려 있습니다.",
+  "fixtures": {
+    "get_job_run:run-8842": {
+      "run_id": "run-8842",
+      "state": "INTERNAL_ERROR",
+      "message": "Cluster validation error: Validation failed for node_type_id, the value must be one of [Standard_DS3_v2, Standard_DS4_v2] (is \"Standard_D4ds_v5\").",
+      "new_cluster": { "node_type_id": "Standard_D4ds_v5", "num_workers": 4, "policy_id": "pol-standard" }
+    },
+    "get_cluster_policy:pol-standard": {
+      "policy_id": "pol-standard",
+      "definition": {
+        "node_type_id": { "type": "allowlist", "values": ["Standard_DS3_v2", "Standard_DS4_v2"] },
+        "num_workers": { "type": "range", "maxValue": 8 }
+      },
+      "modified_ts": "2026-08-13T22:10:00Z",
+      "note": "어제 22:10 에 node_type_id allowlist 가 갱신됨 (기존 D-계열 제거)"
+    },
+    "get_doc:cluster_policies": "cluster policy 는 클러스터 생성 시 필드별 제약(고정값·allowlist·range)을 강제한다. job 의 new_cluster 스펙이 연결된 policy 의 allowlist 를 벗어나면 클러스터 생성 단계에서 'Cluster validation error: Validation failed for <field>, the value must be ...' 로 실패한다. 노트북 코드와 무관하다. 조치: job 의 node_type 을 allowlist 값으로 바꾸거나, policy 의 allowlist 를 수정한다.",
+    "get_doc:cluster_error_codes": "INTERNAL_ERROR / Cluster validation error 는 policy 위반 시 잡 실행 시작 전 클러스터 프로비저닝 단계에서 발생한다."
+  },
+  "fault": { "tool": "get_job_run", "on_call": 1, "error": "RequestTimeout: Jobs API 응답 지연 (503). 재시도하십시오." },
+  "expect": {
+    "answer_key": "cluster_policy_node_type_not_allowed",
+    "answer_detail": "job 의 new_cluster node_type_id 가 Standard_D4ds_v5 인데, 어제(08-13 22:10) 갱신된 cluster policy pol-standard 의 node_type allowlist([Standard_DS3_v2, Standard_DS4_v2])를 벗어나 클러스터 생성이 거부됨. 코드 변경과 무관. 조치: job 의 node_type 을 allowlist 값으로 변경하거나 policy allowlist 에 D4ds_v5 를 추가. (첫 get_job_run 은 503 → 재시도 필요)",
+    "required_tools": ["get_job_run", "get_cluster_policy"],
+    "required_clues": ["에러가 cluster policy validation", "node_type 이 allowlist 밖", "policy 가 어제 갱신됨", "코드 변경 아님", "재시도로 실패 복구"],
+    "trap_answers": ["DBR 버전 문제", "라이브러리 설치 실패", "노드 용량 부족", "노트북 코드 오류"],
+    "max_steps": 10,
+    "should_ask": false
+  }
+}

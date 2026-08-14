@@ -1,0 +1,34 @@
+{
+  "id": "A-2",
+  "scenario": "azure_troubleshoot",
+  "title": "jumpbox 는 private IP, 클러스터는 부트스트랩 타임아웃 — spoke VNet DNS 미링크",
+  "prompt": "Private Link 로 프론트엔드/백엔드를 다 잡고 퍼블릭 인터넷을 차단했습니다. 클러스터가 Running 까지는 가는데 부트스트랩에서 타임아웃이 납니다. VPN 붙은 제 PC(jumpbox)에서 nslookup 하면 workspace 호스트가 private IP(10.x)로 잘 뜹니다. cluster_id 는 clu-a2, workspace 호스트는 adb-1234.azuredatabricks.net, Private DNS Zone 은 privatelink.azuredatabricks.net 입니다.",
+  "fixtures": {
+    "get_cluster_events:clu-a2": [
+      { "type": "STARTING", "ts": "2026-08-14T09:00:00Z" },
+      { "type": "DRIVER_HEALTHY", "ts": "2026-08-14T09:01:30Z" },
+      { "type": "TERMINATING", "reason": "BOOTSTRAP_TIMEOUT_DUE_TO_MISCONFIG", "ts": "2026-08-14T09:06:00Z", "detail": "init script / metastore 연결 실패, 이름 해석 실패로 추정" }
+    ],
+    "nslookup:adb-1234.azuredatabricks.net:jumpbox": { "host": "adb-1234.azuredatabricks.net", "resolved_ip": "10.150.2.20", "type": "A (private)" },
+    "nslookup:adb-1234.azuredatabricks.net:cluster": { "host": "adb-1234.azuredatabricks.net", "resolved_ip": "20.62.135.11", "type": "A (public) — private endpoint 로 해석되지 않음" },
+    "get_azure_resource:dns_zone_links:privatelink.azuredatabricks.net": {
+      "zone": "privatelink.azuredatabricks.net",
+      "vnet_links": [
+        { "vnet": "vnet-hub", "id": "/subscriptions/xxx/.../virtualNetworks/vnet-hub" }
+      ],
+      "note": "클러스터 서브넷이 속한 vnet-spoke-databricks 링크 없음"
+    },
+    "get_cluster_config:clu-a2": { "cluster_id": "clu-a2", "vnet": "vnet-spoke-databricks", "subnet": "sn-databricks-private", "node_type_id": "Standard_DS3_v2", "dns_servers": "Azure default (168.63.129.16)" },
+    "get_doc:private_link_dns": "Private Endpoint 의 DNS 해석은 privatelink 존이 조회를 수행하는 VNet 에 링크돼 있어야 동작한다. Hub-Spoke 구조에서 가장 흔한 원인(most common reason)은 privatelink 존이 hub VNet 에만 링크되고 클러스터가 실행되는 spoke VNet 에는 링크되지 않은 경우다. 이때 spoke 의 노드는 기본 DNS(168.63.129.16)로 조회해 public IP 또는 NXDOMAIN 을 받고, public 이 차단돼 있으면 연결에 실패한다. 조치: az network private-dns link vnet create 로 존을 spoke VNet 에 링크한다."
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "private_dns_zone_not_linked_to_spoke_vnet",
+    "answer_detail": "privatelink.azuredatabricks.net 존이 hub VNet 에만 링크되고 클러스터의 spoke VNet(vnet-spoke-databricks)에 미링크. 그래서 jumpbox(hub)는 private IP 로, 클러스터(spoke)는 public IP 로 해석된다. 조치: 해당 존을 spoke VNet 에 링크.",
+    "required_tools": ["nslookup", "get_azure_resource", "get_cluster_config"],
+    "required_clues": ["jumpbox 와 클러스터의 DNS 결과가 다름", "존이 spoke VNet 에 미링크", "존을 spoke 에 링크"],
+    "trap_answers": ["Private Endpoint 재생성", "NSG 완화", "커스텀 DNS 포워딩 오류", "jumpbox 는 정상이니 DNS 문제 아님"],
+    "max_steps": 10,
+    "should_ask": false
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "A-3",
+  "scenario": "azure_troubleshoot",
+  "title": "Access Connector RBAC 는 맞는데 경로 직접 읽기가 PERMISSION_DENIED — UC READ FILES grant 누락",
+  "prompt": "분석가 그룹이 external location 경로에서 COPY INTO 로 데이터를 적재하려는데 PERMISSION_DENIED 가 납니다 (abfss 경로 직접 접근). Access Connector 의 managed identity 에는 스토리지 권한을 제대로 줬고, 저(관리자)는 같은 경로가 잘 읽힙니다. external location 이름은 ext-sales, storage credential 은 sc-sales, 문제의 그룹은 analysts-kr, cluster_id 는 clu-a3 입니다.",
+  "fixtures": {
+    "get_logs:clu-a3": "org.apache.spark.sql.AnalysisException: [PERMISSION_DENIED] User does not have READ FILES on External Location 'ext-sales'. SQLSTATE: 42501 (COPY INTO source: abfss://sales@stgsales.dfs.core.windows.net/incoming/)",
+    "describe_uc_securable:external_location:ext-sales": {
+      "name": "ext-sales",
+      "url": "abfss://sales@stgsales.dfs.core.windows.net/",
+      "storage_credential": "sc-sales",
+      "owner": "admins",
+      "validation": "PASSED"
+    },
+    "describe_uc_securable:storage_credential:sc-sales": {
+      "name": "sc-sales",
+      "type": "azure_managed_identity",
+      "access_connector_id": "/subscriptions/xxx/resourceGroups/rg-sales/providers/Microsoft.Databricks/accessConnectors/ac-sales",
+      "validation": "PASSED"
+    },
+    "get_uc_grants:external_location:ext-sales": {
+      "securable": "ext-sales",
+      "grants": [
+        { "principal": "admins", "privileges": ["ALL PRIVILEGES"] }
+      ],
+      "note": "analysts-kr 에 대한 READ FILES 없음"
+    },
+    "get_azure_resource:role_assignments:ac-sales": {
+      "principal": "ac-sales (managed identity)",
+      "assignments": [
+        { "role": "Storage Blob Data Contributor", "scope": ".../storageAccounts/stgsales" },
+        { "role": "Storage Blob Delegator", "scope": ".../storageAccounts/stgsales" }
+      ],
+      "note": "Azure data-plane RBAC 정상"
+    },
+    "get_doc:uc_external_location_privileges": "external location 의 파일 기반 접근에는 Unity Catalog 객체 수준 권한이 필요하다. storage credential 과 external location 이 검증(PASSED)되어 있어도, 사용자는 external location 에 대한 READ FILES 권한이 있어야 파일을 읽을 수 있다. 조치: GRANT READ FILES ON EXTERNAL LOCATION <name> TO <principal>. 이는 Access Connector 의 Azure RBAC(Storage Blob Data Contributor 등)와는 별개의 계층이다.",
+    "get_doc:uc_azure_managed_identity": "Access Connector 의 managed identity 에는 데이터 접근을 위한 Storage Blob Data Contributor 와, user delegation SAS 발급을 위한 Storage Blob Delegator 가 storage account 스코프로 필요하다. 이 RBAC 가 충족되면 storage credential 검증이 PASSED 된다. 사용자별 접근 허용은 별도의 UC grant 로 제어된다."
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "missing_uc_read_files_grant",
+    "answer_detail": "경로 직접 접근(COPY INTO)에는 external location 의 READ FILES 권한이 필요하다. storage credential·external location 검증은 PASSED 이고 Access Connector 의 Azure RBAC 도 정상(관리자는 읽힘). analysts-kr 그룹에 external location 의 READ FILES grant 가 없어 PERMISSION_DENIED. 조치: GRANT READ FILES ON EXTERNAL LOCATION ext-sales TO `analysts-kr`. (Azure RBAC 계층이 아니라 UC grant 계층 문제)",
+    "required_tools": ["get_logs", "get_uc_grants"],
+    "required_clues": ["에러가 READ FILES on External Location", "grant 목록에 analysts-kr 없음", "Access Connector Azure RBAC 는 정상", "관리자는 조회되므로 스토리지 접근 자체는 정상"],
+    "trap_answers": ["Access Connector 에 Storage Blob Data Contributor 재부여", "storage credential 재생성", "external location URL 수정", "Azure RBAC 스코프 상향"],
+    "max_steps": 10,
+    "should_ask": false
+  }
+}

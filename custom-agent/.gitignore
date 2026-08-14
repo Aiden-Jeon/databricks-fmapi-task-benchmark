@@ -1,0 +1,11 @@
+# Python env / caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# 대용량 원시 실행 데이터. 재현 스크립트(src/runner.py)가 있으므로 요약만 커밋한다.
+# manifest.json / report.json / scored.jsonl / grade_results.json 은 커밋한다.
+# 필요하면 `git add -f results/all/raw.jsonl` 로 명시 추가.
+results/*/raw.jsonl

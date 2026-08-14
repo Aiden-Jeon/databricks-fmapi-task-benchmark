@@ -1,0 +1,26 @@
+{
+  "id": "A-6",
+  "scenario": "azure_troubleshoot",
+  "title": "배치가 dbfs:/mnt 읽기에서 'Public DBFS root is disabled' — 마운트 폐지 (최신 자료 필요)",
+  "prompt": "잘 돌던 배치 job 이 dbfs:/mnt/raw 경로를 읽는 단계에서 실패합니다. 에러에 'Public DBFS root is disabled' 가 보입니다. 워크스페이스 관리자가 최근 보안 설정을 바꿨다고는 합니다. run_id 는 run-9001, cluster_id 는 clu-a6 입니다. 원인과 조치를 알려주세요.",
+  "fixtures": {
+    "get_job_run:run-9001": {
+      "run_id": "run-9001", "state": "FAILED",
+      "message": "java.lang.UnsupportedOperationException: Public DBFS root is disabled. Access to dbfs:/mnt/raw is not allowed.",
+      "cluster_id": "clu-a6"
+    },
+    "get_logs:clu-a6": "py4j.protocol.Py4JJavaError: An error occurred while calling o123.load. : java.lang.UnsupportedOperationException: Public DBFS root is disabled. (dbfs:/mnt/raw/2026-08-14/*.parquet)",
+    "get_cluster_config:clu-a6": { "cluster_id": "clu-a6", "spark_version": "15.4.x-scala2.12", "unity_catalog": true, "note": "DBR 15.4 LTS, UC 활성" },
+    "get_doc:dbfs_root_disabled": "워크스페이스에서 DBFS 루트/마운트를 비활성화하면 dbfs:/mnt, dbfs:/FileStore 등 공용 DBFS 루트 접근이 'Public DBFS root is disabled' 오류로 차단된다(예약 네임스페이스 /Volumes, /Workspace, databricks-datasets 만 접근 가능). 이는 의도된 보안 설정이며 마운트 자격 증명 문제가 아니다. 조치: 데이터를 Unity Catalog 볼륨(/Volumes/...) 또는 external location(abfss://...) 경로로 접근하도록 변경한다. DBFS 마운트를 되살리는 것은 권장되지 않으며 관리자 정책과 배치된다."
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "dbfs_root_disabled_use_volumes",
+    "answer_detail": "관리자가 DBFS 루트/마운트를 비활성화해서 dbfs:/mnt 접근이 'Public DBFS root is disabled' 로 차단됨. 마운트 자격 증명 문제가 아니라 의도된 정책. 조치: 데이터를 Unity Catalog 볼륨(/Volumes/...) 또는 external location(abfss://...) 경로로 읽도록 변경. DBFS 마운트 복구는 권장 안 됨.",
+    "required_tools": ["get_logs", "get_cluster_config", "get_doc"],
+    "required_clues": ["DBFS 루트/마운트 비활성화(의도된 정책)", "마운트 자격증명 문제 아님", "Volumes/external location 경로로 전환"],
+    "trap_answers": ["마운트 자격 증명 갱신", "DBFS 루트 재활성화", "mount 재생성", "스토리지 키 재발급"],
+    "max_steps": 9,
+    "should_ask": false
+  }
+}

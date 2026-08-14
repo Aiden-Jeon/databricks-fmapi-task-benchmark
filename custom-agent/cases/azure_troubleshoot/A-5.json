@@ -1,0 +1,30 @@
+{
+  "id": "A-5",
+  "scenario": "azure_troubleshoot",
+  "title": "코드 변경 없이 클러스터가 시작 실패 — DBFS init script 지원 종료 (최신 자료 필요)",
+  "prompt": "어제까지 잘 뜨던 클러스터가 오늘부터 시작 단계에서 실패합니다. 노트북·설정은 아무것도 안 바꿨습니다. 이벤트에 init script 관련 실패가 보입니다. cluster_id 는 clu-a5 입니다. 원인과 조치를 알려주세요.",
+  "fixtures": {
+    "get_cluster_events:clu-a5": [
+      { "type": "STARTING", "ts": "2026-08-14T08:00:00Z" },
+      { "type": "TERMINATING", "reason": "INIT_SCRIPT_FAILURE", "ts": "2026-08-14T08:01:10Z", "detail": "Init scripts on DBFS have reached end-of-life and can no longer be used. You must migrate your init scripts to a supported location before you can start compute. (path: dbfs:/databricks/scripts/setup.sh)" }
+    ],
+    "get_cluster_config:clu-a5": {
+      "cluster_id": "clu-a5",
+      "spark_version": "15.4.x-scala2.12",
+      "unity_catalog": true,
+      "init_scripts": [{ "dbfs": { "destination": "dbfs:/databricks/scripts/setup.sh" } }],
+      "note": "DBR 15.4 LTS, Unity Catalog 활성"
+    },
+    "get_doc:dbfs_init_scripts_eol": "DBFS 에 저장된 init script 는 지원이 종료(End-of-Life, 2023-12-01)되어 더 이상 사용할 수 없다. 해당 스크립트를 참조하는 클러스터는 시작되지 않는다. 지원되는 위치로 이관해야 한다: DBR 13.3 LTS 이상 + Unity Catalog → Unity Catalog 볼륨(/Volumes/...), DBR 11.3 LTS 이상(UC 미사용) → 워크스페이스 파일(/Workspace/...), DBR 10.4 LTS 이하 → 클라우드 오브젝트 스토리지(abfss://...). DBFS 권한·경로 문제가 아니라 기능 자체가 폐지된 것이다."
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "dbfs_init_script_eol_migrate",
+    "answer_detail": "DBFS 저장 init script 는 지원 종료(2023-12-01 EoL)되어 클러스터가 시작되지 않는다. 코드 변경과 무관하며 DBFS 권한/경로 문제가 아니다. 이 클러스터는 DBR 15.4 + UC 이므로 init script 를 Unity Catalog 볼륨(/Volumes/...)으로 이관해야 한다(워크스페이스 파일도 가능). 조치 후 클러스터 재시작.",
+    "required_tools": ["get_cluster_events", "get_cluster_config", "get_doc"],
+    "required_clues": ["DBFS init script 지원 종료", "권한/경로 문제 아님", "DBR 15.4 + UC → Volumes 로 이관"],
+    "trap_answers": ["DBFS 권한 수정", "스크립트 경로 수정", "스크립트 재업로드", "DBFS 마운트 재설정"],
+    "max_steps": 9,
+    "should_ask": false
+  }
+}

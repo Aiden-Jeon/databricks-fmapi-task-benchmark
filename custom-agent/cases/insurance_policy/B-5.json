@@ -1,0 +1,36 @@
+{
+  "id": "B-5",
+  "scenario": "insurance_policy",
+  "title": "갑상선암은 통합암이 아니라 통합소액암 — 강한 도메인 함정",
+  "prompt": "계약 C-1005 의 청구 CL-2005 건을 심사해 주세요. 지급 여부와 지급액을 판정하고 근거 조항을 밝혀 주세요.",
+  "fixtures": {
+    "get_contract:C-1005": {
+      "contract_id": "C-1005",
+      "contract_date": "2024-10-01",
+      "birth_date": "1982-08-08",
+      "riders": [
+        { "rider": "통합암진단특약", "sum_insured_krw": 10000000 },
+        { "rider": "통합소액암진단특약", "sum_insured_krw": 2000000 }
+      ]
+    },
+    "get_claim:CL-2005": {
+      "claim_id": "CL-2005",
+      "contract_id": "C-1005",
+      "diagnosis_date": "2026-01-15",
+      "diagnosis_code": "C73",
+      "surgery": null,
+      "reason": "갑상선암 진단"
+    },
+    "lookup_disease_code:C73": { "code": "C73", "name": "갑상선의 악성신생물", "policy_class": "통합소액암", "sub_benefit": "중증 이외 갑상선암", "standard_benefit_krw": 2000000, "note": "통합암진단특약에서는 제외됨(기타부위암 전이암 갑상선암 제외)" }
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "지급 200만원",
+    "answer_detail": "보장개시일 2024-12-30 이후 진단(지급 대상). 갑상선암(C73)은 통합암이 아니라 통합소액암 '중증 이외 갑상선암'으로 분류되어 진단금 200만원. 계약일(2024-10-01)로부터 1년 초과(진단 2026-01-15)이므로 감액 없음. 지급액 200만원. 통합암진단특약은 갑상선암을 제외하므로 1,000만원이 아니다.",
+    "required_tools": ["get_contract", "get_claim", "lookup_disease_code", "get_clause"],
+    "required_clues": ["갑상선암은 통합소액암 200만", "통합암(1000만) 아님 — 통합암진단특약에서 제외", "계약일 1년 초과라 감액 없음"],
+    "trap_answers": ["통합암 취급 1000만원", "감액 50% 적용 100만원"],
+    "max_steps": 12,
+    "should_ask": false
+  }
+}

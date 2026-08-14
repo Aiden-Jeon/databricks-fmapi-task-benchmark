@@ -1,0 +1,77 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_clause",
+      "description": "약관/상품 규칙에서 키워드가 포함된 조항을 검색하여 조항 ID와 제목 목록을 반환한다. 원문은 반환하지 않는다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keyword": { "type": "string", "description": "검색어. 예: '보장개시일', '소액암', '다빈치', '감액'" }
+        },
+        "required": ["keyword"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_clause",
+      "description": "조항 ID 로 약관/상품 규칙 원문을 반환한다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_id": { "type": "string", "description": "조항 ID. 예: '보장개시일', '통합암진단-지급액', '진단특약-감액', '다빈치수술특약-감액'" }
+        },
+        "required": ["clause_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_contract",
+      "description": "계약 ID 로 계약 메타데이터(계약일, 생년월일, 가입 특약 목록과 각 가입금액)를 반환한다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "contract_id": { "type": "string", "description": "계약 ID. 예: 'C-1001'" }
+        },
+        "required": ["contract_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_claim",
+      "description": "청구 ID 로 청구 내역(진단일, 진단코드, 수술일·수술종류, 청구 사유)을 반환한다. 진단일이 미상이면 diagnosis_date 가 null 로 반환된다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_id": { "type": "string", "description": "청구 ID. 예: 'CL-2001'" }
+        },
+        "required": ["claim_id"],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "lookup_disease_code",
+      "description": "진단코드(KCD)를 이 상품의 분류(통합암 부위 / 통합소액암 / 전이암 / 해당없음)와 표준 진단금으로 변환한다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "description": "KCD 진단코드. 예: 'C16', 'D05'" }
+        },
+        "required": ["code"],
+        "additionalProperties": false
+      }
+    }
+  }
+]
