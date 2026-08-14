@@ -259,6 +259,33 @@ n=1에서 가장 근접했던 승부의 차이는 0.10~0.67%인데, 동일 재�
 
 ---
 
+## 재현성 — 남이 그대로 돌릴 수 있는 범위
+
+이 폴더에는 결과물뿐 아니라 **하네스 전체가 코드로** 들어 있다. 위 설명과 repo의 대응:
+
+| 단계 | 위치 |
+|---|---|
+| 태스크 팩 생성 (spec·train·hidden split) | `harness/fetch_raw25.py` → `harness/prepare.py` |
+| 워크스페이스 부트스트랩 (볼륨·시크릿·러너 업로드) | `setup.sh` + `config.json` (프로필·카탈로그만 수정) |
+| 잡 제출·러너 (pinned opencode, 모델 셀렉터, 게이트웨이 배선) | `harness/submit_matrix.py` · `harness/runner.py` |
+| 킥오프 프롬프트 (전 모델 공통 1파일) | `harness/kickoff_prompt_ko.md` |
+| 채점·집계·통계 판정 | `harness/grade_run.py` · `scoreboard.py` · `aggregate_repeats.py` + `tests/` |
+| 문서·스냅샷·타임라인 재생성 | `harness/build_repo.py` · `snapshot.py` · `timeline.py` |
+| 캠페인 원장·동결 스냅샷 | `results/*.csv` · `snapshots/<id>/` |
+| 전체 순서 (0→6단계 명령어) | **[REPRODUCE.md](./REPRODUCE.md)** |
+
+의도적으로 repo에 **없는** 것 두 가지: ① 원본 데이터 — 재배포 불가라
+`fetch_raw25.py`가 공개 출처에서 직접 받는다(Kaggle 태스크는 본인 인증 필요).
+② 숨겨진 정답 키 — `prepare.py`가 fresh split으로 재생성하며 `.gitignore`가
+커밋을 차단한다. 전제 조건은 서버리스 Jobs + UC + AI Gateway + 해당
+pay-per-token 엔드포인트가 있는 Databricks 워크스페이스 하나.
+
+정직한 한계: split을 재생성하므로 **소수점 동일 재현이 아니라 통계적 재현**
+(같은 결론, 노이즈 밴드 안의 숫자)이고, Genie Code(L4)는 API가 없어 수동
+프로토콜(`harness/genie_code_protocol_ko.md`)로만 재현된다.
+
+---
+
 ## 실전 유의점
 
 - **DNF는 대부분 능력이 아니라 툴 사용/시간 예산 실패다.** 원래 3모델 216런에서 22 DNF, 2회 이상
