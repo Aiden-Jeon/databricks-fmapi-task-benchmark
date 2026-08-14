@@ -1,0 +1,37 @@
+{
+  "id": "2026-08-v2",
+  "frozen_utc": "2026-08-14T01:42:15Z",
+  "harness": {
+    "scaffold": "opencode",
+    "pin": "opencode-ai@0.0.0-beta-202605152242",
+    "lanes": {
+      "M1": "opus",
+      "M2": "sol",
+      "M3": "glm",
+      "M7": "kimi"
+    }
+  },
+  "models": {
+    "glm": {
+      "name": "GLM 5.2",
+      "endpoint": "databricks-glm-5-2"
+    },
+    "kimi": {
+      "name": "Kimi K3",
+      "endpoint": "databricks-kimi-k3"
+    },
+    "opus": {
+      "name": "Opus 5",
+      "endpoint": "databricks-claude-opus-5"
+    },
+    "sol": {
+      "name": "GPT-5.6-sol",
+      "endpoint": "databricks-gpt-5-6-sol"
+    }
+  },
+  "campaign_window": {
+    "first_submitted_utc": "2026-07-30T08:53:52Z",
+    "last_submitted_utc": "2026-08-13T07:36:17Z"
+  },
+  "notes": "Kimi K3 (databricks-kimi-k3, M7) 추가 — 24 tasks × n=3, 51/72 valid"
+}

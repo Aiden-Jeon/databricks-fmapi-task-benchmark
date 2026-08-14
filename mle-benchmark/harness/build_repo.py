@@ -182,21 +182,25 @@ def top_docs(summary):
 
 ## 핵심 결론 (n=3)
 
-| | Opus 5 | GPT-5.6-sol | GLM 5.2 |
-|---|:---:|:---:|:---:|
-| **확정 승리** (of {len(TASKS)}) | **{wins['opus']}** | {wins['sol']} | {wins['glm']} |
-| 평균 1위 태스크 | 19 | 5 | 0 |
-| 유효 제출률 | 67/72 (93%) | **70/72 (97%)** | 57/72 (79%) |
-| 재현성 (중위 상대 std) | 2.90% | **1.44%** | 3.51% |
-| 청구 LLM 비용 | $122.83 | $43.84 | **$16.11** |
+| | Opus 5 | GPT-5.6-sol | GLM 5.2 | Kimi K3 |
+|---|:---:|:---:|:---:|:---:|
+| **확정 승리** (of {len(TASKS)}) | **{wins['opus']}** | {wins['sol']} | {wins['glm']} | {wins['kimi']} |
+| 평균 1위 태스크 | 19 | 5 | 0 | 0 |
+| 유효 제출률 | 67/72 (93%) | **70/72 (97%)** | 57/72 (79%) | 51/72 (71%) |
+| 재현성 (중위 상대 std) | 2.90% | **1.44%** | 3.51% | 1.94% |
+| 청구 LLM 비용 | $122.83 | $43.84 | **$16.11** | $6.16 (잠정) |
 
 - **Opus 5** — 유일하게 태스크를 확정 승리하는 모델({wins['opus']}/{len(TASKS)}), 평균으로는 19/{len(TASKS)}에서 1위.
   대가는 GPT의 ~2.8배 비용, 가장 긴 실행시간, 그리고 **셋 중 가장 낮은 재현성**.
 - **GPT-5.6-sol** — 확정 승리 0개지만 **가장 빠르고(중위 9분) 가장 안정적**. 21개 공통 태스크 중
   13개에서 가장 일관되고, 최악 셀의 편차가 9.7%(나머지 둘은 100% 초과). 벤치마크든 프로덕션이든
   **재현성 자체가 1급 속성**이라는 점에서 이쪽이 실무 기본값.
-- **GLM 5.2** — 압도적으로 저렴하지만 유효율 79%, 그리고 **반복해서 실패하는 셀이 있는 유일한 모델**
+- **GLM 5.2** — 압도적으로 저렴하지만 유효율 79%, 반복 실패 셀 3개
   (KorQuAD·MRC·KMMLU 각 2회). 제출에 성공해도 독해 태스크 점수가 0에 가깝다.
+- **Kimi K3** *(2026-08-13 추가)* — 분류·유사도 계열에서는 상위권과 겹치지만(YNAT 0.847,
+  KLUE-STS 0.945), **유효율 71%로 4모델 중 최저**에 반복 실패 셀 5개 — KLUE-NER는 3/3 실패로
+  한 번도 제출하지 못했다. 유효 런의 중위 소요시간 99분(캡 120분)으로 가장 느리며, DNF 유형은
+  전부 "시간 안에 submission.csv를 못 남김". 제출한 셀의 재현성은 1.94%로 준수하다.
 - **{n_ties}/{len(TASKS)}는 통계적 무승부** — 선두의 차이가 실행간 노이즈 안에 있어 승자를 주장하지 않는다.
   그래서 승수 합이 {len(TASKS)}가 되지 않는 것이 **정상**이다.{f" ({n_undecided}개는 선두 셀 반복 대기.)" if n_undecided else ""}
 
@@ -246,19 +250,22 @@ n=1에서 가장 근접했던 승부의 차이는 0.10~0.67%인데, 동일 재�
 ├── PROMPT.md            # 표준 킥오프 프롬프트 (모델 간 글자 그대로 동일)
 ├── opus/                # Opus 5:       submission.csv · solution/ · metrics.json
 ├── sol/                 # GPT-5.6-sol:  submission.csv · solution/ · metrics.json
-└── glm/                 # GLM 5.2:      submission.csv · solution/ · metrics.json
+├── glm/                 # GLM 5.2:      submission.csv · solution/ · metrics.json
+└── kimi/                # Kimi K3:      submission.csv · solution/ · metrics.json
 ```
 
-`opus`/`sol`/`glm`은 **비교 대상 모델**이다. 하네스는 pinned opencode 하나이고,
+`opus`/`sol`/`glm`/`kimi`는 **비교 대상 모델**이다. 하네스는 pinned opencode 하나이고,
 각 모델 디렉토리에 들어가는 `PROMPT.md`·`TASK_DESCRIPTION.md`는 **byte-identical**이다.
 
 ---
 
 ## 실전 유의점
 
-- **DNF는 대부분 능력이 아니라 툴 사용 실패다.** 216런 중 22 DNF인데, 2회 이상 실패한 셀은 3개뿐
-  (전부 GLM)이고 나머지 16개는 같은 태스크 재실행에서 성공했다. 즉 DNF는 "그 태스크를 못 한다"가
-  아니라 "일정 확률로 제출에 실패한다"로 읽어야 한다.
+- **DNF는 대부분 능력이 아니라 툴 사용/시간 예산 실패다.** 원래 3모델 216런에서 22 DNF, 2회 이상
+  실패한 셀은 3개뿐(전부 GLM)이었고 나머지는 재실행에서 성공했다. Kimi K3 추가(72런 +21 DNF)로
+  반복 실패 셀이 5개 늘었는데(NER은 3/3), Kimi의 DNF는 전부 "2시간 캡 안에 제출물을 못 남김"
+  유형이다 — 즉 DNF는 "그 태스크를 못 한다"가 아니라 "일정 확률로, 또는 시간 안에 제출에
+  실패한다"로 읽어야 한다.
 - **분산은 모델의 속성이고, 퀄리티와 반비례한다.** 최고 점수 모델이 가장 덜 재현적이다.
   출력 형식은 2차 예측변수일 뿐(구조적 파싱 6.6% vs 닫힌 라벨 1.8%) — 벤치마크 전체에서 가장
   변동이 큰 두 셀은 오히려 평범한 tabular 회귀(PUBG MAE)다.
@@ -280,12 +287,12 @@ Databricks workspace `fevm-newjeans-ontos`에서 실행. 서버리스 Jobs, 전 
 
 ## The model verdict — three profiles, not one winner
 
-| | Opus 5 | GPT-5.6-sol | GLM 5.2 |
-|---|---|---|---|
-| decided wins (of {len(TASKS)}) | **{wins['opus']}** | {wins['sol']} | {wins['glm']} |
-| profile | quality leader | efficiency frontier | budget contender |
-| reliability | 22/24 valid | **24/24 valid** | 19/24 (5 DNFs) |
-| LLM $ (v1 5-task pass) | $23.22 | $5.17 | $3.10 |
+| | Opus 5 | GPT-5.6-sol | GLM 5.2 | Kimi K3 |
+|---|---|---|---|---|
+| decided wins (of {len(TASKS)}) | **{wins['opus']}** | {wins['sol']} | {wins['glm']} | {wins['kimi']} |
+| profile | quality leader | efficiency frontier | budget contender | slow long-tail |
+| reliability (valid rate, n=3 campaign) | 93% | **97%** | 79% | 71% |
+| LLM $ (campaign) | $122.83 | $43.84 | $16.11 | $6.16 (잠정) |
 
 **{n_ties} of {len(TASKS)} tasks are statistical ties** — the leader's margin sat
 inside run-to-run noise, so no winner is claimed{f"; a further {n_undecided} are undecided (leader not yet repeated)" if n_undecided else ""}.
@@ -417,9 +424,26 @@ From `system.billing.usage` (MODEL_SERVING SKUs), workspace fevm-newjeans-ontos.
 | Opus 5 | {LIST_PRICE['opus']} | **${MODEL_LLM_TOTAL['opus']:.2f}** |
 | GPT-5.6-sol | {LIST_PRICE['sol']} | **${MODEL_LLM_TOTAL['sol']:.2f}** |
 | GLM 5.2 | {LIST_PRICE['glm']} | **${MODEL_LLM_TOTAL['glm']:.2f}** |
+| Kimi K3 | {LIST_PRICE['kimi']} | $6.16 (잠정, 아래 참조) |
 
 Plus serverless **compute** ≈ $23.29 across the 30 core runs. Whole core
 benchmark: **≈ $54.78**.
+
+## Kimi K3 캠페인 (2026-08-13~14, 추가분) — 잠정
+
+Kimi K3는 **전용 provider SKU가 없다** — pay-per-token OSS 공용 SKU
+(`ENTERPRISE_SERVERLESS_REAL_TIME_INFERENCE_*`)로 청구된다. 이 캠페인 창에서는
+같은 SKU를 쓰는 다른 M-track 모델(GLM)이 돌지 않았으므로 **시간창 + workspace
+필터로 귀속**했다 (SKU 유일성이 아니라 창의 배타성에 의존 — 동시 캠페인에서는
+성립하지 않으며, 근본 해법은 여전히 request tag).
+
+| 항목 | 값 | 비고 |
+|---|---|---|
+| LLM (Kimi K3) | **$6.16** | 캠페인 창(2026-08-13T01:00Z~), ws 7474655787271401, 2026-08-14 조회. **아직 잠정** — 빌링 최종행이 08-13 23:50이라 웨이브3 후반 미반영 |
+| 서버리스 Jobs 컴퓨트 | $56.89 | 같은 창, smoke 1 + full 72런 |
+
+73런(스모크 포함)이 전부 이 창 안이라 LLM 행은 전량 Kimi 귀속이다. 확정치가
+나오면 이 표와 README의 잠정 표기를 갱신할 것.
 
 ## The gap: per-task cost is NOT separable in v1
 
@@ -465,6 +489,13 @@ def main():
         logr = dbx("fs", "cat", f"{VOL}/{rd}/agent_stdout.log")
         log = logr.stdout if logr.returncode == 0 else ""
         dbx("fs", "cp", "-r", f"{VOL}/{rd}/solution", str(dest / "solution"), "--overwrite")
+        # GitHub rejects blobs >100MB; agent-written model/cache binaries add no
+        # review value at that size — drop them from the repo tree.
+        for big in (dest / "solution").rglob("*"):
+            if big.is_file() and big.stat().st_size > 95 * 1024 * 1024:
+                print(f"  dropping oversized artifact {big} "
+                      f"({big.stat().st_size/1e6:.0f}MB)")
+                big.unlink()
         rj = {}
         if (dest / "_result.json").exists():
             rj = json.loads((dest / "_result.json").read_text())

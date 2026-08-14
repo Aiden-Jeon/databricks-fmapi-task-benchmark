@@ -235,3 +235,75 @@ graded_utc,run_dir,lane,task,valid,metric,score,wall_seconds,timed_out,agent_exi
 2026-08-04T05:52:32Z,M3_t7_klue_sts_full_20260804_033555,M3,t7_klue_sts,True,pearson,0.864308,7209.8,True,-1,
 2026-08-04T05:52:36Z,M3_t8_beep_full_20260804_033559,M3,t8_beep,True,macro_f1,0.542351,7210.7,True,-1,
 2026-08-04T05:52:38Z,M3_t9_korquad_full_20260804_033558,M3,t9_korquad,False,,,7210.8,True,-1,submission.csv missing in artifacts
+2026-08-13T04:30:50Z,M7_t10_kornli_full_20260813_012805,M7,t10_kornli,True,accuracy_str,0.566083,4936.7,False,0,
+2026-08-13T04:30:55Z,M7_t11_korsts_full_20260813_012807,M7,t11_korsts,True,pearson,0.764074,3604.8,False,0,
+2026-08-13T04:30:57Z,M7_t12_kobest_boolq_full_20260813_012809,M7,t12_kobest_boolq,False,,,7210.4,True,-1,submission.csv missing in artifacts
+2026-08-13T04:31:01Z,M7_t13_kobest_copa_full_20260813_012809,M7,t13_kobest_copa,True,accuracy,0.587662,2812.4,False,0,
+2026-08-13T04:31:06Z,M7_t14_kobest_wic_full_20260813_012810,M7,t14_kobest_wic,True,accuracy,0.585843,6105.4,False,0,
+2026-08-13T04:31:10Z,M7_t15_kobest_hellaswag_full_20260813_012812,M7,t15_kobest_hellaswag,True,accuracy,0.514778,4961.4,False,0,
+2026-08-13T04:31:13Z,M7_t16_kobest_sentineg_full_20260813_012814,M7,t16_kobest_sentineg,False,,,7210.3,True,-1,submission.csv missing in artifacts
+2026-08-13T04:31:15Z,M7_t17_pawsx_ko_full_20260813_012814,M7,t17_pawsx_ko,False,,,6903.1,False,0,submission.csv missing in artifacts
+2026-08-13T04:31:20Z,M7_t18_klue_re_full_20260813_012817,M7,t18_klue_re,True,accuracy_str,0.636742,7210.6,True,-1,
+2026-08-13T04:31:24Z,M7_t19_klue_mrc_full_20260813_012816,M7,t19_klue_mrc,True,korquad,0.326923,2546.0,False,0,
+2026-08-13T04:31:29Z,M7_t1_pubg_full_20260813_012753,M7,t1_pubg,True,mae,0.041882,4834.2,False,0,
+2026-08-13T04:31:32Z,M7_t20_klue_ner_full_20260813_012818,M7,t20_klue_ner,False,,,2189.1,False,0,submission.csv missing in artifacts
+2026-08-13T04:31:36Z,M7_t21_kmmlu_full_20260813_012820,M7,t21_kmmlu,True,accuracy,0.3175,3012.9,False,0,
+2026-08-13T04:31:40Z,M7_t23_korfin_asc_full_20260813_012822,M7,t23_korfin_asc,True,macro_f1,0.650951,7210.3,True,-1,
+2026-08-13T04:31:42Z,M7_t24_kor_unsmile_full_20260813_012823,M7,t24_kor_unsmile,False,,,7211.3,True,-1,submission.csv missing in artifacts
+2026-08-13T04:31:44Z,M7_t25_klue_dp_full_20260813_012824,M7,t25_klue_dp,False,,,5178.4,False,0,submission.csv missing in artifacts
+2026-08-13T04:31:49Z,M7_t2_spooky_full_20260813_012756,M7,t2_spooky,True,multiclass_logloss,0.326143,7210.9,True,-1,
+2026-08-13T04:31:54Z,M7_t3_ynat_full_20260813_012757,M7,t3_ynat,True,macro_f1,0.847514,6286.9,False,0,
+2026-08-13T04:31:59Z,M7_t4_nsmc_full_20260813_012757,M7,t4_nsmc,True,accuracy,0.875229,3433.6,False,0,
+2026-08-13T04:32:03Z,M7_t5_bike_full_20260813_012800,M7,t5_bike,True,rmse,573.258349,6734.7,False,0,
+2026-08-13T04:32:08Z,M7_t6_klue_nli_full_20260813_012800,M7,t6_klue_nli,True,accuracy_str,0.7038,3957.0,False,0,
+2026-08-13T04:32:12Z,M7_t7_klue_sts_full_20260813_012802,M7,t7_klue_sts,True,pearson,0.945092,2884.6,False,0,
+2026-08-13T04:32:17Z,M7_t8_beep_full_20260813_012801,M7,t8_beep,True,macro_f1,0.568221,5266.8,False,0,
+2026-08-13T04:32:22Z,M7_t9_korquad_full_20260813_012803,M7,t9_korquad,True,korquad,0.302378,3962.2,False,0,
+2026-08-13T07:33:24Z,M7_t10_kornli_full_20260813_043025,M7,t10_kornli,False,,,2493.2,False,0,submission.csv missing in artifacts
+2026-08-13T07:33:29Z,M7_t11_korsts_full_20260813_043024,M7,t11_korsts,True,pearson,0.754993,5879.0,False,0,
+2026-08-13T07:33:34Z,M7_t12_kobest_boolq_full_20260813_043026,M7,t12_kobest_boolq,True,accuracy,0.530696,7209.8,True,-1,
+2026-08-13T07:33:39Z,M7_t13_kobest_copa_full_20260813_043028,M7,t13_kobest_copa,True,accuracy,0.592532,5292.8,False,0,
+2026-08-13T07:33:44Z,M7_t14_kobest_wic_full_20260813_043350,M7,t14_kobest_wic,True,accuracy,0.451807,7209.9,True,-1,
+2026-08-13T07:33:49Z,M7_t15_kobest_hellaswag_full_20260813_043411,M7,t15_kobest_hellaswag,True,accuracy,0.534483,7209.9,True,-1,
+2026-08-13T07:33:53Z,M7_t16_kobest_sentineg_full_20260813_043413,M7,t16_kobest_sentineg,True,accuracy,0.954795,7210.0,True,-1,
+2026-08-13T07:33:59Z,M7_t17_pawsx_ko_full_20260813_043423,M7,t17_pawsx_ko,True,accuracy,0.752,7209.8,True,-1,
+2026-08-13T07:34:04Z,M7_t18_klue_re_full_20260813_043425,M7,t18_klue_re,True,accuracy_str,0.293656,7210.5,True,-1,
+2026-08-13T07:34:09Z,M7_t19_klue_mrc_full_20260813_043356,M7,t19_klue_mrc,True,korquad,0.327166,5869.4,False,0,
+2026-08-13T07:34:12Z,M7_t1_pubg_full_20260813_043012,M7,t1_pubg,False,,,7210.6,True,-1,submission.csv missing in artifacts
+2026-08-13T07:34:15Z,M7_t20_klue_ner_full_20260813_043317,M7,t20_klue_ner,False,,,7210.3,True,-1,submission.csv missing in artifacts
+2026-08-13T07:34:20Z,M7_t21_kmmlu_full_20260813_043419,M7,t21_kmmlu,True,accuracy,0.311667,5942.6,False,0,
+2026-08-13T07:34:25Z,M7_t23_korfin_asc_full_20260813_043411,M7,t23_korfin_asc,True,macro_f1,0.651382,7209.4,True,-1,
+2026-08-13T07:34:30Z,M7_t24_kor_unsmile_full_20260813_043422,M7,t24_kor_unsmile,True,multilabel_f1,0.649337,7210.0,True,-1,
+2026-08-13T07:34:32Z,M7_t25_klue_dp_full_20260813_043433,M7,t25_klue_dp,False,,,7044.3,False,0,submission.csv missing in artifacts
+2026-08-13T07:34:38Z,M7_t2_spooky_full_20260813_043013,M7,t2_spooky,True,multiclass_logloss,0.371231,7210.1,True,-1,
+2026-08-13T07:34:43Z,M7_t3_ynat_full_20260813_043014,M7,t3_ynat,True,macro_f1,0.846312,5539.2,False,0,
+2026-08-13T07:34:49Z,M7_t4_nsmc_full_20260813_043018,M7,t4_nsmc,True,accuracy,0.876263,4082.4,False,0,
+2026-08-13T07:34:54Z,M7_t5_bike_full_20260813_043018,M7,t5_bike,True,rmse,362.083122,4545.3,False,0,
+2026-08-13T07:34:56Z,M7_t6_klue_nli_full_20260813_043019,M7,t6_klue_nli,False,,,7209.8,True,-1,submission.csv missing in artifacts
+2026-08-13T07:35:00Z,M7_t7_klue_sts_full_20260813_043019,M7,t7_klue_sts,False,,,7209.5,True,-1,submission.csv missing in artifacts
+2026-08-13T07:35:05Z,M7_t8_beep_full_20260813_043021,M7,t8_beep,True,macro_f1,0.557257,3501.7,False,0,
+2026-08-13T07:35:08Z,M7_t9_korquad_full_20260813_043022,M7,t9_korquad,False,,,7210.0,True,-1,submission.csv missing in artifacts
+2026-08-14T01:28:36Z,M7_t10_kornli_full_20260813_073604,M7,t10_kornli,False,,,7210.8,True,-1,submission.csv missing in artifacts
+2026-08-14T01:28:42Z,M7_t11_korsts_full_20260813_073606,M7,t11_korsts,True,pearson,0.749762,7209.6,True,-1,
+2026-08-14T01:28:47Z,M7_t12_kobest_boolq_full_20260813_073607,M7,t12_kobest_boolq,True,accuracy,0.583902,7210.4,True,-1,
+2026-08-14T01:28:50Z,M7_t13_kobest_copa_full_20260813_073612,M7,t13_kobest_copa,False,,,7209.8,True,-1,submission.csv missing in artifacts
+2026-08-14T01:28:54Z,M7_t14_kobest_wic_full_20260813_073612,M7,t14_kobest_wic,True,accuracy,0.59488,2115.0,False,0,
+2026-08-14T01:28:59Z,M7_t15_kobest_hellaswag_full_20260813_073946,M7,t15_kobest_hellaswag,True,accuracy,0.642857,7210.4,True,-1,
+2026-08-14T01:29:06Z,M7_t16_kobest_sentineg_full_20260813_073937,M7,t16_kobest_sentineg,True,accuracy,0.945205,4688.9,False,0,
+2026-08-14T01:29:08Z,M7_t17_pawsx_ko_full_20260813_073938,M7,t17_pawsx_ko,False,,,7210.6,True,-1,submission.csv missing in artifacts
+2026-08-14T01:29:15Z,M7_t18_klue_re_full_20260813_073950,M7,t18_klue_re,True,accuracy_str,0.720203,7210.0,True,-1,
+2026-08-14T01:29:17Z,M7_t19_klue_mrc_full_20260813_073652,M7,t19_klue_mrc,False,,,7210.5,True,-1,submission.csv missing in artifacts
+2026-08-14T01:29:29Z,M7_t1_pubg_full_20260813_073551,M7,t1_pubg,True,mae,0.035245,7210.4,True,-1,
+2026-08-14T01:29:34Z,M7_t20_klue_ner_full_20260813_074004,M7,t20_klue_ner,False,,,7210.8,True,-1,submission.csv missing in artifacts
+2026-08-14T01:29:37Z,M7_t21_kmmlu_full_20260813_074005,M7,t21_kmmlu,False,,,7210.2,True,-1,submission.csv missing in artifacts
+2026-08-14T01:29:40Z,M7_t23_korfin_asc_full_20260813_073736,M7,t23_korfin_asc,False,,,7209.8,True,-1,submission.csv missing in artifacts
+2026-08-14T01:29:46Z,M7_t24_kor_unsmile_full_20260813_073958,M7,t24_kor_unsmile,True,multilabel_f1,0.701011,7172.0,False,0,
+2026-08-14T01:29:52Z,M7_t25_klue_dp_full_20260813_073959,M7,t25_klue_dp,True,las,0.261502,7210.0,True,-1,
+2026-08-14T01:29:58Z,M7_t2_spooky_full_20260813_073552,M7,t2_spooky,True,multiclass_logloss,0.310655,7210.8,True,-1,
+2026-08-14T01:30:04Z,M7_t3_ynat_full_20260813_073553,M7,t3_ynat,True,macro_f1,0.833151,1431.9,False,0,
+2026-08-14T01:30:10Z,M7_t4_nsmc_full_20260813_073555,M7,t4_nsmc,True,accuracy,0.867462,1979.7,False,0,
+2026-08-14T01:30:15Z,M7_t5_bike_full_20260813_073558,M7,t5_bike,True,rmse,308.227904,7211.0,True,-1,
+2026-08-14T01:30:20Z,M7_t6_klue_nli_full_20260813_073559,M7,t6_klue_nli,True,accuracy_str,0.537,3810.8,False,0,
+2026-08-14T01:30:26Z,M7_t7_klue_sts_full_20260813_073600,M7,t7_klue_sts,True,pearson,0.919545,7186.9,False,0,
+2026-08-14T01:30:31Z,M7_t8_beep_full_20260813_073602,M7,t8_beep,True,macro_f1,0.558489,3427.6,False,0,
+2026-08-14T01:30:34Z,M7_t9_korquad_full_20260813_073603,M7,t9_korquad,False,,,7210.7,True,-1,submission.csv missing in artifacts

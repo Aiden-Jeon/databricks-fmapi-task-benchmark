@@ -1,0 +1,16 @@
+{
+  "model": "Kimi K3",
+  "endpoint": "databricks-kimi-k3",
+  "task": "klue_mrc_reading",
+  "quality": {
+    "metric": "char-F1",
+    "direction": "higher",
+    "score": 0.327166,
+    "valid_submission": true
+  },
+  "time_seconds": 5869.4,
+  "llm_cost_usd_per_run": null,
+  "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $0.00.",
+  "run_arch": "aarch64",
+  "run_id": "M7_t19_klue_mrc_full_20260813_043356"
+}

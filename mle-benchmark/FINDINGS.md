@@ -2,12 +2,12 @@
 
 ## The model verdict — three profiles, not one winner
 
-| | Opus 5 | GPT-5.6-sol | GLM 5.2 |
-|---|---|---|---|
-| decided wins (of 24) | **12** | 0 | 0 |
-| profile | quality leader | efficiency frontier | budget contender |
-| reliability | 22/24 valid | **24/24 valid** | 19/24 (5 DNFs) |
-| LLM $ (v1 5-task pass) | $23.22 | $5.17 | $3.10 |
+| | Opus 5 | GPT-5.6-sol | GLM 5.2 | Kimi K3 |
+|---|---|---|---|---|
+| decided wins (of 24) | **12** | 0 | 0 | 0 |
+| profile | quality leader | efficiency frontier | budget contender | slow long-tail |
+| reliability (valid rate, n=3 campaign) | 93% | **97%** | 79% | 71% |
+| LLM $ (campaign) | $122.83 | $43.84 | $16.11 | $6.16 (잠정) |
 
 **12 of 24 tasks are statistical ties** — the leader's margin sat
 inside run-to-run noise, so no winner is claimed.

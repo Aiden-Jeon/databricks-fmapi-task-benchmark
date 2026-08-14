@@ -1,0 +1,16 @@
+{
+  "model": "Kimi K3",
+  "endpoint": "databricks-kimi-k3",
+  "task": "kor_unsmile_multilabel_hate",
+  "quality": {
+    "metric": "macro-F1 (multi-label)",
+    "direction": "higher",
+    "score": 0.701011,
+    "valid_submission": true
+  },
+  "time_seconds": 7172.0,
+  "llm_cost_usd_per_run": null,
+  "cost_note": "per-run LLM $ not separable in v1 (concurrent runs; OpenAI-compat route logs no tokens). See COST.md. Model total across all runs: $0.00.",
+  "run_arch": "aarch64",
+  "run_id": "M7_t24_kor_unsmile_full_20260813_073958"
+}
