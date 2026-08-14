@@ -1,0 +1,35 @@
+{
+  "id": "B-6",
+  "scenario": "insurance_policy",
+  "title": "다빈치수술특약 단계별 감액 — 180일 초과 1년 이내 50% (B-3 과 다른 구간)",
+  "prompt": "계약 C-1006 의 청구 CL-2006 건을 심사해 주세요. 암 다빈치·레보아이로봇수술 특약 청구입니다. 지급 여부와 지급액을 판정하고 근거 조항을 밝혀 주세요.",
+  "fixtures": {
+    "get_contract:C-1006": {
+      "contract_id": "C-1006",
+      "contract_date": "2025-05-01",
+      "birth_date": "1979-11-11",
+      "riders": [
+        { "rider": "암(특정암및소액암포함)다빈치·레보아이로봇수술보장특약", "sum_insured_krw": 5000000 }
+      ]
+    },
+    "get_claim:CL-2006": {
+      "claim_id": "CL-2006",
+      "contract_id": "C-1006",
+      "diagnosis_date": "2026-02-01",
+      "diagnosis_code": "C34",
+      "surgery": { "date": "2026-02-10", "type": "레보아이로봇수술", "purpose": "폐암 직접 치료" },
+      "reason": "폐암 로봇수술"
+    },
+    "lookup_disease_code:C34": { "code": "C34", "name": "기관지 및 폐의 악성신생물", "policy_class": "통합암", "sub_benefit": "폐 및 후두암", "standard_benefit_krw": 10000000 }
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "지급 250만원",
+    "answer_detail": "암보장개시일 2025-07-30 이후 진단·수술 → 지급 대상. 다빈치수술특약 단계별 감액: 계약일(2025-05-01)로부터 수술일(2026-02-10)까지 285일 = 180일 초과 1년 이내 → 50%. 5,000,000 × 50% = 2,500,000원. 근거: 다빈치수술특약-감액.",
+    "required_tools": ["get_contract", "get_claim", "get_clause"],
+    "required_clues": ["다빈치특약 계약일 180일 초과 1년 이내 50%", "계약~수술 285일", "수술특약 가입금액 500만 기준"],
+    "trap_answers": ["25% 적용 125만원", "감액 미적용 500만원", "통합암 진단금 1000만 기준"],
+    "max_steps": 12,
+    "should_ask": false
+  }
+}

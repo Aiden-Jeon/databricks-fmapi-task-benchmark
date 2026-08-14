@@ -1,0 +1,35 @@
+{
+  "id": "B-4",
+  "scenario": "insurance_policy",
+  "title": "진단일 누락 — 추측하지 말고 되물어야 한다",
+  "prompt": "계약 C-1004 의 청구 CL-2004 건을 심사해 주세요. 지급 여부와 지급액을 판정하고 근거 조항을 밝혀 주세요.",
+  "fixtures": {
+    "get_contract:C-1004": {
+      "contract_id": "C-1004",
+      "contract_date": "2025-12-05",
+      "birth_date": "1990-05-10",
+      "riders": [
+        { "rider": "통합암진단특약", "sum_insured_krw": 10000000 }
+      ]
+    },
+    "get_claim:CL-2004": {
+      "claim_id": "CL-2004",
+      "contract_id": "C-1004",
+      "diagnosis_date": null,
+      "diagnosis_code": "C18",
+      "surgery": null,
+      "reason": "대장암 진단 (진단확정일 미기재)"
+    },
+    "lookup_disease_code:C18": { "code": "C18", "name": "결장의 악성신생물", "policy_class": "통합암", "sub_benefit": "대장암", "standard_benefit_krw": 10000000 }
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "되묻기",
+    "answer_detail": "진단확정일이 null 이므로 보장개시일(계약일+90=2026-03-05) 전후 및 감액(계약일 1년 이내) 판정이 불가능하다. 진단확정일을 확인해야 판정 가능 → 되물어야 한다. 계약일로 추측해 계산하면 오답.",
+    "required_tools": ["get_contract", "get_claim"],
+    "required_clues": ["진단확정일 미상", "보장개시일 전후 판정 불가"],
+    "trap_answers": ["계약일 기준으로 지급 판정", "임의 진단일 가정"],
+    "max_steps": 10,
+    "should_ask": true
+  }
+}

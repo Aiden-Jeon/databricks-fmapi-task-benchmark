@@ -1,0 +1,15 @@
+[project]
+name = "custom-agent-benchmark"
+version = "0.1.0"
+description = "Databricks FMAPI 기반 멀티턴 커스텀 에이전트 성능 벤치마크 (Opus 5 / GPT-Sol / GLM)"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[tool.setuptools]
+packages = ["src"]

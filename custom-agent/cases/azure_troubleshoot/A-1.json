@@ -1,0 +1,32 @@
+{
+  "id": "A-1",
+  "scenario": "azure_troubleshoot",
+  "title": "Owner 권한인데 하위 경로만 403 — management-plane vs data-plane",
+  "prompt": "Service Principal 에 storage account 의 Owner 역할을 줬는데, 클러스터에서 abfss 경로 /data/dept-a/ 를 읽으면 403 이 납니다. 루트 컨테이너 목록은 되는데 하위로 들어가면 안 됩니다. 원인과 조치를 알려주세요. cluster_id 는 clu-a1, storage account 는 stgdepta, SP 의 appId 는 sp-7f3a 입니다.",
+  "fixtures": {
+    "get_logs:clu-a1": "25/08/14 09:12:01 ERROR Executor: Operation failed: \"This request is not authorized to perform this operation using this permission.\", 403, GET, https://stgdepta.dfs.core.windows.net/data/dept-a?resource=filesystem, AuthorizationPermissionMismatch, \"This request is not authorized to perform this operation using this permission.\"",
+    "get_azure_resource:role_assignments:sp-7f3a": {
+      "principal": "sp-7f3a",
+      "assignments": [
+        { "role": "Owner", "scope": "/subscriptions/xxx/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stgdepta" }
+      ],
+      "note": "data-plane 역할(Storage Blob Data *) 없음"
+    },
+    "get_azure_resource:storage_account:stgdepta": {
+      "name": "stgdepta",
+      "isHnsEnabled": true,
+      "firewall": "AllNetworks"
+    },
+    "get_doc:adls_access_control": "Azure RBAC 역할은 management-plane(리소스 관리: Owner, Contributor)과 data-plane(데이터 접근: Storage Blob Data Owner/Contributor/Reader)으로 나뉜다. Owner 등 management-plane 역할은 blob/ADLS 데이터에 대한 접근 권한을 부여하지 않는다. HNS(계층 네임스페이스)가 활성화된 계정에서 data-plane RBAC 가 없으면 POSIX ACL 로 평가되며, 해당 경로의 ACL 에 주체가 없으면 AuthorizationPermissionMismatch(403)가 발생한다."
+  },
+  "fault": null,
+  "expect": {
+    "answer_key": "missing_data_plane_rbac",
+    "answer_detail": "SP 에 management-plane 역할(Owner)만 있고 data-plane RBAC(Storage Blob Data Contributor 등)이 없다. HNS 계정이라 data-plane 역할 부재 시 POSIX ACL 로 평가되는데, 루트에는 traverse/read ACL 이 있어 목록은 되고 하위 경로엔 ACL 이 없어 403 이 난다. 조치: Storage Blob Data Contributor 역할을 storage account 또는 container 스코프로 SP 에 할당.",
+    "required_tools": ["get_logs", "get_azure_resource"],
+    "required_clues": ["Owner 는 management-plane 역할", "data-plane RBAC 없음", "Storage Blob Data Contributor 필요"],
+    "trap_answers": ["Owner 를 subscription 스코프로 상향", "SAS 토큰으로 교체", "container 재생성", "SP 재발급"],
+    "max_steps": 8,
+    "should_ask": false
+  }
+}

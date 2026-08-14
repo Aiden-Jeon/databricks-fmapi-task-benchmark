@@ -1,0 +1,28 @@
+{
+  "_note": "correct = accept 정규식이 최종답에 모두 존재(대소문자 무시). reject 는 함정에 빠졌는지 진단용(대소문자 무시). arg_check 는 도구 인자 검증이 유의미한 케이스만.",
+  "A-1": {
+    "accept": ["Storage Blob Data"],
+    "reject": ["SAS 토큰", "구독 스코프", "subscription 스코프"],
+    "arg_check": {"get_azure_resource": {"type": "role_assignments"}}
+  },
+  "A-2": {
+    "accept": ["spoke", "링크|연결"],
+    "reject": ["엔드포인트\\s*재생성|Endpoint\\s*재생성", "커스텀 DNS"]
+  },
+  "A-3": {
+    "accept": ["READ FILES"],
+    "reject": ["Storage Blob Data.{0,12}재부여", "credential.{0,12}재생성|자격.{0,12}재생성"]
+  },
+  "A-4": {
+    "accept": ["policy|정책", "node_type|allowlist|허용"],
+    "reject": ["DBR 버전", "라이브러리 설치", "용량 부족", "노트북 코드 오류"]
+  },
+  "A-5": {
+    "accept": ["init\\s*script|이닛|초기화 스크립트", "지원\\s*종료|end.?of.?life|EoL|폐지|더 이상|이관|마이그레이션|Volumes|워크스페이스 파일"],
+    "reject": ["DBFS 권한 수정|권한 문제", "경로 수정", "재업로드", "마운트 재설정"]
+  },
+  "A-6": {
+    "accept": ["(DBFS|마운트).{0,24}(비활성|disabled|차단|폐지|막)|의도된 (정책|설정)", "Volumes|external location|/Volumes|abfss"],
+    "reject": ["자격 증명 갱신|credential.{0,6}갱신", "DBFS.{0,6}재활성", "마운트 재생성", "키 재발급"]
+  }
+}
